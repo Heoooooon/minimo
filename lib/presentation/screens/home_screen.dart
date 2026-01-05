@@ -190,129 +190,115 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
 
-        // 어항 등록 후에만 표시되는 섹션들
-        if (_hasAquarium) ...[
-          // 나의 어항 섹션
-          SliverToBoxAdapter(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 24),
-                SectionHeader(
-                  title: '나의 어항',
-                  onMoreTap: () {
-                    // TODO: 어항 목록 화면
-                  },
+        // 콘텐츠 영역 (둥근 모서리 배경)
+        SliverToBoxAdapter(
+          child: Transform.translate(
+            offset: const Offset(0, -24),
+            child: Container(
+              decoration: const BoxDecoration(
+                color: AppColors.backgroundApp,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(32),
+                  topRight: Radius.circular(32),
                 ),
-                const SizedBox(height: 4),
-                AquariumCardList(
-                  aquariums: _aquariums,
-                  onAquariumTap: (aquarium) {
-                    // TODO: 어항 상세 화면
-                  },
-                ),
-              ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 24),
+
+                  // 어항 등록 후에만 표시되는 섹션들
+                  if (_hasAquarium) ...[
+                    // 나의 어항 섹션
+                    SectionHeader(
+                      title: '나의 어항',
+                      onMoreTap: () {
+                        // TODO: 어항 목록 화면
+                      },
+                    ),
+                    const SizedBox(height: 4),
+                    AquariumCardList(
+                      aquariums: _aquariums,
+                      onAquariumTap: (aquarium) {
+                        // TODO: 어항 상세 화면
+                      },
+                    ),
+                    const SizedBox(height: 24),
+
+                    // 오늘 일정 섹션
+                    SectionHeader(
+                      title: '오늘 일정 (${DateTime.now().day}일 ${_getWeekday()})',
+                      onMoreTap: () {
+                        // TODO: 일정 목록 화면
+                      },
+                    ),
+                    const SizedBox(height: 4),
+                    ScheduleList(
+                      schedules: _schedules,
+                      onCheckChanged: _toggleSchedule,
+                      onItemTap: (schedule) {
+                        // TODO: 일정 상세
+                      },
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+
+                  // 추천 콘텐츠 섹션
+                  SectionHeader(
+                    title: '추천 콘텐츠',
+                    onMoreTap: () {
+                      // TODO: 콘텐츠 목록 화면
+                    },
+                  ),
+                  const SizedBox(height: 4),
+                  CommunityCardList(
+                    items: _communityItems,
+                    onItemTap: (item) {
+                      // TODO: 콘텐츠 상세 화면
+                    },
+                  ),
+                  const SizedBox(height: 24),
+
+                  // 답변 대기 섹션
+                  SectionHeader(
+                    title: '답변 대기',
+                    onMoreTap: () {
+                      // TODO: Q&A 목록 화면
+                    },
+                  ),
+                  const SizedBox(height: 4),
+                  QnACard(
+                    data: _qnaItem,
+                    onTap: () {
+                      // TODO: Q&A 상세 화면
+                    },
+                    onCuriousTap: () {
+                      // TODO: 궁금해요 토글
+                    },
+                    onAnswerTap: () {
+                      Navigator.pushNamed(context, '/community-question');
+                    },
+                  ),
+                  const SizedBox(height: 24),
+
+                  // 사육 꿀팁 섹션
+                  SectionHeader(
+                    title: '사육 꿀팁',
+                    onMoreTap: () {
+                      // TODO: 꿀팁 목록 화면
+                    },
+                  ),
+                  const SizedBox(height: 4),
+                  TipList(
+                    tips: _tips,
+                    onTipTap: (tip) {
+                      // TODO: 꿀팁 상세 화면
+                    },
+                  ),
+                  const SizedBox(height: 100), // FAB 여백
+                ],
+              ),
             ),
-          ),
-
-          // 오늘 일정 섹션
-          SliverToBoxAdapter(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 24),
-                SectionHeader(
-                  title: '오늘 일정 (${DateTime.now().day}일 ${_getWeekday()})',
-                  onMoreTap: () {
-                    // TODO: 일정 목록 화면
-                  },
-                ),
-                const SizedBox(height: 4),
-                ScheduleList(
-                  schedules: _schedules,
-                  onCheckChanged: _toggleSchedule,
-                  onItemTap: (schedule) {
-                    // TODO: 일정 상세
-                  },
-                ),
-              ],
-            ),
-          ),
-        ],
-
-        // 추천 콘텐츠 섹션
-        SliverToBoxAdapter(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 24),
-              SectionHeader(
-                title: '추천 콘텐츠',
-                onMoreTap: () {
-                  // TODO: 콘텐츠 목록 화면
-                },
-              ),
-              const SizedBox(height: 4),
-              CommunityCardList(
-                items: _communityItems,
-                onItemTap: (item) {
-                  // TODO: 콘텐츠 상세 화면
-                },
-              ),
-            ],
-          ),
-        ),
-
-        // 답변 대기 섹션
-        SliverToBoxAdapter(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 24),
-              SectionHeader(
-                title: '답변 대기',
-                onMoreTap: () {
-                  // TODO: Q&A 목록 화면
-                },
-              ),
-              const SizedBox(height: 4),
-              QnACard(
-                data: _qnaItem,
-                onTap: () {
-                  // TODO: Q&A 상세 화면
-                },
-                onCuriousTap: () {
-                  // TODO: 궁금해요 토글
-                },
-                onAnswerTap: () {
-                  Navigator.pushNamed(context, '/community-question');
-                },
-              ),
-            ],
-          ),
-        ),
-
-        // 사육 꿀팁 섹션
-        SliverToBoxAdapter(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 24),
-              SectionHeader(
-                title: '사육 꿀팁',
-                onMoreTap: () {
-                  // TODO: 꿀팁 목록 화면
-                },
-              ),
-              const SizedBox(height: 4),
-              TipList(
-                tips: _tips,
-                onTipTap: (tip) {
-                  // TODO: 꿀팁 상세 화면
-                },
-              ),
-              const SizedBox(height: 100), // FAB 여백
-            ],
           ),
         ),
       ],
