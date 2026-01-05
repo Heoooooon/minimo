@@ -2,26 +2,33 @@ import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../widgets/common/section_header.dart';
-import '../widgets/common/bottom_nav_bar.dart';
 import '../widgets/home/aquarium_card.dart';
 import '../widgets/home/community_card.dart';
 import '../widgets/home/qna_card.dart';
 import '../widgets/home/tip_card.dart';
 
-/// 홈 화면
-///
-/// Figma 디자인 03-02 기반
-/// Stack 레이아웃으로 배경 이미지와 콘텐츠 영역 분리
-class HomeScreen extends StatefulWidget {
+/// 홈 화면 (MainShell에서 사용)
+class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  Widget build(BuildContext context) {
+    return const HomeContent();
+  }
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  NavTab _currentTab = NavTab.home;
+/// 홈 콘텐츠 위젯
+///
+/// Figma 디자인 03-02 기반
+/// Stack 레이아웃으로 배경 이미지와 콘텐츠 영역 분리
+class HomeContent extends StatefulWidget {
+  const HomeContent({super.key});
 
+  @override
+  State<HomeContent> createState() => _HomeContentState();
+}
+
+class _HomeContentState extends State<HomeContent> {
   // 샘플 데이터
   final List<AquariumData> _aquariums = const [
     AquariumData(
@@ -143,14 +150,6 @@ class _HomeScreenState extends State<HomeScreen> {
           // Layer 2: Foreground Body (Scrollable)
           _buildForegroundBody(),
         ],
-      ),
-      bottomNavigationBar: AppBottomNavBar(
-        currentTab: _currentTab,
-        onTabSelected: (tab) {
-          setState(() {
-            _currentTab = tab;
-          });
-        },
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {

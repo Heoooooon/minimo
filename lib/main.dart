@@ -3,10 +3,12 @@ import 'package:flutter/services.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_text_styles.dart';
-import 'presentation/screens/home_screen.dart';
+import 'presentation/screens/main_shell.dart';
 import 'presentation/screens/tank_register_screen.dart';
 import 'presentation/screens/record_screen.dart';
 import 'presentation/screens/community_question_screen.dart';
+import 'presentation/screens/aquarium/aquarium_list_screen.dart';
+import 'presentation/screens/aquarium/aquarium_register_screen.dart';
 import 'presentation/widgets/common/app_button.dart';
 import 'presentation/widgets/common/app_chip.dart';
 
@@ -35,11 +37,13 @@ class OomoolApp extends StatelessWidget {
       title: '우물 - 반려어 관리',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: const HomeScreen(),
+      home: const MainShell(),
       routes: {
         '/tank-register': (context) => const TankRegisterScreen(),
         '/record': (context) => const RecordScreen(),
         '/community-question': (context) => const CommunityQuestionScreen(),
+        '/aquarium': (context) => const AquariumListScreen(),
+        '/aquarium/register': (context) => const AquariumRegisterScreen(),
         '/design-system': (context) => const DesignSystemScreen(),
         '/demo': (context) => const DemoHomeScreen(),
       },
