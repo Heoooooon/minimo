@@ -4,8 +4,8 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 
 enum AquariumStatus {
-  healthy('양호', Color(0xFFE7F9F3), Color(0xFF00B386)),
-  treatment('치료중', Color(0xFFFFF2E7), Color(0xFFFF8C00)),
+  healthy('양호', Color(0xFFD7FFE9), Color(0xFF00B356)),
+  treatment('치료중', Color(0xFFFFF1E6), Color(0xFFFE8A24)),
   caution('주의', Color(0xFFFFEAE6), Color(0xFFE72A07));
 
   const AquariumStatus(this.label, this.bgColor, this.textColor);
@@ -34,57 +34,63 @@ class AquariumData {
   });
 }
 
+/// Aquarium Card Widget - Figma design 10:681
 class AquariumCard extends StatelessWidget {
   const AquariumCard({super.key, required this.data, this.onTap});
 
   final AquariumData data;
   final VoidCallback? onTap;
 
-  static const double _imageSize = 110.0;
-  static const double _imageOverlap = 55.0;
+  static const double _cardWidth = 212.0;
+  static const double _imageSize = 94.0;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: SizedBox(
-        width: 160,
+        width: _cardWidth,
         child: Stack(
           clipBehavior: Clip.none,
           children: [
+            // Card Body
             Container(
-              margin: const EdgeInsets.only(top: _imageOverlap),
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
+              margin: const EdgeInsets.only(top: 32),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.backgroundSurface,
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 20,
-                    offset: const Offset(0, 4),
+                    blurRadius: 12,
+                    offset: const Offset(0, 3),
                   ),
                 ],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Space for overlapping image + fish count
+                  // Fish count (top right)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [_buildFishCount()],
                   ),
-                  SizedBox(height: _imageSize - _imageOverlap - 8),
+
+                  // Space for overlapping image
+                  const SizedBox(height: 34),
+
+                  // Name + Status + Stats
                   _buildContent(),
                 ],
               ),
             ),
-            // Centered image
+
+            // Overlapping circular image
             Positioned(
               top: 0,
-              left: 0,
-              right: 0,
-              child: Center(child: _buildImage()),
+              left: 16,
+              child: _buildImage(),
             ),
           ],
         ),
@@ -98,44 +104,69 @@ class AquariumCard extends StatelessWidget {
       height: _imageSize,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: AppColors.border,
-        border: Border.all(color: AppColors.borderLight, width: 2),
-        boxShadow: const [
+        color: AppColors.backgroundApp,
+        boxShadow: [
           BoxShadow(
-            color: AppColors.shadow,
-            blurRadius: 12,
-            offset: Offset(0, 3),
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: data.imageUrl != null
-          ? ClipOval(
-              child: Image.network(
+      child: ClipOval(
+        child: data.imageUrl != null
+            ? Image.network(
                 data.imageUrl!,
                 fit: BoxFit.cover,
                 width: _imageSize,
                 height: _imageSize,
                 errorBuilder: (_, __, ___) => _buildPlaceholderIcon(),
-              ),
-            )
-          : _buildPlaceholderIcon(),
+              )
+            : _buildPlaceholderIcon(),
+      ),
     );
   }
 
   Widget _buildPlaceholderIcon() {
-    return const Icon(Icons.water, size: 40, color: AppColors.brand);
+    return Container(
+      color: const Color(0xFFEDF8FF),
+      child: Center(
+        child: Image.asset(
+          'assets/images/aquarium_placeholder.png',
+          width: _imageSize,
+          height: _imageSize,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => const Icon(
+            Icons.water,
+            size: 40,
+            color: AppColors.brand,
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildFishCount() {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SvgPicture.asset('assets/icons/icon_fish.svg', width: 18, height: 10),
+        SvgPicture.asset(
+          'assets/icons/icon_fish.svg',
+          width: 20,
+          height: 20,
+          colorFilter: ColorFilter.mode(
+            AppColors.textSubtle,
+            BlendMode.srcIn,
+          ),
+        ),
         const SizedBox(width: 4),
         Text(
-          '${data.fishCount}',
+          data.fishCount.toString().padLeft(2, '0'),
           style: AppTextStyles.captionMedium.copyWith(
             color: AppColors.textSubtle,
+            fontSize: 12,
+            height: 18 / 12,
+            letterSpacing: -0.25,
           ),
         ),
       ],
@@ -144,32 +175,27 @@ class AquariumCard extends StatelessWidget {
 
   Widget _buildContent() {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Name + Status Tag
+        // Name + Status Tag Row
         Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
           children: [
-            Flexible(
-              child: Text(
-                data.name,
-                style: AppTextStyles.bodyMediumMedium.copyWith(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 15,
-                  height: 1.3,
-                  letterSpacing: -0.3,
-                  color: const Color(0xFF212529),
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+            Text(
+              data.name,
+              style: AppTextStyles.bodyMediumMedium.copyWith(
+                color: AppColors.textMain,
+                fontSize: 16,
+                height: 24 / 16,
+                letterSpacing: -0.5,
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
             _buildStatusTag(),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
+
+        // Stats Row
         _buildStats(),
       ],
     );
@@ -184,13 +210,10 @@ class AquariumCard extends StatelessWidget {
       ),
       child: Text(
         data.status.label,
-        textAlign: TextAlign.center,
-        style: TextStyle(
+        style: AppTextStyles.captionMedium.copyWith(
           color: data.status.textColor,
           fontSize: 12,
-          fontFamily: 'Wanted Sans',
-          fontWeight: FontWeight.w500,
-          height: 1.5,
+          height: 18 / 12,
           letterSpacing: -0.25,
         ),
       ),
@@ -198,38 +221,58 @@ class AquariumCard extends StatelessWidget {
   }
 
   Widget _buildStats() {
-    final statsStyle = AppTextStyles.captionRegular.copyWith(
-      color: AppColors.textSubtle,
-      fontSize: 12,
-    );
-
     return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      mainAxisSize: MainAxisSize.min,
       children: [
         if (data.temperature != null) ...[
           Text(
-            '수온 ${data.temperature!.toStringAsFixed(0)}°',
-            style: statsStyle,
+            '수온',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSubtle,
+              fontSize: 14,
+              height: 20 / 14,
+              letterSpacing: -0.25,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '${data.temperature!.toStringAsFixed(0)}˚C',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textMain,
+              fontSize: 14,
+              height: 20 / 14,
+              letterSpacing: -0.25,
+            ),
           ),
         ],
         if (data.temperature != null && data.ph != null)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6),
-            child: Container(
-              width: 1,
-              height: 10,
-              color: AppColors.borderLight,
+          const SizedBox(width: 16),
+        if (data.ph != null) ...[
+          Text(
+            'pH',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textSubtle,
+              fontSize: 14,
+              height: 20 / 14,
+              letterSpacing: -0.25,
             ),
           ),
-        if (data.ph != null) ...[
-          Text('pH ${data.ph!.toStringAsFixed(1)}', style: statsStyle),
+          const SizedBox(width: 8),
+          Text(
+            data.ph!.toStringAsFixed(1),
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textMain,
+              fontSize: 14,
+              height: 20 / 14,
+              letterSpacing: -0.25,
+            ),
+          ),
         ],
       ],
     );
   }
 }
 
+/// Horizontal scrollable list of Aquarium Cards
 class AquariumCardList extends StatelessWidget {
   const AquariumCardList({
     super.key,
@@ -243,10 +286,10 @@ class AquariumCardList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 220,
+      height: 180,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(20, 56, 20, 8),
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
         clipBehavior: Clip.none,
         itemCount: aquariums.length,
         separatorBuilder: (_, __) => const SizedBox(width: 12),

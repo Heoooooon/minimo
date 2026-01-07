@@ -7,6 +7,7 @@ class CommunityData {
   final String id;
   final String authorName;
   final String? authorImageUrl;
+  final String timeAgo;
   final String content;
   final String? imageUrl;
   final int likeCount;
@@ -19,6 +20,7 @@ class CommunityData {
     required this.id,
     required this.authorName,
     this.authorImageUrl,
+    this.timeAgo = '00시간 전',
     required this.content,
     this.imageUrl,
     this.likeCount = 0,
@@ -29,7 +31,7 @@ class CommunityData {
   });
 }
 
-/// 커뮤니티 카드 위젯
+/// 커뮤니티 카드 위젯 - Figma design 10:690
 ///
 /// 추천 콘텐츠 섹션에서 가로 스크롤로 표시되는 카드
 class CommunityCard extends StatelessWidget {
@@ -40,6 +42,7 @@ class CommunityCard extends StatelessWidget {
     this.onLikeTap,
     this.onCommentTap,
     this.onBookmarkTap,
+    this.isActive = true,
   });
 
   final CommunityData data;
@@ -47,45 +50,51 @@ class CommunityCard extends StatelessWidget {
   final VoidCallback? onLikeTap;
   final VoidCallback? onCommentTap;
   final VoidCallback? onBookmarkTap;
+  final bool isActive;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        width: 280,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.backgroundSurface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.borderLight),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 작성자 프로필
-            _buildAuthorProfile(),
-            const SizedBox(height: 12),
+      child: Opacity(
+        opacity: isActive ? 1.0 : 0.7,
+        child: Container(
+          width: 311,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFDFDFF),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 12,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Author Profile Row
+              _buildAuthorProfile(),
+              const SizedBox(height: 13),
 
-            // 콘텐츠 본문
-            Text(
-              data.content,
-              style: AppTextStyles.bodySmall,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const Spacer(),
+              // Content Text
+              _buildContentText(),
 
-            // 인터랙션 버튼들
-            _buildInteractionBar(),
-          ],
+              // Optional Image
+              if (data.imageUrl != null) ...[
+                const SizedBox(height: 13),
+                _buildImage(),
+              ],
+
+              const SizedBox(height: 4),
+
+              // Interaction Bar
+              _buildInteractionBar(),
+            ],
+          ),
         ),
       ),
     );
@@ -94,13 +103,13 @@ class CommunityCard extends StatelessWidget {
   Widget _buildAuthorProfile() {
     return Row(
       children: [
-        // 프로필 이미지
+        // Profile Image
         Container(
-          width: 36,
-          height: 36,
+          width: 32,
+          height: 32,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: AppColors.chipPrimaryBg,
+            color: const Color(0xFFE8EBF0),
           ),
           child: data.authorImageUrl != null
               ? ClipOval(
@@ -112,75 +121,166 @@ class CommunityCard extends StatelessWidget {
                 )
               : _buildPlaceholderAvatar(),
         ),
-        const SizedBox(width: 10),
-        // 작성자 이름
-        Text(
-          data.authorName,
-          style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w500),
+        const SizedBox(width: 13),
+
+        // Author Info
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              data.authorName,
+              style: AppTextStyles.bodyMediumMedium.copyWith(
+                color: AppColors.textSubtle,
+                fontSize: 16,
+                height: 24 / 16,
+                letterSpacing: -0.5,
+              ),
+            ),
+            Text(
+              data.timeAgo,
+              style: AppTextStyles.captionRegular.copyWith(
+                color: AppColors.textHint,
+                fontSize: 12,
+                height: 18 / 12,
+                letterSpacing: -0.25,
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
 
   Widget _buildPlaceholderAvatar() {
-    return const Icon(Icons.person, size: 20, color: AppColors.brand);
+    return const Center(
+      child: Icon(Icons.person, size: 18, color: AppColors.textHint),
+    );
+  }
+
+  Widget _buildContentText() {
+    // Check if content has "더보기" link
+    final hasMoreLink = data.content.contains('더보기');
+
+    if (hasMoreLink) {
+      final parts = data.content.split('더보기');
+      return RichText(
+        text: TextSpan(
+          style: AppTextStyles.bodyMedium.copyWith(
+            color: AppColors.textMain,
+            fontSize: 16,
+            height: 24 / 16,
+            letterSpacing: -0.5,
+          ),
+          children: [
+            TextSpan(text: parts[0]),
+            TextSpan(
+              text: '더보기',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textHint,
+                fontSize: 14,
+                height: 20 / 14,
+                letterSpacing: -0.25,
+                decoration: TextDecoration.underline,
+              ),
+            ),
+          ],
+        ),
+        maxLines: 8,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+
+    return Text(
+      data.content,
+      style: AppTextStyles.bodyMedium.copyWith(
+        color: AppColors.textMain,
+        fontSize: 16,
+        height: 24 / 16,
+        letterSpacing: -0.5,
+      ),
+      maxLines: 8,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+
+  Widget _buildImage() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Image.network(
+        data.imageUrl!,
+        height: 164,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Container(
+          height: 164,
+          color: AppColors.backgroundApp,
+          child: const Center(
+            child: Icon(Icons.image, size: 40, color: AppColors.textHint),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildInteractionBar() {
     return Row(
       children: [
-        // 좋아요
-        _buildInteractionButton(
-          icon: data.isLiked ? Icons.favorite : Icons.favorite_border,
+        // Like Box
+        _buildInteractionItem(
+          icon: Icons.favorite_border,
           count: data.likeCount,
-          isActive: data.isLiked,
           onTap: onLikeTap,
         ),
-        const SizedBox(width: 16),
-        // 댓글
-        _buildInteractionButton(
+
+        // Comment Box
+        _buildInteractionItem(
           icon: Icons.chat_bubble_outline,
           count: data.commentCount,
           onTap: onCommentTap,
         ),
+
         const Spacer(),
-        // 북마크
-        GestureDetector(
+
+        // Bookmark Box
+        _buildInteractionItem(
+          icon: Icons.bookmark_border,
+          count: data.bookmarkCount,
           onTap: onBookmarkTap,
-          child: Icon(
-            data.isBookmarked ? Icons.bookmark : Icons.bookmark_border,
-            size: 20,
-            color: data.isBookmarked ? AppColors.brand : AppColors.textSubtle,
-          ),
         ),
       ],
     );
   }
 
-  Widget _buildInteractionButton({
+  Widget _buildInteractionItem({
     required IconData icon,
     required int count,
-    bool isActive = false,
     VoidCallback? onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 18,
-            color: isActive ? AppColors.error : AppColors.textSubtle,
-          ),
-          const SizedBox(width: 4),
-          Text(
-            count.toString(),
-            style: AppTextStyles.captionRegular.copyWith(
+      child: Container(
+        height: 40,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
               color: AppColors.textSubtle,
             ),
-          ),
-        ],
+            const SizedBox(width: 8),
+            Text(
+              count.toString(),
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textSubtle,
+                fontSize: 16,
+                height: 24 / 16,
+                letterSpacing: -0.5,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -196,10 +296,10 @@ class CommunityCardList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 180,
+      height: 340,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: items.length,
         separatorBuilder: (_, __) => const SizedBox(width: 12),
         itemBuilder: (context, index) {
