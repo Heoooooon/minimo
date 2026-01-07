@@ -145,15 +145,71 @@ class _HomeContentState extends State<HomeContent> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.backgroundApp,
-      body: Stack(
-        children: [
-          // Layer 1: Background Header
-          _buildBackgroundHeader(),
+      backgroundColor: const Color(0xFF001F54),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // Header Section (gradient background)
+            _buildHeader(),
 
-          // Layer 2: Content Body
-          _buildContentBody(),
-        ],
+            // White Content Container (rounded top corners)
+            Container(
+              width: double.infinity,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 24),
+
+                  // Timeline Section
+                  _buildTimelineSection(),
+
+                  const SizedBox(height: 32),
+
+                  // My Aquarium Section (only show if has aquariums)
+                  if (_hasAquariums) ...[
+                    _buildSectionHeader('나의 어항'),
+                    const SizedBox(height: 12),
+                    AquariumCardList(
+                      aquariums: _aquariums,
+                      onAquariumTap: (aquarium) {},
+                    ),
+                    const SizedBox(height: 40),
+                  ],
+
+                  // Recommended Content Section
+                  _buildSectionHeader('추천 콘텐츠'),
+                  const SizedBox(height: 12),
+                  _buildContentCarousel(),
+                  const SizedBox(height: 40),
+
+                  // Q&A Section
+                  _buildSectionHeader('답변을 기다리고 있어요'),
+                  const SizedBox(height: 12),
+                  QnACard(
+                    data: _qnaItem,
+                    onTap: () {},
+                    onCuriousTap: () {},
+                    onAnswerTap: () {
+                      Navigator.pushNamed(context, '/community-question');
+                    },
+                  ),
+                  const SizedBox(height: 40),
+
+                  // Tips Section
+                  _buildSectionHeader('오늘의 사육 꿀팁'),
+                  const SizedBox(height: 12),
+                  TipList(tips: _tips, onTipTap: (tip) {}),
+
+                  const SizedBox(height: 100),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
       floatingActionButton: _buildFAB(),
     );
@@ -182,10 +238,9 @@ class _HomeContentState extends State<HomeContent> {
     );
   }
 
-  /// Layer 1: 배경 헤더 (상단 ~25%)
-  Widget _buildBackgroundHeader() {
+  /// Header Section with gradient background
+  Widget _buildHeader() {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.32,
       width: double.infinity,
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -211,7 +266,7 @@ class _HomeContentState extends State<HomeContent> {
           SafeArea(
             bottom: false,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -399,85 +454,6 @@ class _HomeContentState extends State<HomeContent> {
     );
   }
 
-  /// Layer 2: Content Body (White container with rounded top corners)
-  Widget _buildContentBody() {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.72,
-      minChildSize: 0.72,
-      maxChildSize: 0.92,
-      builder: (context, scrollController) {
-        return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-          ),
-          child: SingleChildScrollView(
-            controller: scrollController,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Drag Handle
-                Center(
-                  child: Container(
-                    margin: const EdgeInsets.only(top: 12, bottom: 20),
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE0E0E0),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-
-                // Timeline Section
-                _buildTimelineSection(),
-
-                const SizedBox(height: 32),
-
-                // My Aquarium Section (only show if has aquariums)
-                if (_hasAquariums) ...[
-                  _buildSectionHeader('나의 어항'),
-                  const SizedBox(height: 12),
-                  AquariumCardList(
-                    aquariums: _aquariums,
-                    onAquariumTap: (aquarium) {},
-                  ),
-                  const SizedBox(height: 40),
-                ],
-
-                // Recommended Content Section
-                _buildSectionHeader('추천 콘텐츠'),
-                const SizedBox(height: 12),
-                _buildContentCarousel(),
-                const SizedBox(height: 40),
-
-                // Q&A Section
-                _buildSectionHeader('답변을 기다리고 있어요'),
-                const SizedBox(height: 12),
-                QnACard(
-                  data: _qnaItem,
-                  onTap: () {},
-                  onCuriousTap: () {},
-                  onAnswerTap: () {
-                    Navigator.pushNamed(context, '/community-question');
-                  },
-                ),
-                const SizedBox(height: 40),
-
-                // Tips Section
-                _buildSectionHeader('오늘의 사육 꿀팁'),
-                const SizedBox(height: 12),
-                TipList(tips: _tips, onTipTap: (tip) {}),
-
-                const SizedBox(height: 100),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   /// Section Header with "더보기 >" link
   Widget _buildSectionHeader(String title) {
     return Padding(
@@ -577,133 +553,127 @@ class _HomeContentState extends State<HomeContent> {
     );
   }
 
-  /// Timeline Item
+  /// Timeline Item - Figma layout: Checkbox | Circle | Task Content | Time
   Widget _buildTimelineItem(ScheduleData item, bool isLast) {
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Time Column
-          SizedBox(
-            width: 60,
-            child: Text(
-              item.time,
-              style: AppTextStyles.captionMedium.copyWith(
-                color: const Color(0xFF999999),
-              ),
-            ),
-          ),
-
-          // Timeline Indicator
-          SizedBox(
-            width: 24,
-            child: Column(
-              children: [
-                // Circle
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
+    return Padding(
+      padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Checkbox (Left)
+            GestureDetector(
+              onTap: () => _toggleTimeline(item.id, !item.isCompleted),
+              child: Container(
+                width: 24,
+                height: 24,
+                margin: const EdgeInsets.only(top: 12),
+                decoration: BoxDecoration(
+                  color: item.isCompleted
+                      ? const Color(0xFF0066FF)
+                      : Colors.white,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
                     color: item.isCompleted
                         ? const Color(0xFF0066FF)
-                        : Colors.white,
-                    border: Border.all(
-                      color: item.isCompleted
-                          ? const Color(0xFF0066FF)
-                          : const Color(0xFFDDDDDD),
-                      width: 2,
-                    ),
+                        : const Color(0xFFDDDDDD),
+                    width: 1.5,
                   ),
                 ),
-                // Dashed Line
-                if (!isLast)
-                  Expanded(
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(vertical: 4),
-                      child: CustomPaint(
-                        painter: _DashedLinePainter(
-                          color: const Color(0xFFE0E0E0),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-
-          const SizedBox(width: 8),
-
-          // Task Card
-          Expanded(
-            child: Container(
-              margin: EdgeInsets.only(bottom: isLast ? 0 : 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFF0F0F0)),
+                child: item.isCompleted
+                    ? const Icon(Icons.check, size: 16, color: Colors.white)
+                    : null,
               ),
-              child: Row(
+            ),
+
+            const SizedBox(width: 12),
+
+            // Timeline Indicator (Circle + Dashed Line)
+            SizedBox(
+              width: 20,
+              child: Column(
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item.title,
-                          style: AppTextStyles.bodyMediumMedium.copyWith(
-                            decoration: item.isCompleted
-                                ? TextDecoration.lineThrough
-                                : null,
-                            color: item.isCompleted
-                                ? const Color(0xFF999999)
-                                : const Color(0xFF1A1A1A),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          item.aquariumName,
-                          style: AppTextStyles.captionRegular.copyWith(
-                            color: const Color(0xFF999999),
-                          ),
-                        ),
-                      ],
+                  const SizedBox(height: 14),
+                  // Circle
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFF0066FF).withValues(alpha: 0.3),
+                      border: Border.all(
+                        color: const Color(0xFF0066FF),
+                        width: 2,
+                      ),
                     ),
                   ),
-
-                  // Checkbox
-                  GestureDetector(
-                    onTap: () => _toggleTimeline(item.id, !item.isCompleted),
-                    child: Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: item.isCompleted
-                            ? const Color(0xFF0066FF)
-                            : Colors.white,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: item.isCompleted
-                              ? const Color(0xFF0066FF)
-                              : const Color(0xFFDDDDDD),
-                          width: 1.5,
+                  // Dashed Line
+                  if (!isLast)
+                    Expanded(
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(vertical: 4),
+                        child: CustomPaint(
+                          painter: _DashedLinePainter(
+                            color: const Color(0xFFE0E0E0),
+                          ),
                         ),
                       ),
-                      child: item.isCompleted
-                          ? const Icon(
-                              Icons.check,
-                              size: 16,
-                              color: Colors.white,
-                            )
-                          : null,
                     ),
-                  ),
                 ],
               ),
             ),
-          ),
-        ],
+
+            const SizedBox(width: 12),
+
+            // Task Card (Center)
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFF0F0F0)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.title,
+                      style: AppTextStyles.bodyMediumMedium.copyWith(
+                        decoration: item.isCompleted
+                            ? TextDecoration.lineThrough
+                            : null,
+                        color: item.isCompleted
+                            ? const Color(0xFF999999)
+                            : const Color(0xFF1A1A1A),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      item.aquariumName,
+                      style: AppTextStyles.captionRegular.copyWith(
+                        color: const Color(0xFF999999),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(width: 12),
+
+            // Time (Right)
+            Padding(
+              padding: const EdgeInsets.only(top: 14),
+              child: Text(
+                item.time,
+                style: AppTextStyles.captionMedium.copyWith(
+                  color: const Color(0xFF999999),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -829,10 +799,10 @@ class _HomeContentState extends State<HomeContent> {
                 data.commentCount,
               ),
               const Spacer(),
-              Icon(
+              const Icon(
                 Icons.bookmark_border,
                 size: 20,
-                color: const Color(0xFF999999),
+                color: Color(0xFF999999),
               ),
             ],
           ),
