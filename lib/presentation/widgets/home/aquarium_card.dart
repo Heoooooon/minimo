@@ -4,9 +4,9 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 
 enum AquariumStatus {
-  healthy('양호', AppColors.chipSuccessBg, AppColors.chipSuccessText),
-  treatment('치료중', AppColors.chipSecondaryBg, AppColors.chipSecondaryText),
-  caution('주의', AppColors.chipErrorBg, AppColors.chipErrorText);
+  healthy('양호', Color(0xFFE7F9F3), Color(0xFF00B386)),
+  treatment('치료중', Color(0xFFFFF2E7), Color(0xFFFF8C00)),
+  caution('주의', Color(0xFFFFEAE6), Color(0xFFE72A07));
 
   const AquariumStatus(this.label, this.bgColor, this.textColor);
   final String label;
@@ -148,46 +148,46 @@ class AquariumCard extends StatelessWidget {
       width: 125,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Flexible(
-              child: Text(
-                data.name,
-                style: AppTextStyles.bodyMediumMedium.copyWith(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 16,
-                  height: 1.5,
-                  letterSpacing: -0.5,
-                  color: const Color(0xFF212529),
+        children: [
+          Row(
+            children: [
+              Flexible(
+                child: Text(
+                  data.name,
+                  style: AppTextStyles.bodyMediumMedium.copyWith(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 16,
+                    height: 1.5,
+                    letterSpacing: -0.5,
+                    color: const Color(0xFF212529),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
               ),
-            ),
-            const SizedBox(width: 8),
-            _buildStatusTag(),
-          ],
-        ),
-        const SizedBox(height: 8),
-        _buildStats(),
-      ],
-    ),
-  );
+              const SizedBox(width: 8),
+              _buildStatusTag(),
+            ],
+          ),
+          const SizedBox(height: 8),
+          _buildStats(),
+        ],
+      ),
+    );
   }
 
   Widget _buildStatusTag() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFFD7FFE9),
+        color: data.status.bgColor,
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         data.status.label,
         textAlign: TextAlign.center,
         style: TextStyle(
-          color: const Color(0xFF00B356),
+          color: data.status.textColor,
           fontSize: 12,
           fontFamily: 'Wanted Sans',
           fontWeight: FontWeight.w500,
@@ -207,14 +207,8 @@ class AquariumCard extends StatelessWidget {
     return Row(
       children: [
         if (data.temperature != null) ...[
-          Text(
-            '수온 ',
-            style: statsStyle,
-          ),
-          Text(
-            '${data.temperature!.toStringAsFixed(0)}°',
-            style: statsStyle,
-          ),
+          Text('수온 ', style: statsStyle),
+          Text('${data.temperature!.toStringAsFixed(0)}°', style: statsStyle),
         ],
         if (data.temperature != null && data.ph != null)
           Padding(
@@ -226,14 +220,8 @@ class AquariumCard extends StatelessWidget {
             ),
           ),
         if (data.ph != null) ...[
-          Text(
-            'pH ',
-            style: statsStyle,
-          ),
-          Text(
-            data.ph!.toStringAsFixed(1),
-            style: statsStyle,
-          ),
+          Text('pH ', style: statsStyle),
+          Text(data.ph!.toStringAsFixed(1), style: statsStyle),
         ],
       ],
     );

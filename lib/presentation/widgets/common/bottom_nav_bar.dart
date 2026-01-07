@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
 
 /// 하단 네비게이션 탭 열거형
 enum NavTab {
@@ -72,6 +71,10 @@ class _NavItem extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
 
+  // Figma specs
+  static const Color _activeColor = Color(0xFF0066FF);
+  static const Color _inactiveColor = Color(0xFFA0A0A0);
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -85,20 +88,17 @@ class _NavItem extends StatelessWidget {
             Icon(
               isSelected ? tab.activeIcon : tab.icon,
               size: 24,
-              color: isSelected ? AppColors.brand : AppColors.textSubtle,
+              color: isSelected ? _activeColor : _inactiveColor,
             ),
             const SizedBox(height: 4),
             Text(
               tab.label,
-              style:
-                  (isSelected
-                          ? AppTextStyles.captionMedium
-                          : AppTextStyles.captionRegular)
-                      .copyWith(
-                        color: isSelected
-                            ? AppColors.brand
-                            : AppColors.textSubtle,
-                      ),
+              style: TextStyle(
+                fontFamily: 'WantedSans',
+                fontSize: 10,
+                fontWeight: isSelected ? FontWeight.w500 : FontWeight.w400,
+                color: isSelected ? _activeColor : _inactiveColor,
+              ),
             ),
           ],
         ),

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 
 /// 꿀팁 데이터 모델
@@ -23,67 +22,84 @@ class TipData {
 
 /// 꿀팁 카드 위젯
 ///
-/// 사육 꿀팁 섹션에서 표시되는 팁 카드
+/// Figma 디자인: 파스텔 배경 + 오른쪽 일러스트 스타일
 class TipCard extends StatelessWidget {
-  const TipCard({super.key, required this.data, this.onTap});
+  const TipCard({
+    super.key,
+    required this.data,
+    this.onTap,
+    this.isFirst = true,
+  });
 
   final TipData data;
   final VoidCallback? onTap;
+  final bool isFirst;
 
   @override
   Widget build(BuildContext context) {
+    // 첫 번째 카드: 연한 파란색, 두 번째 카드: 연한 분홍색
+    final bgColor = isFirst ? const Color(0xFFEDF8FF) : const Color(0xFFFFF0F0);
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 20),
-        padding: const EdgeInsets.all(16),
+        height: 100,
         decoration: BoxDecoration(
-          color: AppColors.backgroundSurface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.borderLight),
+          color: bgColor,
+          borderRadius: BorderRadius.circular(20),
         ),
-        child: Row(
+        child: Stack(
           children: [
-            // 텍스트 영역
-            Expanded(
+            // Background decorative elements (bubbles/fish)
+            Positioned(
+              right: 16,
+              top: 0,
+              bottom: 0,
+              child: _buildDecorativeElement(),
+            ),
+
+            // Content
+            Padding(
+              padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
                     data.title,
-                    style: AppTextStyles.bodyMediumMedium,
+                    style: AppTextStyles.bodyMediumMedium.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF1A1A1A),
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Text(
                     data.description,
                     style: AppTextStyles.captionRegular.copyWith(
-                      color: AppColors.textSubtle,
+                      color: const Color(0xFF666666),
                     ),
-                    maxLines: 2,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 16),
-            // 아이콘 영역
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: data.iconBgColor ?? AppColors.chipPrimaryBg,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(
-                data.icon,
-                size: 28,
-                color: data.iconColor ?? AppColors.brand,
-              ),
-            ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildDecorativeElement() {
+    return Opacity(
+      opacity: 0.3,
+      child: Icon(
+        isFirst ? Icons.water_drop : Icons.restaurant,
+        size: 60,
+        color: isFirst ? const Color(0xFF0066FF) : const Color(0xFFFF6B6B),
       ),
     );
   }
@@ -99,10 +115,16 @@ class TipList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      children: tips.map((tip) {
+      children: tips.asMap().entries.map((entry) {
+        final index = entry.key;
+        final tip = entry.value;
         return Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: TipCard(data: tip, onTap: () => onTipTap?.call(tip)),
+          padding: const EdgeInsets.only(bottom: 12),
+          child: TipCard(
+            data: tip,
+            isFirst: index == 0,
+            onTap: () => onTipTap?.call(tip),
+          ),
         );
       }).toList(),
     );

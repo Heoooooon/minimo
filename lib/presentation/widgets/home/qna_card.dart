@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
-import '../common/app_button.dart';
-import '../common/app_chip.dart';
 
 /// Q&A 데이터 모델
 class QnAData {
@@ -33,7 +30,7 @@ class QnAData {
 
 /// Q&A 카드 위젯
 ///
-/// 답변 대기 섹션에서 표시되는 질문 카드
+/// Figma 디자인: 20px radius, subtle shadow, tag chips, pill buttons
 class QnACard extends StatelessWidget {
   const QnACard({
     super.key,
@@ -54,138 +51,177 @@ class QnACard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 20),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: AppColors.backgroundSurface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.borderLight),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 작성자 프로필
-            _buildAuthorRow(),
-            const SizedBox(height: 12),
-
-            // 질문 제목
+            // Title
             Text(
               data.title,
-              style: AppTextStyles.bodyMediumMedium,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 6),
-
-            // 질문 내용 요약
-            Text(
-              data.content,
-              style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.textSubtle,
+              style: AppTextStyles.titleMedium.copyWith(
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF1A1A1A),
               ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
+            const SizedBox(height: 8),
+
+            // Content
+            Text(
+              data.content,
+              style: AppTextStyles.bodySmall.copyWith(
+                color: const Color(0xFF666666),
+                height: 1.5,
+              ),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
             const SizedBox(height: 12),
 
-            // 태그
+            // Tags
             if (data.tags.isNotEmpty) ...[
               _buildTags(),
               const SizedBox(height: 12),
             ],
 
-            // 메타 정보 & 버튼
-            _buildFooter(),
+            // Meta Info
+            Row(
+              children: [
+                Icon(
+                  Icons.visibility_outlined,
+                  size: 14,
+                  color: const Color(0xFF999999),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '조회수 ${data.viewCount}',
+                  style: AppTextStyles.captionRegular.copyWith(
+                    color: const Color(0xFF999999),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  data.timeAgo,
+                  style: AppTextStyles.captionRegular.copyWith(
+                    color: const Color(0xFF999999),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Action Buttons
+            _buildActionButtons(),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildAuthorRow() {
-    return Row(
-      children: [
-        // 프로필 이미지
-        Container(
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: AppColors.chipPrimaryBg,
-          ),
-          child: data.authorImageUrl != null
-              ? ClipOval(
-                  child: Image.network(
-                    data.authorImageUrl!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _buildPlaceholderAvatar(),
-                  ),
-                )
-              : _buildPlaceholderAvatar(),
-        ),
-        const SizedBox(width: 8),
-        // 작성자 이름
-        Text(data.authorName, style: AppTextStyles.captionMedium),
-        const Spacer(),
-        // 조회수 & 시간
-        Text(
-          '조회 ${data.viewCount} · ${data.timeAgo}',
-          style: AppTextStyles.captionRegular.copyWith(
-            color: AppColors.textHint,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPlaceholderAvatar() {
-    return const Icon(Icons.person, size: 18, color: AppColors.brand);
-  }
-
   Widget _buildTags() {
     return Wrap(
-      spacing: 6,
-      runSpacing: 6,
+      spacing: 8,
+      runSpacing: 8,
       children: data.tags.map((tag) {
-        return AppChip(label: tag, type: AppChipType.neutral);
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF0F6FF),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(
+            '#$tag',
+            style: AppTextStyles.captionMedium.copyWith(
+              color: const Color(0xFF0066FF),
+            ),
+          ),
+        );
       }).toList(),
     );
   }
 
-  Widget _buildFooter() {
+  Widget _buildActionButtons() {
     return Row(
       children: [
-        // 궁금해요 버튼
+        // 궁금해요 Button (Outlined / Pill)
         Expanded(
-          child: AppButton(
-            text: '궁금해요 ${data.curiousCount > 0 ? data.curiousCount : ''}',
-            onPressed: onCuriousTap,
-            size: AppButtonSize.small,
-            shape: AppButtonShape.square,
-            variant: data.isCurious
-                ? AppButtonVariant.contained
-                : AppButtonVariant.outlined,
-            leadingIcon: data.isCurious
-                ? Icons.favorite
-                : Icons.favorite_border,
+          child: GestureDetector(
+            onTap: onCuriousTap,
+            child: Container(
+              height: 44,
+              decoration: BoxDecoration(
+                color: data.isCurious ? const Color(0xFF0066FF) : Colors.white,
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: const Color(0xFF0066FF), width: 1),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    data.isCurious ? Icons.favorite : Icons.favorite_border,
+                    size: 18,
+                    color: data.isCurious
+                        ? Colors.white
+                        : const Color(0xFF0066FF),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '궁금해요${data.curiousCount > 0 ? ' ${data.curiousCount}' : ''}',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: data.isCurious
+                          ? Colors.white
+                          : const Color(0xFF0066FF),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
         const SizedBox(width: 8),
-        // 답변하기 버튼
+
+        // 답변하기 Button (Filled / Pill)
         Expanded(
-          child: AppButton(
-            text: '답변하기',
-            onPressed: onAnswerTap,
-            size: AppButtonSize.small,
-            shape: AppButtonShape.square,
-            variant: AppButtonVariant.contained,
-            leadingIcon: Icons.edit_outlined,
+          child: GestureDetector(
+            onTap: onAnswerTap,
+            child: Container(
+              height: 44,
+              decoration: BoxDecoration(
+                color: const Color(0xFF0066FF),
+                borderRadius: BorderRadius.circular(22),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.edit_outlined,
+                    size: 18,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '답변하기',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ],
