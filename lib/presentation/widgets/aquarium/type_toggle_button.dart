@@ -1,15 +1,9 @@
 import 'package:flutter/material.dart';
+import '../../../domain/models/aquarium_data.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 
-/// 어항 유형 열거형
-enum AquariumType {
-  freshwater('담수'),
-  saltwater('해수');
-
-  const AquariumType(this.label);
-  final String label;
-}
+export '../../../domain/models/aquarium_data.dart' show AquariumType;
 
 /// 어항 유형 토글 버튼 위젯
 ///

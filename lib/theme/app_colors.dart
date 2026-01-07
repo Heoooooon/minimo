@@ -137,4 +137,7 @@ class AppColors {
 
   /// Hover Overlay
   static const Color hoverOverlay = Color(0x0A000000);
+
+  /// Shadow Color
+  static const Color shadow = Color(0x0D000000);
 }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'data/services/pocketbase_service.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_text_styles.dart';
@@ -12,8 +14,14 @@ import 'presentation/screens/aquarium/aquarium_register_screen.dart';
 import 'presentation/widgets/common/app_button.dart';
 import 'presentation/widgets/common/app_chip.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 한국어 로케일 초기화 (table_calendar용)
+  await initializeDateFormatting('ko_KR', null);
+
+  // PocketBase 초기화
+  await PocketBaseService.instance.initialize();
 
   // 상태바 스타일 설정
   SystemChrome.setSystemUIOverlayStyle(

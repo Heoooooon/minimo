@@ -6,6 +6,8 @@ import '../widgets/home/aquarium_card.dart';
 import '../widgets/home/community_card.dart';
 import '../widgets/home/qna_card.dart';
 import '../widgets/home/tip_card.dart';
+import '../../domain/models/schedule_data.dart';
+import '../../data/repositories/schedule_repository.dart';
 
 /// 홈 화면 (MainShell에서 사용)
 class HomeScreen extends StatelessWidget {
@@ -37,6 +39,7 @@ class _HomeContentState extends State<HomeContent> {
       status: AquariumStatus.healthy,
       temperature: 27,
       ph: 7.2,
+      fishCount: 12,
     ),
     AquariumData(
       id: '2',
@@ -44,6 +47,7 @@ class _HomeContentState extends State<HomeContent> {
       status: AquariumStatus.treatment,
       temperature: 26,
       ph: 6.8,
+      fishCount: 8,
     ),
     AquariumData(
       id: '3',
@@ -51,32 +55,27 @@ class _HomeContentState extends State<HomeContent> {
       status: AquariumStatus.healthy,
       temperature: 25,
       ph: 7.0,
+      fishCount: 5,
     ),
   ];
 
-  final List<_TimelineItem> _timelineItems = [
-    _TimelineItem(
-      id: '1',
-      time: '08:00',
-      title: '호동이 먹이주기',
-      aquariumName: '호동이네',
-      isCompleted: true,
-    ),
-    _TimelineItem(
-      id: '2',
-      time: '14:00',
-      title: '러키 수질검사',
-      aquariumName: '러키네',
-      isCompleted: false,
-    ),
-    _TimelineItem(
-      id: '3',
-      time: '18:00',
-      title: '물갈이',
-      aquariumName: '러키네',
-      isCompleted: false,
-    ),
-  ];
+  final ScheduleRepository _scheduleRepository = MockScheduleRepository();
+  List<ScheduleData> _scheduleItems = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSchedule();
+  }
+
+  Future<void> _loadSchedule() async {
+    final items = await _scheduleRepository.getDailySchedule(DateTime.now());
+    if (mounted) {
+      setState(() {
+        _scheduleItems = items;
+      });
+    }
+  }
 
   final List<CommunityData> _communityItems = const [
     CommunityData(
@@ -127,15 +126,17 @@ class _HomeContentState extends State<HomeContent> {
     ),
   ];
 
-  void _toggleTimeline(String id, bool value) {
+  void _toggleTimeline(String id, bool value) async {
     setState(() {
-      final index = _timelineItems.indexWhere((item) => item.id == id);
+      final index = _scheduleItems.indexWhere((item) => item.id == id);
       if (index != -1) {
-        _timelineItems[index] = _timelineItems[index].copyWith(
+        _scheduleItems[index] = _scheduleItems[index].copyWith(
           isCompleted: value,
         );
       }
     });
+
+    await _scheduleRepository.toggleComplete(id, value);
   }
 
   @override
@@ -164,89 +165,109 @@ class _HomeContentState extends State<HomeContent> {
 
   /// Layer 1: 배경 이미지 헤더 (상단 35%)
   Widget _buildBackgroundHeader() {
-    return Container(
+    return SizedBox(
       height: MediaQuery.of(context).size.height * 0.35,
       width: double.infinity,
-      decoration: const BoxDecoration(
-        image: DecorationImage(
-          image: AssetImage('assets/images/main_background.png'),
-          fit: BoxFit.cover,
-        ),
-      ),
-      child: Container(
-        // 그라데이션 오버레이 (텍스트 가독성)
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.black.withValues(alpha: 0.3),
-              Colors.black.withValues(alpha: 0.1),
-              Colors.transparent,
-            ],
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // 1. Background Image
+          Image.asset(
+            'assets/images/main_background.png',
+            fit: BoxFit.cover,
           ),
-        ),
-        child: SafeArea(
-          bottom: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 상단 액션 바
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    GestureDetector(
-                      onTap: () {
-                        // TODO: 가이드 화면
-                      },
-                      child: Text(
-                        '가이드',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.textInverse.withValues(alpha: 0.9),
-                        ),
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        // TODO: 알림 화면
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.notifications_outlined,
-                          color: AppColors.textInverse,
-                          size: 22,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
 
-                // 메인 인사말
-                Text(
-                  '미니모 님,',
-                  style: AppTextStyles.headlineMedium.copyWith(
-                    color: AppColors.textInverse,
+          // 2. Gradient Overlay (User Request)
+          Opacity(
+            opacity: 0.70,
+            child: Container(
+              clipBehavior: Clip.antiAlias,
+              decoration: const BoxDecoration(),
+              child: Stack(
+                children: [
+                  Positioned(
+                    left: -88,
+                    top: -87,
+                    child: Container(
+                      width: 826,
+                      height: 620,
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment(0.34, 0.50),
+                          end: Alignment(1.00, 0.50),
+                          colors: [Color(0x000165FE), Color(0xFF00173C)],
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                Text(
-                  '오늘도 덕분에 잘 지내고 있어요!',
-                  style: AppTextStyles.headlineLarge.copyWith(
-                    color: AppColors.textInverse,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
+
+          // 3. Content
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 상단 액션 바
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          // TODO: 가이드 화면
+                        },
+                        child: Text(
+                          '가이드',
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.textInverse.withValues(alpha: 0.9),
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          // TODO: 알림 화면
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.notifications_outlined,
+                            color: AppColors.textInverse,
+                            size: 22,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // 메인 인사말
+                  Text(
+                    '미니모 님,',
+                    style: AppTextStyles.headlineMedium.copyWith(
+                      color: AppColors.textInverse,
+                    ),
+                  ),
+                  Text(
+                    '오늘도 덕분에 잘 지내고 있어요!',
+                    style: AppTextStyles.headlineLarge.copyWith(
+                      color: AppColors.textInverse,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -339,7 +360,7 @@ class _HomeContentState extends State<HomeContent> {
         children: [
           // 날짜 헤더
           Text(
-            '${now.day}일 ($weekday)',
+            '${now.month}월 ${now.day}일 ($weekday)',
             style: AppTextStyles.titleLarge.copyWith(
               fontWeight: FontWeight.w600,
             ),
@@ -347,19 +368,32 @@ class _HomeContentState extends State<HomeContent> {
           const SizedBox(height: 16),
 
           // 타임라인 아이템들
-          ...List.generate(_timelineItems.length, (index) {
-            final item = _timelineItems[index];
-            final isLast = index == _timelineItems.length - 1;
+          if (_scheduleItems.isEmpty)
+             Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Center(
+                child: Text(
+                  '오늘 예정된 일정이 없습니다.',
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.textSubtle,
+                  ),
+                ),
+              ),
+            )
+          else
+            ...List.generate(_scheduleItems.length, (index) {
+              final item = _scheduleItems[index];
+              final isLast = index == _scheduleItems.length - 1;
 
-            return _buildTimelineRow(item, isLast);
-          }),
+              return _buildTimelineRow(item, isLast);
+            }),
         ],
       ),
     );
   }
 
   /// 타임라인 행
-  Widget _buildTimelineRow(_TimelineItem item, bool isLast) {
+  Widget _buildTimelineRow(ScheduleData item, bool isLast) {
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -478,32 +512,7 @@ class _HomeContentState extends State<HomeContent> {
   }
 }
 
-/// 타임라인 아이템 모델
-class _TimelineItem {
-  final String id;
-  final String time;
-  final String title;
-  final String aquariumName;
-  final bool isCompleted;
 
-  _TimelineItem({
-    required this.id,
-    required this.time,
-    required this.title,
-    required this.aquariumName,
-    this.isCompleted = false,
-  });
-
-  _TimelineItem copyWith({bool? isCompleted}) {
-    return _TimelineItem(
-      id: id,
-      time: time,
-      title: title,
-      aquariumName: aquariumName,
-      isCompleted: isCompleted ?? this.isCompleted,
-    );
-  }
-}
 
 /// 점선 페인터
 class _DottedLinePainter extends CustomPainter {

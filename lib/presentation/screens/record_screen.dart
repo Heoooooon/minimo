@@ -1,23 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../domain/models/record_data.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
+import '../viewmodels/record_viewmodel.dart';
 import '../widgets/common/app_button.dart';
 import '../widgets/common/app_chip.dart';
-
-/// 기록 태그 타입
-enum RecordTag {
-  waterChange('물갈이', AppChipType.primary),
-  cleaning('청소', AppChipType.secondary),
-  feeding('먹이주기', AppChipType.success),
-  waterTest('수질검사', AppChipType.primary),
-  fishAdded('물고기 추가', AppChipType.secondary),
-  medication('치료/약품', AppChipType.error),
-  maintenance('장비 관리', AppChipType.neutral);
-
-  const RecordTag(this.label, this.chipType);
-  final String label;
-  final AppChipType chipType;
-}
 
 /// 기록하기 화면
 ///
@@ -36,12 +24,20 @@ class _RecordScreenState extends State<RecordScreen> {
   final TextEditingController _contentController = TextEditingController();
   final Set<RecordTag> _selectedTags = {};
   bool _isPublic = true;
-  bool _isLoading = false;
   DateTime _selectedDate = DateTime.now();
+
+  late RecordViewModel _viewModel;
+
+  @override
+  void initState() {
+    super.initState();
+    _viewModel = RecordViewModel();
+  }
 
   @override
   void dispose() {
     _contentController.dispose();
+    _viewModel.dispose();
     super.dispose();
   }
 
@@ -52,18 +48,15 @@ class _RecordScreenState extends State<RecordScreen> {
   Future<void> _handleSave() async {
     if (!_isFormValid) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    final success = await _viewModel.saveRecord(
+      date: _selectedDate,
+      tags: _selectedTags.toList(),
+      content: _contentController.text,
+      isPublic: _isPublic,
+      // aquariumId: TODO: 어항 선택 기능 추가 시 연동
+    );
 
-    // 시뮬레이션: 저장 API 호출
-    await Future.delayed(const Duration(seconds: 1));
-
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
-
+    if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -79,6 +72,14 @@ class _RecordScreenState extends State<RecordScreen> {
       );
 
       Navigator.of(context).pop();
+    } else if (_viewModel.errorMessage != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_viewModel.errorMessage!),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -122,65 +123,72 @@ class _RecordScreenState extends State<RecordScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('기록하기'),
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 날짜 선택
-                    _buildDateSelector(),
-                    const SizedBox(height: 24),
-
-                    // 태그 선택
-                    _buildSectionTitle('태그 선택'),
-                    const SizedBox(height: 4),
-                    Text(
-                      '어떤 활동을 했나요?',
-                      style: AppTextStyles.captionRegular.copyWith(
-                        color: AppColors.textSubtle,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildTagSelector(),
-                    const SizedBox(height: 24),
-
-                    // 내용 입력
-                    _buildSectionTitle('기록 내용'),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _contentController,
-                      onChanged: (_) => setState(() {}),
-                      maxLines: 5,
-                      decoration: const InputDecoration(
-                        hintText: '오늘의 관리 기록을 남겨보세요',
-                        alignLabelWithHint: true,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // 공개 여부 설정
-                    _buildVisibilityToggle(),
-                  ],
-                ),
+    return ChangeNotifierProvider.value(
+      value: _viewModel,
+      child: Consumer<RecordViewModel>(
+        builder: (context, viewModel, _) {
+          return Scaffold(
+            appBar: AppBar(
+              title: const Text('기록하기'),
+              leading: IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.of(context).pop(),
               ),
             ),
+            body: SafeArea(
+              child: Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // 날짜 선택
+                          _buildDateSelector(),
+                          const SizedBox(height: 24),
 
-            // 하단 버튼
-            _buildBottomButton(),
-          ],
-        ),
+                          // 태그 선택
+                          _buildSectionTitle('태그 선택'),
+                          const SizedBox(height: 4),
+                          Text(
+                            '어떤 활동을 했나요?',
+                            style: AppTextStyles.captionRegular.copyWith(
+                              color: AppColors.textSubtle,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _buildTagSelector(),
+                          const SizedBox(height: 24),
+
+                          // 내용 입력
+                          _buildSectionTitle('기록 내용'),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: _contentController,
+                            onChanged: (_) => setState(() {}),
+                            maxLines: 5,
+                            decoration: const InputDecoration(
+                              hintText: '오늘의 관리 기록을 남겨보세요',
+                              alignLabelWithHint: true,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+
+                          // 공개 여부 설정
+                          _buildVisibilityToggle(),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // 하단 버튼
+                  _buildBottomButton(viewModel),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -246,9 +254,35 @@ class _RecordScreenState extends State<RecordScreen> {
       runSpacing: 8,
       children: RecordTag.values.map((tag) {
         final isSelected = _selectedTags.contains(tag);
+        // RecordTag.chipType이 없으므로 직접 매핑하거나 모델에 추가해야 함.
+        // 여기서는 임시로 매핑 로직 추가 또는 RecordTag 수정 필요.
+        // RecordTag enum을 model로 옮기면서 chipType 속성을 제거했었음 (domain layer dependency issue 방지).
+        // UI layer에서 매핑하는 것이 좋음.
+        
+        AppChipType chipType;
+        switch(tag) {
+          case RecordTag.waterChange:
+          case RecordTag.waterTest:
+            chipType = AppChipType.primary;
+            break;
+          case RecordTag.cleaning:
+          case RecordTag.fishAdded:
+             chipType = AppChipType.secondary;
+             break;
+          case RecordTag.feeding:
+            chipType = AppChipType.success;
+            break;
+          case RecordTag.medication:
+            chipType = AppChipType.error;
+            break;
+          case RecordTag.maintenance:
+            chipType = AppChipType.neutral;
+            break;
+        }
+
         return AppChip(
           label: tag.label,
-          type: tag.chipType,
+          type: chipType,
           isSelected: isSelected,
           onTap: () => _toggleTag(tag),
         );
@@ -290,7 +324,7 @@ class _RecordScreenState extends State<RecordScreen> {
     );
   }
 
-  Widget _buildBottomButton() {
+  Widget _buildBottomButton(RecordViewModel viewModel) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -341,7 +375,7 @@ class _RecordScreenState extends State<RecordScreen> {
               shape: AppButtonShape.round,
               variant: AppButtonVariant.contained,
               isEnabled: _isFormValid,
-              isLoading: _isLoading,
+              isLoading: viewModel.isLoading,
             ),
           ),
         ],

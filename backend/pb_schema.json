@@ -1,0 +1,110 @@
+[
+  {
+    "name": "aquariums",
+    "type": "base",
+    "schema": [
+      {
+        "name": "name",
+        "type": "text",
+        "required": true,
+        "options": {
+          "min": 1,
+          "max": 50
+        }
+      },
+      {
+        "name": "type",
+        "type": "select",
+        "required": true,
+        "options": {
+          "maxSelect": 1,
+          "values": ["freshwater", "saltwater"]
+        }
+      },
+      {
+        "name": "setting_date",
+        "type": "date",
+        "required": true
+      },
+      {
+        "name": "dimensions",
+        "type": "text",
+        "required": true,
+        "options": {
+          "max": 100
+        }
+      },
+      {
+        "name": "filter_type",
+        "type": "select",
+        "required": false,
+        "options": {
+          "maxSelect": 1,
+          "values": ["hang_on", "canister", "sponge", "internal", "sump", "none"]
+        }
+      },
+      {
+        "name": "substrate",
+        "type": "text",
+        "required": false,
+        "options": {
+          "max": 100
+        }
+      },
+      {
+        "name": "product_name",
+        "type": "text",
+        "required": false,
+        "options": {
+          "max": 100
+        }
+      },
+      {
+        "name": "lighting",
+        "type": "select",
+        "required": false,
+        "options": {
+          "maxSelect": 1,
+          "values": ["led", "fluorescent", "metal_halide", "none"]
+        }
+      },
+      {
+        "name": "heater",
+        "type": "bool",
+        "required": false
+      },
+      {
+        "name": "purpose",
+        "type": "select",
+        "required": false,
+        "options": {
+          "maxSelect": 1,
+          "values": ["general", "breeding", "aquascape", "neglect", "fry"]
+        }
+      },
+      {
+        "name": "notes",
+        "type": "text",
+        "required": false,
+        "options": {
+          "max": 300
+        }
+      },
+      {
+        "name": "photo",
+        "type": "file",
+        "required": false,
+        "options": {
+          "maxSelect": 1,
+          "maxSize": 5242880,
+          "mimeTypes": ["image/jpeg", "image/png", "image/webp"]
+        }
+      }
+    ],
+    "listRule": "",
+    "viewRule": "",
+    "createRule": "",
+    "updateRule": "",
+    "deleteRule": ""
+  }
+]

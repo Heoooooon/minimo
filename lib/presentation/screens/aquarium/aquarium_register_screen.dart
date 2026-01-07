@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../viewmodels/aquarium_register_viewmodel.dart';
+import '../../widgets/aquarium/register_step_basic_info.dart';
+import '../../widgets/aquarium/register_step_equipment.dart';
+import '../../widgets/aquarium/register_step_additional.dart';
+import '../../widgets/aquarium/register_step_photo.dart';
 import '../../widgets/common/app_button.dart';
-import '../../widgets/aquarium/label_text_field.dart';
-import '../../widgets/aquarium/type_toggle_button.dart';
+import '../../widgets/common/date_picker_bottom_sheet.dart';
 
-/// 어항 등록 화면 - Step 1 (기본 정보 입력)
+/// 어항 등록 화면 (4단계)
 ///
 /// Path: /aquarium/register
 class AquariumRegisterScreen extends StatefulWidget {
@@ -16,159 +22,132 @@ class AquariumRegisterScreen extends StatefulWidget {
 }
 
 class _AquariumRegisterScreenState extends State<AquariumRegisterScreen> {
-  // Form Controllers
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _dimensionController = TextEditingController();
+  // Step 1 Controllers
+  late TextEditingController _nameController;
+  late TextEditingController _dimensionController;
 
-  // Form State
-  AquariumType? _selectedType;
-  DateTime? _settingDate;
+  // Step 2 Controllers
+  late TextEditingController _substrateController;
+  late TextEditingController _productNameController;
+
+  // Step 3 Controllers
+  late TextEditingController _notesController;
+
+  // ViewModel
+  late AquariumRegisterViewModel _viewModel;
+
+  @override
+  void initState() {
+    super.initState();
+    // Step 1
+    _nameController = TextEditingController();
+    _dimensionController = TextEditingController();
+    // Step 2
+    _substrateController = TextEditingController();
+    _productNameController = TextEditingController();
+    // Step 3
+    _notesController = TextEditingController();
+    // ViewModel
+    _viewModel = AquariumRegisterViewModel();
+  }
 
   @override
   void dispose() {
     _nameController.dispose();
     _dimensionController.dispose();
+    _substrateController.dispose();
+    _productNameController.dispose();
+    _notesController.dispose();
+    _viewModel.dispose();
     super.dispose();
   }
 
-  /// 폼 유효성 검사
-  bool get _isFormValid {
-    return _nameController.text.isNotEmpty &&
-        _selectedType != null &&
-        _settingDate != null &&
-        _dimensionController.text.isNotEmpty;
-  }
-
-  /// 날짜 선택
+  /// 날짜 선택 바텀시트 표시
   Future<void> _selectDate() async {
-    final picked = await showDatePicker(
+    final picked = await DatePickerBottomSheet.show(
       context: context,
-      initialDate: _settingDate ?? DateTime.now(),
+      initialDate: _viewModel.data.settingDate,
       firstDate: DateTime(2000),
       lastDate: DateTime.now(),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: AppColors.brand,
-              onPrimary: AppColors.textInverse,
-              surface: AppColors.backgroundSurface,
-              onSurface: AppColors.textMain,
-            ),
-          ),
-          child: child!,
-        );
-      },
+      title: '어항 세팅 일자',
     );
 
     if (picked != null) {
-      setState(() {
-        _settingDate = picked;
-      });
+      _viewModel.setSettingDate(picked);
     }
   }
 
-  /// 다음 단계로
+  /// 다음 단계 또는 제출
   void _handleNext() {
-    if (!_isFormValid) return;
+    if (_viewModel.isLastStep) {
+      _handleSubmit();
+    } else {
+      _viewModel.nextStep();
+    }
+  }
 
-    // TODO: 다음 단계 화면으로 이동 (Step 2)
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '다음 단계로 이동 (추후 구현)',
-          style: AppTextStyles.bodySmall.copyWith(color: AppColors.textInverse),
+  /// 어항 등록 제출
+  Future<void> _handleSubmit() async {
+    final success = await _viewModel.submitRegistration();
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '어항이 등록되었습니다!',
+            style: AppTextStyles.bodySmall.copyWith(
+              color: AppColors.textInverse,
+            ),
+          ),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
-        backgroundColor: AppColors.brand,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-    );
+      );
+      Navigator.pop(context, true);
+    }
+  }
+
+  /// 뒤로가기 처리
+  void _handleBack() {
+    if (_viewModel.isFirstStep) {
+      Navigator.pop(context);
+    } else {
+      _viewModel.previousStep();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.backgroundSurface,
-      appBar: _buildAppBar(),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // 스크롤 가능한 폼 영역
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 타이틀
-                    Text(
-                      '어항 기본 정보를\n입력해 주세요.',
-                      style: AppTextStyles.headlineMedium.copyWith(
-                        fontWeight: FontWeight.w600,
-                        height: 1.4,
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-
-                    // 어항 이름
-                    LabelTextField(
-                      label: '어항 이름',
-                      hintText: '어항 이름',
-                      controller: _nameController,
-                      onChanged: (_) => setState(() {}),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // 어항 유형
-                    TypeToggleButton(
-                      label: '어항 유형',
-                      selectedType: _selectedType,
-                      onChanged: (type) {
-                        setState(() {
-                          _selectedType = type;
-                        });
-                      },
-                    ),
-                    const SizedBox(height: 24),
-
-                    // 어항 세팅 일자
-                    LabelDateField(
-                      label: '어항 세팅 일자',
-                      hintText: '어항 세팅 일자',
-                      value: _settingDate,
-                      onTap: _selectDate,
-                    ),
-                    const SizedBox(height: 24),
-
-                    // 어항 치수
-                    LabelTextField(
-                      label: '어항 치수',
-                      hintText: '어항 치수',
-                      controller: _dimensionController,
-                      onChanged: (_) => setState(() {}),
-                      keyboardType: TextInputType.text,
-                    ),
-                  ],
-                ),
+    return ChangeNotifierProvider.value(
+      value: _viewModel,
+      child: Consumer<AquariumRegisterViewModel>(
+        builder: (context, viewModel, _) {
+          return Scaffold(
+            backgroundColor: AppColors.backgroundSurface,
+            appBar: _buildAppBar(viewModel),
+            body: SafeArea(
+              child: Column(
+                children: [
+                  // 스텝 컨텐츠
+                  Expanded(child: _buildStepContent(viewModel)),
+                  // 하단 버튼
+                  _buildBottomButton(viewModel),
+                ],
               ),
             ),
-
-            // 하단 버튼
-            _buildBottomButton(),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
+  PreferredSizeWidget _buildAppBar(AquariumRegisterViewModel viewModel) {
     return AppBar(
       backgroundColor: AppColors.backgroundSurface,
       elevation: 0,
       centerTitle: true,
       leading: IconButton(
-        onPressed: () => Navigator.pop(context),
+        onPressed: _handleBack,
         icon: const Icon(
           Icons.arrow_back_ios,
           color: AppColors.textMain,
@@ -181,7 +160,7 @@ class _AquariumRegisterScreenState extends State<AquariumRegisterScreen> {
           padding: const EdgeInsets.only(right: 16),
           child: Center(
             child: Text(
-              '1/4',
+              '${viewModel.currentStep}/${AquariumRegisterViewModel.totalSteps}',
               style: AppTextStyles.bodySmall.copyWith(
                 color: AppColors.textSubtle,
               ),
@@ -192,7 +171,56 @@ class _AquariumRegisterScreenState extends State<AquariumRegisterScreen> {
     );
   }
 
-  Widget _buildBottomButton() {
+  Widget _buildStepContent(AquariumRegisterViewModel viewModel) {
+    switch (viewModel.currentStep) {
+      case 1:
+        return RegisterStepBasicInfo(
+          nameController: _nameController,
+          dimensionController: _dimensionController,
+          selectedType: viewModel.data.type,
+          settingDate: viewModel.data.settingDate,
+          onNameChanged: viewModel.setName,
+          onTypeChanged: viewModel.setType,
+          onDateTap: _selectDate,
+          onDimensionChanged: viewModel.setDimensions,
+        );
+      case 2:
+        return RegisterStepEquipment(
+          filterType: viewModel.data.filterType,
+          substrateController: _substrateController,
+          productNameController: _productNameController,
+          lighting: viewModel.data.lighting,
+          hasHeater: viewModel.data.hasHeater,
+          onFilterTypeChanged: viewModel.setFilterType,
+          onSubstrateChanged: viewModel.setSubstrate,
+          onProductNameChanged: viewModel.setProductName,
+          onLightingChanged: viewModel.setLighting,
+          onHeaterChanged: viewModel.setHasHeater,
+        );
+      case 3:
+        return RegisterStepAdditional(
+          purpose: viewModel.data.purpose,
+          notesController: _notesController,
+          onPurposeChanged: viewModel.setPurpose,
+          onNotesChanged: viewModel.setNotes,
+        );
+      case 4:
+        return RegisterStepPhoto(
+          photoPath: viewModel.data.photoPath,
+          isLoading: viewModel.isLoading,
+          onPickFromGallery: viewModel.pickPhotoFromGallery,
+          onTakePhoto: viewModel.takePhoto,
+          onRemovePhoto: viewModel.removePhoto,
+        );
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildBottomButton(AquariumRegisterViewModel viewModel) {
+    final buttonText = viewModel.isLastStep ? '등록 완료' : '다음으로';
+    final isEnabled = viewModel.canProceed && !viewModel.isLoading;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -206,12 +234,12 @@ class _AquariumRegisterScreenState extends State<AquariumRegisterScreen> {
         ],
       ),
       child: AppButton(
-        text: '다음으로',
-        onPressed: _isFormValid ? _handleNext : null,
+        text: buttonText,
+        onPressed: isEnabled ? _handleNext : null,
         size: AppButtonSize.large,
         shape: AppButtonShape.square,
         variant: AppButtonVariant.contained,
-        isEnabled: _isFormValid,
+        isEnabled: isEnabled,
         expanded: true,
       ),
     );
