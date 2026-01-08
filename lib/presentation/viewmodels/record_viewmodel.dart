@@ -3,7 +3,8 @@ import '../../data/repositories/record_repository.dart';
 import '../../domain/models/record_data.dart';
 
 class RecordViewModel extends ChangeNotifier {
-  final RecordRepository _repository = RecordRepository.instance;
+  // Mock Repository 사용
+  final RecordRepository _repository = MockRecordRepository.instance;
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;

@@ -5,8 +5,9 @@ import '../../domain/models/question_data.dart';
 import '../../domain/models/record_data.dart';
 
 class CommunityQuestionViewModel extends ChangeNotifier {
-  final CommunityRepository _communityRepository = CommunityRepository.instance;
-  final RecordRepository _recordRepository = RecordRepository.instance;
+  // Mock Repository 사용
+  final CommunityRepository _communityRepository = MockCommunityRepository.instance;
+  final RecordRepository _recordRepository = MockRecordRepository.instance;
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;

@@ -8,7 +8,8 @@ class AquariumListViewModel extends ChangeNotifier {
     loadAquariums();
   }
 
-  final AquariumRepository _repository = AquariumRepository.instance;
+  // Mock Repository 사용
+  final AquariumRepository _repository = MockAquariumRepository.instance;
 
   /// 어항 목록
   List<AquariumData> _aquariums = [];

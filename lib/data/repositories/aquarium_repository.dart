@@ -1,160 +1,150 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
-import 'package:pocketbase/pocketbase.dart';
 import '../../domain/models/aquarium_data.dart';
-import '../services/pocketbase_service.dart';
 
-/// 어항 Repository
+/// 어항 Repository 인터페이스
+abstract class AquariumRepository {
+  Future<List<AquariumData>> getAquariums({
+    int page = 1,
+    int perPage = 20,
+    String? filter,
+    String sort = '-created',
+  });
+  Future<AquariumData?> getAquarium(String id);
+  Future<AquariumData> createAquarium(AquariumData data);
+  Future<AquariumData> updateAquarium(String id, AquariumData data);
+  Future<void> deleteAquarium(String id);
+  Future<int> getAquariumCount({String? filter});
+}
+
+/// Mock 어항 Repository
 ///
-/// 어항 데이터 CRUD 및 파일 업로드 처리
-class AquariumRepository {
-  AquariumRepository._();
+/// 백엔드 없이 로컬 메모리에서 동작
+class MockAquariumRepository implements AquariumRepository {
+  MockAquariumRepository._();
 
-  static AquariumRepository? _instance;
-  static AquariumRepository get instance =>
-      _instance ??= AquariumRepository._();
+  static MockAquariumRepository? _instance;
+  static MockAquariumRepository get instance =>
+      _instance ??= MockAquariumRepository._();
 
-  static const String _collectionName = 'aquariums';
+  // 인메모리 저장소
+  final List<AquariumData> _aquariums = [];
+  int _idCounter = 1;
 
-  PocketBase get _pb => PocketBaseService.instance.client;
-
-  /// 어항 목록 조회
+  @override
   Future<List<AquariumData>> getAquariums({
     int page = 1,
     int perPage = 20,
     String? filter,
     String sort = '-created',
   }) async {
-    try {
-      final result = await _pb
-          .collection(_collectionName)
-          .getList(page: page, perPage: perPage, filter: filter, sort: sort);
+    // 네트워크 지연 시뮬레이션
+    await Future.delayed(const Duration(milliseconds: 300));
 
-      return result.items.map((record) {
-        final data = AquariumData.fromJson(record.toJson());
-        // 파일 URL 설정
-        if (record.data['photo'] != null &&
-            record.data['photo'].toString().isNotEmpty) {
-          data.photoUrl = _pb.files
-              .getUrl(record, record.data['photo'])
-              .toString();
-        }
-        return data;
-      }).toList();
-    } catch (e) {
-      debugPrint('Error fetching aquariums: $e');
-      rethrow;
+    // 정렬 (최신순)
+    final sorted = List<AquariumData>.from(_aquariums);
+    if (sort.startsWith('-')) {
+      sorted.sort((a, b) => (b.id ?? '').compareTo(a.id ?? ''));
+    } else {
+      sorted.sort((a, b) => (a.id ?? '').compareTo(b.id ?? ''));
     }
+
+    // 페이지네이션
+    final start = (page - 1) * perPage;
+    final end = start + perPage;
+    if (start >= sorted.length) return [];
+
+    return sorted.sublist(start, end.clamp(0, sorted.length));
   }
 
-  /// 어항 단일 조회
+  @override
   Future<AquariumData?> getAquarium(String id) async {
-    try {
-      final record = await _pb.collection(_collectionName).getOne(id);
-      final data = AquariumData.fromJson(record.toJson());
-
-      if (record.data['photo'] != null &&
-          record.data['photo'].toString().isNotEmpty) {
-        data.photoUrl = _pb.files
-            .getUrl(record, record.data['photo'])
-            .toString();
-      }
-
-      return data;
-    } catch (e) {
-      debugPrint('Error fetching aquarium: $e');
-      return null;
-    }
+    await Future.delayed(const Duration(milliseconds: 200));
+    return _aquariums.where((a) => a.id == id).firstOrNull;
   }
 
-  /// 어항 생성
+  @override
   Future<AquariumData> createAquarium(AquariumData data) async {
-    try {
-      // 파일 업로드가 있는 경우
-      List<http.MultipartFile> files = [];
+    await Future.delayed(const Duration(milliseconds: 500));
 
-      if (data.photoPath != null && !kIsWeb) {
-        final file = File(data.photoPath!);
-        if (await file.exists()) {
-          files.add(await http.MultipartFile.fromPath('photo', file.path));
-        }
-      }
+    final newAquarium = data.copyWith(
+      id: 'aquarium_${_idCounter++}',
+      photoUrl: data.photoPath, // 로컬 경로를 URL로 사용
+    );
+    _aquariums.add(newAquarium);
 
-      final record = await _pb
-          .collection(_collectionName)
-          .create(body: data.toJson(), files: files);
-
-      final result = AquariumData.fromJson(record.toJson());
-      if (record.data['photo'] != null &&
-          record.data['photo'].toString().isNotEmpty) {
-        result.photoUrl = _pb.files
-            .getUrl(record, record.data['photo'])
-            .toString();
-      }
-
-      return result;
-    } catch (e) {
-      debugPrint('Error creating aquarium: $e');
-      rethrow;
-    }
+    debugPrint('[MockAquariumRepository] Created: ${newAquarium.name}');
+    return newAquarium;
   }
 
-  /// 어항 수정
-  Future<AquariumData> updateAquarium(
-    String id,
-    AquariumData data, {
-    bool updatePhoto = false,
-  }) async {
-    try {
-      List<http.MultipartFile> files = [];
+  @override
+  Future<AquariumData> updateAquarium(String id, AquariumData data) async {
+    await Future.delayed(const Duration(milliseconds: 300));
 
-      if (updatePhoto && data.photoPath != null && !kIsWeb) {
-        final file = File(data.photoPath!);
-        if (await file.exists()) {
-          files.add(await http.MultipartFile.fromPath('photo', file.path));
-        }
-      }
-
-      final record = await _pb
-          .collection(_collectionName)
-          .update(id, body: data.toJson(), files: files);
-
-      final result = AquariumData.fromJson(record.toJson());
-      if (record.data['photo'] != null &&
-          record.data['photo'].toString().isNotEmpty) {
-        result.photoUrl = _pb.files
-            .getUrl(record, record.data['photo'])
-            .toString();
-      }
-
-      return result;
-    } catch (e) {
-      debugPrint('Error updating aquarium: $e');
-      rethrow;
+    final index = _aquariums.indexWhere((a) => a.id == id);
+    if (index == -1) {
+      throw Exception('Aquarium not found: $id');
     }
+
+    final updated = data.copyWith(id: id);
+    _aquariums[index] = updated;
+
+    debugPrint('[MockAquariumRepository] Updated: ${updated.name}');
+    return updated;
   }
 
-  /// 어항 삭제
+  @override
   Future<void> deleteAquarium(String id) async {
-    try {
-      await _pb.collection(_collectionName).delete(id);
-    } catch (e) {
-      debugPrint('Error deleting aquarium: $e');
-      rethrow;
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    final index = _aquariums.indexWhere((a) => a.id == id);
+    if (index != -1) {
+      final removed = _aquariums.removeAt(index);
+      debugPrint('[MockAquariumRepository] Deleted: ${removed.name}');
     }
   }
 
-  /// 어항 개수 조회
+  @override
   Future<int> getAquariumCount({String? filter}) async {
-    try {
-      final result = await _pb
-          .collection(_collectionName)
-          .getList(page: 1, perPage: 1, filter: filter);
-      return result.totalItems;
-    } catch (e) {
-      debugPrint('Error counting aquariums: $e');
-      return 0;
-    }
+    return _aquariums.length;
+  }
+
+  /// 테스트용: 샘플 데이터 추가
+  void addSampleData() {
+    if (_aquariums.isNotEmpty) return;
+
+    _aquariums.addAll([
+      AquariumData(
+        id: 'aquarium_${_idCounter++}',
+        name: '호동이네',
+        type: AquariumType.freshwater,
+        settingDate: DateTime(2024, 1, 15),
+        dimensions: '60x30x36',
+        filterType: FilterType.hangOn,
+        substrate: '소일',
+        lighting: LightingType.led,
+        hasHeater: true,
+        purpose: AquariumPurpose.general,
+        notes: '구피, 네온테트라 합사 중',
+      ),
+      AquariumData(
+        id: 'aquarium_${_idCounter++}',
+        name: '러키네',
+        type: AquariumType.freshwater,
+        settingDate: DateTime(2024, 3, 20),
+        dimensions: '45x27x30',
+        filterType: FilterType.sponge,
+        substrate: '모래',
+        lighting: LightingType.led,
+        hasHeater: false,
+        purpose: AquariumPurpose.breeding,
+        notes: '베타 단독 사육',
+      ),
+    ]);
+  }
+
+  /// 테스트용: 데이터 초기화
+  void clearAll() {
+    _aquariums.clear();
+    _idCounter = 1;
   }
 }

@@ -35,8 +35,8 @@ class AquariumRegisterViewModel extends ChangeNotifier {
   /// ImagePicker 인스턴스
   final ImagePicker _picker = ImagePicker();
 
-  /// Repository
-  final AquariumRepository _repository = AquariumRepository.instance;
+  /// Mock Repository 사용
+  final AquariumRepository _repository = MockAquariumRepository.instance;
 
   // ==================== Step Navigation ====================
 
@@ -245,7 +245,7 @@ class AquariumRegisterViewModel extends ChangeNotifier {
       _errorMessage = null;
       notifyListeners();
 
-      // PocketBase에 저장
+      // Mock Repository에 저장
       final result = await _repository.createAquarium(_data);
       _data = result;
 
