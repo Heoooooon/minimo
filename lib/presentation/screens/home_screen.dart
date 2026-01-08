@@ -7,6 +7,7 @@ import '../widgets/home/qna_card.dart';
 import '../widgets/home/tip_card.dart';
 import '../../domain/models/schedule_data.dart';
 import '../../data/repositories/schedule_repository.dart';
+import '../../data/repositories/aquarium_repository.dart';
 
 /// 홈 화면 (MainShell에서 사용)
 class HomeScreen extends StatelessWidget {
@@ -29,27 +30,11 @@ class HomeContent extends StatefulWidget {
 }
 
 class _HomeContentState extends State<HomeContent> {
-  // 어항 데이터
-  final List<AquariumData> _aquariums = const [
-    AquariumData(
-      id: '1',
-      name: '러키네',
-      status: AquariumStatus.healthy,
-      temperature: 27,
-      ph: 7.2,
-      fishCount: 12,
-    ),
-    AquariumData(
-      id: '2',
-      name: '비키네',
-      status: AquariumStatus.treatment,
-      temperature: 27,
-      ph: 7.2,
-      fishCount: 3,
-    ),
-  ];
+  // 어항 데이터 (Mock Repository에서 로드)
+  List<AquariumData> _aquariums = [];
 
   final ScheduleRepository _scheduleRepository = MockScheduleRepository();
+  final MockAquariumRepository _aquariumRepository = MockAquariumRepository.instance;
   List<ScheduleData> _scheduleItems = [];
 
   // 추천 콘텐츠 페이지 인덱스
@@ -62,6 +47,25 @@ class _HomeContentState extends State<HomeContent> {
   void initState() {
     super.initState();
     _loadSchedule();
+    _loadAquariums();
+  }
+
+  Future<void> _loadAquariums() async {
+    final domainAquariums = await _aquariumRepository.getAquariums();
+    if (mounted) {
+      setState(() {
+        // domain.AquariumData를 UI용 AquariumData로 변환
+        _aquariums = domainAquariums.map((a) => AquariumData(
+          id: a.id ?? '',
+          name: a.name ?? '이름 없음',
+          imageUrl: a.photoUrl,
+          status: AquariumStatus.healthy,
+          temperature: 27,
+          ph: 7.2,
+          fishCount: 0,
+        )).toList();
+      });
+    }
   }
 
   @override
