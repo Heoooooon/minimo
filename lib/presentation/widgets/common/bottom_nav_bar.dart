@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
-import '../../../theme/app_colors.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 /// 하단 네비게이션 탭 열거형
 enum NavTab {
-  home('홈', Icons.home_outlined, Icons.home),
-  aquarium('어항', Icons.water_drop_outlined, Icons.water_drop),
-  record('기록', Icons.edit_note_outlined, Icons.edit_note),
-  community('커뮤니티', Icons.forum_outlined, Icons.forum),
-  settings('설정', Icons.settings_outlined, Icons.settings);
+  home('홈', 'assets/icons/icon_home.svg'),
+  aquarium('어항', 'assets/icons/icon_aquarium.svg'),
+  record('기록', 'assets/icons/icon_record.svg'),
+  community('커뮤니티', 'assets/icons/icon_community.svg'),
+  settings('설정', 'assets/icons/icon_settings.svg');
 
-  const NavTab(this.label, this.icon, this.activeIcon);
+  const NavTab(this.label, this.iconPath);
   final String label;
-  final IconData icon;
-  final IconData activeIcon;
+  final String iconPath;
 }
 
 /// 하단 네비게이션 바 위젯
@@ -30,19 +29,23 @@ class AppBottomNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.backgroundSurface,
+        color: const Color(0xFFFDFDFF),
+        border: const Border(
+          top: BorderSide(color: Color(0xFFE8EBF0), width: 1),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, -4),
           ),
         ],
       ),
       child: SafeArea(
         top: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Container(
+          height: 68,
+          padding: const EdgeInsets.only(top: 0, bottom: 0),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: NavTab.values.map((tab) {
@@ -71,33 +74,40 @@ class _NavItem extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
 
-  // Figma specs
-  static const Color _activeColor = Color(0xFF0066FF);
-  static const Color _inactiveColor = Color(0xFFA0A0A0);
+  // Figma 스펙
+  static const Color _activeColor = Color(0xFF0165FE);
+  static const Color _inactiveColor = Color(0xFF9CA5AE);
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Container(
+        height: 68,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              isSelected ? tab.activeIcon : tab.icon,
-              size: 24,
-              color: isSelected ? _activeColor : _inactiveColor,
+            SvgPicture.asset(
+              tab.iconPath,
+              width: 24,
+              height: 24,
+              colorFilter: ColorFilter.mode(
+                isSelected ? _activeColor : _inactiveColor,
+                BlendMode.srcIn,
+              ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 5),
             Text(
               tab.label,
               style: TextStyle(
                 fontFamily: 'WantedSans',
-                fontSize: 10,
-                fontWeight: isSelected ? FontWeight.w500 : FontWeight.w400,
+                fontSize: 14,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 color: isSelected ? _activeColor : _inactiveColor,
+                height: 1.5,
+                letterSpacing: -0.154,
               ),
             ),
           ],

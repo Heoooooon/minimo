@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../../../domain/models/aquarium_data.dart';
 import '../../../theme/app_colors.dart';
@@ -46,22 +47,90 @@ class _AquariumListScreenState extends State<AquariumListScreen> {
       child: Consumer<AquariumListViewModel>(
         builder: (context, viewModel, _) {
           return Scaffold(
-            backgroundColor: AppColors.backgroundSurface,
-            appBar: AppBar(
-              backgroundColor: AppColors.backgroundSurface,
-              elevation: 0,
-              centerTitle: true,
-              title: Text('어항', style: AppTextStyles.bodyMediumMedium),
-              actions: [
-                IconButton(
-                  onPressed: _navigateToRegister,
-                  icon: const Icon(Icons.add, color: AppColors.textMain),
-                ),
+            backgroundColor: const Color(0xFFF9FAFC),
+            body: Stack(
+              children: [
+                _buildBody(viewModel),
+                _buildTopTitleBar(),
               ],
             ),
-            body: _buildBody(viewModel),
           );
         },
+      ),
+    );
+  }
+
+  /// 상단 타이틀 바
+  Widget _buildTopTitleBar() {
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: Container(
+        height: 120,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFF9FAFC),
+              Color(0x00F9FAFC),
+            ],
+            stops: [0.5, 1.0],
+          ),
+        ),
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(bottom: 24),
+                child: Row(
+                  children: [
+                    // 왼쪽 빈 버튼 (균형용)
+                    const SizedBox(width: 40, height: 40),
+                    // 타이틀
+                    Expanded(
+                      child: Center(
+                        child: Text(
+                          '어항',
+                          style: const TextStyle(
+                            fontFamily: 'WantedSans',
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF212529),
+                            height: 26 / 18,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                      ),
+                    ),
+                    // 우측 + 버튼
+                    GestureDetector(
+                      onTap: _navigateToRegister,
+                      behavior: HitTestBehavior.opaque,
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        alignment: Alignment.center,
+                        child: SvgPicture.asset(
+                          'assets/icons/icon_plus.svg',
+                          width: 24,
+                          height: 24,
+                          colorFilter: const ColorFilter.mode(
+                            Color(0xFF212529),
+                            BlendMode.srcIn,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -118,73 +187,128 @@ class _AquariumListScreenState extends State<AquariumListScreen> {
     );
   }
 
-  /// Empty State UI
+  /// Empty State UI - Figma 디자인 기반
   Widget _buildEmptyState(BuildContext context) {
     return Stack(
       children: [
-        // 배경 물고기 일러스트 (우측 하단)
+        // 배경 어항 아이콘 (회전, 30% 투명도)
         Positioned(
-          right: -40,
-          bottom: 100,
-          child: Opacity(
-            opacity: 0.08,
-            child: Icon(Icons.water, size: 300, color: AppColors.brand),
+          left: 117,
+          top: 419,
+          child: Transform.rotate(
+            angle: -30.965 * (3.14159265359 / 180), // 329도 회전
+            child: Opacity(
+              opacity: 0.3,
+              child: SvgPicture.asset(
+                'assets/icons/icon_aquarium.svg',
+                width: 247,
+                height: 247,
+                colorFilter: const ColorFilter.mode(
+                  Color(0xFFE8EBF0),
+                  BlendMode.srcIn,
+                ),
+              ),
+            ),
           ),
         ),
 
         // 메인 콘텐츠
         SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Column(
-              children: [
-                const Spacer(flex: 2),
+          child: Column(
+            children: [
+              // 상단 타이틀 바 영역 (120px)
+              const SizedBox(height: 120),
 
-                // 메인 타이틀
-                RichText(
-                  textAlign: TextAlign.center,
-                  text: TextSpan(
-                    style: AppTextStyles.headlineMedium.copyWith(
-                      color: AppColors.textMain,
-                      height: 1.4,
+              // 콘텐츠 영역
+              Expanded(
+                child: Column(
+                  children: [
+                    const SizedBox(height: 159),
+
+                    // 메인 타이틀 + 서브 텍스트
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 62),
+                      child: Column(
+                        children: [
+                          // 메인 타이틀
+                          RichText(
+                            textAlign: TextAlign.center,
+                            text: const TextSpan(
+                              style: TextStyle(
+                                fontFamily: 'WantedSans',
+                                fontSize: 24,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF212529),
+                                height: 36 / 24,
+                                letterSpacing: -0.25,
+                              ),
+                              children: [
+                                TextSpan(text: '첫 번째 '),
+                                TextSpan(
+                                  text: '내 어항',
+                                  style: TextStyle(color: Color(0xFF0165FE)),
+                                ),
+                                TextSpan(text: '을\n등록해 보세요!'),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // 서브 텍스트
+                          const Text(
+                            '기록하는 물생활을 시작해요',
+                            style: TextStyle(
+                              fontFamily: 'WantedSans',
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF666E78),
+                              height: 24 / 16,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    children: [
-                      const TextSpan(text: '첫 번째 '),
-                      TextSpan(
-                        text: '내 어항',
-                        style: AppTextStyles.headlineMedium.copyWith(
-                          color: AppColors.brand,
-                          fontWeight: FontWeight.w700,
+
+                    const SizedBox(height: 48),
+
+                    // CTA 버튼
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 62),
+                      child: SizedBox(
+                        width: 251,
+                        height: 56,
+                        child: ElevatedButton(
+                          onPressed: _navigateToRegister,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0165FE),
+                            foregroundColor: const Color(0xFFF9FAFC),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 32,
+                              vertical: 3,
+                            ),
+                          ),
+                          child: const Text(
+                            '어항 등록하기',
+                            style: TextStyle(
+                              fontFamily: 'WantedSans',
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              height: 24 / 16,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
                         ),
                       ),
-                      const TextSpan(text: '을\n등록해 보세요!'),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
-
-                // 서브 텍스트
-                Text(
-                  '기록하는 물생활을 시작해요',
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: AppColors.textSubtle,
-                  ),
-                ),
-
-                const Spacer(flex: 2),
-
-                // CTA 버튼
-                AppButton(
-                  text: '어항 등록하기',
-                  onPressed: _navigateToRegister,
-                  size: AppButtonSize.large,
-                  shape: AppButtonShape.square,
-                  variant: AppButtonVariant.contained,
-                  expanded: true,
-                ),
-                const SizedBox(height: 32),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ],
@@ -197,7 +321,7 @@ class _AquariumListScreenState extends State<AquariumListScreen> {
       onRefresh: viewModel.refresh,
       color: AppColors.brand,
       child: ListView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.only(top: 136, left: 16, right: 16, bottom: 16),
         itemCount: viewModel.aquariums.length,
         itemBuilder: (context, index) {
           final aquarium = viewModel.aquariums[index];
@@ -309,7 +433,17 @@ class _AquariumListScreenState extends State<AquariumListScreen> {
             : null,
       ),
       child: aquarium.photoUrl == null
-          ? const Icon(Icons.water, color: AppColors.brand, size: 32)
+          ? Center(
+              child: SvgPicture.asset(
+                'assets/icons/icon_aquarium.svg',
+                width: 32,
+                height: 32,
+                colorFilter: const ColorFilter.mode(
+                  AppColors.brand,
+                  BlendMode.srcIn,
+                ),
+              ),
+            )
           : null,
     );
   }
