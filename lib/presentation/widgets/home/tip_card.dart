@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 
@@ -118,16 +119,16 @@ class TipCard extends StatelessWidget {
   Widget _buildIllustration() {
     final size = isFirst ? 120.0 : 140.0;
     final assetPath = data.illustrationType == TipIllustrationType.equipment
-        ? 'assets/images/tip_equipment.png'
-        : 'assets/images/tip_feeding.png';
+        ? 'assets/images/tip_equipment.svg'
+        : 'assets/images/tip_feeding.svg';
 
     return SizedBox(
       width: size,
       height: size,
-      child: Image.asset(
+      child: SvgPicture.asset(
         assetPath,
         fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => _buildPlaceholderIllustration(),
+        placeholderBuilder: (_) => _buildPlaceholderIllustration(),
       ),
     );
   }

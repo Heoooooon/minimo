@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 
@@ -116,11 +117,11 @@ class QnACard extends StatelessWidget {
             ),
           ),
           child: Center(
-            child: Image.asset(
-              'assets/images/minimo_icon.png',
+            child: SvgPicture.asset(
+              'assets/images/minimo_icon.svg',
               width: 22,
               height: 18,
-              errorBuilder: (_, __, ___) => const Icon(
+              placeholderBuilder: (_) => const Icon(
                 Icons.pets,
                 size: 16,
                 color: AppColors.brand,
