@@ -21,7 +21,6 @@ class CreatureMemoService {
     try {
       final records = await _client.collection(_collection).getFullList(
         filter: 'creature_id = "$creatureId"',
-        sort: '-created',
       );
 
       return records

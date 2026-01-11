@@ -24,7 +24,6 @@ class CreatureService {
     try {
       final records = await _client.collection(_collection).getFullList(
         filter: 'aquarium_id = "$aquariumId"',
-        sort: '-created',
       );
 
       return records
@@ -56,7 +55,6 @@ class CreatureService {
       // 메모 조회
       final memoRecords = await _client.collection('creature_memos').getFullList(
         filter: 'creature_id = "$id"',
-        sort: '-created',
       );
 
       final memos = memoRecords

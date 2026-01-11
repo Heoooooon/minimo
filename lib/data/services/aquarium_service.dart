@@ -22,14 +22,14 @@ class AquariumService {
     int page = 1,
     int perPage = 20,
     String? filter,
-    String sort = '-created',
+    String? sort,
   }) async {
     try {
       final result = await _pb.collection(_collection).getList(
         page: page,
         perPage: perPage,
         filter: filter,
-        sort: sort,
+        sort: sort ?? '', // 빈 문자열로 기본값 설정 (정렬 없음)
       );
 
       return result.items.map((record) => _recordToAquariumData(record)).toList();
@@ -40,10 +40,10 @@ class AquariumService {
   }
 
   /// 모든 어항 전체 목록 조회
-  Future<List<AquariumData>> getAllAquariums({String sort = '-created'}) async {
+  Future<List<AquariumData>> getAllAquariums({String? sort}) async {
     try {
       final records = await _pb.collection(_collection).getFullList(
-        sort: sort,
+        sort: sort ?? '',
       );
 
       return records.map((record) => _recordToAquariumData(record)).toList();

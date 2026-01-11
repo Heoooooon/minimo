@@ -26,14 +26,14 @@ class CommunityService {
     int page = 1,
     int perPage = 20,
     String? filter,
-    String sort = '-created',
+    String? sort,
   }) async {
     try {
       final result = await _pb.collection(_questionsCollection).getList(
         page: page,
         perPage: perPage,
         filter: filter,
-        sort: sort,
+        sort: sort ?? '',
         expand: 'attached_records',
       );
 
@@ -119,14 +119,14 @@ class CommunityService {
     int page = 1,
     int perPage = 20,
     String? filter,
-    String sort = '-created',
+    String? sort,
   }) async {
     try {
       final result = await _pb.collection(_postsCollection).getList(
         page: page,
         perPage: perPage,
         filter: filter,
-        sort: sort,
+        sort: sort ?? '',
       );
 
       return result.items.map((record) => _recordToCommunityData(record)).toList();
