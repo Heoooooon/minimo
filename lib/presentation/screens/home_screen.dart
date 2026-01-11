@@ -50,21 +50,36 @@ class _HomeContentState extends State<HomeContent> {
     _loadAquariums();
   }
 
+  int _aquariumRetryCount = 0;
+  static const int _maxRetries = 3;
+
   Future<void> _loadAquariums() async {
-    final domainAquariums = await _aquariumRepository.getAquariums();
-    if (mounted) {
-      setState(() {
-        // domain.AquariumData를 UI용 AquariumData로 변환
-        _aquariums = domainAquariums.map((a) => AquariumData(
-          id: a.id ?? '',
-          name: a.name ?? '이름 없음',
-          imageUrl: a.photoUrl,
-          status: AquariumStatus.healthy,
-          temperature: 27,
-          ph: 7.2,
-          fishCount: 0,
-        )).toList();
-      });
+    try {
+      final domainAquariums = await _aquariumRepository.getAquariums();
+      _aquariumRetryCount = 0; // 성공 시 리셋
+      if (mounted) {
+        setState(() {
+          // domain.AquariumData를 UI용 AquariumData로 변환
+          _aquariums = domainAquariums.map((a) => AquariumData(
+            id: a.id ?? '',
+            name: a.name ?? '이름 없음',
+            imageUrl: a.photoUrl,
+            status: AquariumStatus.healthy,
+            temperature: 27,
+            ph: 7.2,
+            fishCount: 0,
+          )).toList();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading aquariums: $e');
+      // 서버 Cold Start 시 재시도 (최대 3회)
+      if (mounted && _aquariumRetryCount < _maxRetries) {
+        _aquariumRetryCount++;
+        debugPrint('Retrying... ($_aquariumRetryCount/$_maxRetries)');
+        await Future.delayed(const Duration(seconds: 2));
+        _loadAquariums();
+      }
     }
   }
 
