@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../data/services/auth_service.dart';
+import '../../../data/services/pocketbase_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../widgets/common/app_button.dart';
@@ -39,10 +40,16 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
     setState(() => _isLoading = true);
 
     try {
+      // 자동 로그인 설정 먼저 저장
+      await PocketBaseService.instance.setAutoLogin(_autoLogin);
+
       await AuthService.instance.loginWithEmail(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
+
+      // 로그인 성공 후 토큰 저장 (자동 로그인 활성화된 경우)
+      await PocketBaseService.instance.onLoginSuccess();
 
       if (!mounted) return;
 
