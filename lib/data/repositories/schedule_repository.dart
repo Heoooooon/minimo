@@ -1,4 +1,5 @@
 import '../../domain/models/schedule_data.dart';
+import '../services/schedule_service.dart';
 
 abstract class ScheduleRepository {
   Future<List<ScheduleData>> getDailySchedule(DateTime date);
@@ -47,5 +48,28 @@ class MockScheduleRepository implements ScheduleRepository {
     if (index != -1) {
       _mockData[index] = _mockData[index].copyWith(isCompleted: isCompleted);
     }
+  }
+}
+
+/// PocketBase 일정 Repository
+///
+/// 실제 PocketBase 백엔드와 통신
+class PocketBaseScheduleRepository implements ScheduleRepository {
+  PocketBaseScheduleRepository._();
+
+  static PocketBaseScheduleRepository? _instance;
+  static PocketBaseScheduleRepository get instance =>
+      _instance ??= PocketBaseScheduleRepository._();
+
+  final ScheduleService _service = ScheduleService.instance;
+
+  @override
+  Future<List<ScheduleData>> getDailySchedule(DateTime date) async {
+    return _service.getDailySchedule(date);
+  }
+
+  @override
+  Future<void> toggleComplete(String id, bool isCompleted) async {
+    return _service.toggleComplete(id, isCompleted);
   }
 }

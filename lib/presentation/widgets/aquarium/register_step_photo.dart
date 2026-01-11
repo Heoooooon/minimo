@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
@@ -10,14 +12,18 @@ class RegisterStepPhoto extends StatelessWidget {
   const RegisterStepPhoto({
     super.key,
     required this.photoPath,
+    this.photoBytes,
     required this.isLoading,
     required this.onPickFromGallery,
     required this.onTakePhoto,
     required this.onRemovePhoto,
   });
 
-  /// 선택된 사진 경로
+  /// 선택된 사진 경로 (네이티브 플랫폼용)
   final String? photoPath;
+
+  /// 선택된 사진 bytes (웹 플랫폼용)
+  final Uint8List? photoBytes;
 
   /// 로딩 상태
   final bool isLoading;
@@ -172,22 +178,7 @@ class RegisterStepPhoto extends StatelessWidget {
                       ),
                     ),
                   )
-                : Image.file(
-                    File(photoPath!),
-                    fit: BoxFit.cover,
-                    width: 200,
-                    height: 200,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        color: AppColors.backgroundApp,
-                        child: const Icon(
-                          Icons.broken_image_outlined,
-                          color: AppColors.textHint,
-                          size: 48,
-                        ),
-                      );
-                    },
-                  ),
+                : _buildImage(),
           ),
         ),
         // 삭제 버튼
@@ -219,6 +210,61 @@ class RegisterStepPhoto extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  /// 플랫폼에 맞는 이미지 위젯 빌드
+  Widget _buildImage() {
+    // 웹 플랫폼이거나 bytes가 있는 경우 Image.memory 사용
+    if (kIsWeb && photoBytes != null) {
+      return Image.memory(
+        photoBytes!,
+        fit: BoxFit.cover,
+        width: 200,
+        height: 200,
+        errorBuilder: (context, error, stackTrace) {
+          return _buildImageError();
+        },
+      );
+    }
+
+    // 네이티브 플랫폼에서는 Image.file 사용
+    if (!kIsWeb && photoPath != null) {
+      return Image.file(
+        File(photoPath!),
+        fit: BoxFit.cover,
+        width: 200,
+        height: 200,
+        errorBuilder: (context, error, stackTrace) {
+          return _buildImageError();
+        },
+      );
+    }
+
+    // 폴백: bytes가 있으면 사용
+    if (photoBytes != null) {
+      return Image.memory(
+        photoBytes!,
+        fit: BoxFit.cover,
+        width: 200,
+        height: 200,
+        errorBuilder: (context, error, stackTrace) {
+          return _buildImageError();
+        },
+      );
+    }
+
+    return _buildImageError();
+  }
+
+  Widget _buildImageError() {
+    return Container(
+      color: AppColors.backgroundApp,
+      child: const Icon(
+        Icons.broken_image_outlined,
+        color: AppColors.textHint,
+        size: 48,
+      ),
     );
   }
 

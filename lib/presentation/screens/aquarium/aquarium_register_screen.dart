@@ -207,6 +207,7 @@ class _AquariumRegisterScreenState extends State<AquariumRegisterScreen> {
       case 4:
         return RegisterStepPhoto(
           photoPath: viewModel.data.photoPath,
+          photoBytes: viewModel.photoBytes,
           isLoading: viewModel.isLoading,
           onPickFromGallery: viewModel.pickPhotoFromGallery,
           onTakePhoto: viewModel.takePhoto,

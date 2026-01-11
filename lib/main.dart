@@ -4,12 +4,21 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_text_styles.dart';
+import 'data/services/pocketbase_service.dart';
+import 'data/services/auth_service.dart';
 import 'presentation/screens/main_shell.dart';
 import 'presentation/screens/tank_register_screen.dart';
 import 'presentation/screens/record_screen.dart';
 import 'presentation/screens/community_question_screen.dart';
 import 'presentation/screens/aquarium/aquarium_list_screen.dart';
 import 'presentation/screens/aquarium/aquarium_register_screen.dart';
+import 'presentation/screens/aquarium/aquarium_detail_screen.dart';
+import 'presentation/screens/creature/creature_search_screen.dart' hide CreatureData;
+import 'presentation/screens/creature/creature_detail_screen.dart';
+import 'presentation/screens/auth/social_login_screen.dart';
+import 'presentation/screens/auth/email_login_screen.dart';
+import 'presentation/screens/auth/sign_up_screen.dart';
+import 'domain/models/creature_data.dart';
 import 'presentation/widgets/common/app_button.dart';
 import 'presentation/widgets/common/app_chip.dart';
 
@@ -19,7 +28,8 @@ void main() async {
   // 한국어 로케일 초기화 (table_calendar용)
   await initializeDateFormatting('ko_KR', null);
 
-  // Mock 모드: PocketBase 초기화 생략 (백엔드 없이 로컬 데이터로 동작)
+  // PocketBase 초기화
+  await PocketBaseService.instance.initialize();
 
   // 상태바 스타일 설정
   SystemChrome.setSystemUIOverlayStyle(
@@ -39,21 +49,47 @@ class OomoolApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 로그인 상태에 따라 시작 화면 결정
+    final isLoggedIn = AuthService.instance.isLoggedIn;
+
     return MaterialApp(
       title: '우물 - 반려어 관리',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: const MainShell(),
+      home: isLoggedIn ? const MainShell() : const SocialLoginScreen(),
       routes: {
+        '/login': (context) => const SocialLoginScreen(),
+        '/login/email': (context) => const EmailLoginScreen(),
+        '/signup': (context) => const SignUpScreen(),
         '/tank-register': (context) => const TankRegisterScreen(),
         '/record': (context) => const RecordScreen(),
         '/community-question': (context) => const CommunityQuestionScreen(),
         '/aquarium': (context) => const AquariumListScreen(),
         '/aquarium/register': (context) => const AquariumRegisterScreen(),
+        '/aquarium/detail': (context) => const AquariumDetailScreen(),
+        '/creature/search': (context) => const CreatureSearchScreen(),
+        '/creature/detail': (context) => const _CreatureDetailWrapper(),
         '/design-system': (context) => const DesignSystemScreen(),
         '/demo': (context) => const DemoHomeScreen(),
       },
     );
+  }
+}
+
+/// 생물 상세 화면 래퍼 (route arguments 처리)
+class _CreatureDetailWrapper extends StatelessWidget {
+  const _CreatureDetailWrapper();
+
+  @override
+  Widget build(BuildContext context) {
+    final creature = ModalRoute.of(context)?.settings.arguments as CreatureData?;
+    if (creature == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('오류')),
+        body: const Center(child: Text('생물 정보를 불러올 수 없습니다.')),
+      );
+    }
+    return CreatureDetailScreen(creature: creature);
   }
 }
 

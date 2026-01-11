@@ -97,6 +97,18 @@ class AppColors {
   /// Secondary Chip Text
   static const Color chipSecondaryText = Color(0xFFEB6821);
 
+  /// Orange 50 (치료항 배경)
+  static const Color orange50 = Color(0xFFFFF1E6);
+
+  /// Orange 500 (치료항 텍스트)
+  static const Color orange500 = Color(0xFFFE8A24);
+
+  /// Orange 700 (치료항 D-day)
+  static const Color orange700 = Color(0xFFD94C00);
+
+  /// Blue 50 (담수항 배경)
+  static const Color blue50 = Color(0xFFEDF8FF);
+
   /// Success Chip Background (Success100)
   static const Color chipSuccessBg = Color(0xFFD7FFE9);
 

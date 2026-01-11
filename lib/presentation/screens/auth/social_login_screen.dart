@@ -1,0 +1,262 @@
+import 'package:flutter/material.dart';
+import '../../../theme/app_colors.dart';
+import '../../../theme/app_text_styles.dart';
+import 'email_login_screen.dart';
+
+/// 소셜 로그인 화면
+class SocialLoginScreen extends StatelessWidget {
+  const SocialLoginScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // 배경 이미지
+          Positioned.fill(
+            child: Image.asset(
+              'assets/images/login_background.png',
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Color(0xFF0A3D62),
+                        Color(0xFF001529),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          // 그라데이션 오버레이 1: 좌→우 (투명 → 어두운 파랑)
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    Colors.transparent,
+                    const Color(0xFF00183C).withValues(alpha: 0.8),
+                  ],
+                  stops: const [0.3448, 1.0],
+                ),
+              ),
+            ),
+          ),
+          // 그라데이션 오버레이 2: 전체 어두운 오버레이
+          Positioned.fill(
+            child: Container(
+              color: Colors.black.withValues(alpha: 0.52),
+            ),
+          ),
+          // 콘텐츠
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 80),
+                  // 타이틀 (그라데이션 텍스트)
+                  _buildGradientTitle(),
+                  const Spacer(),
+                  // 소셜 로그인 버튼들
+                  _SocialLoginButton(
+                    text: '카카오로 시작하기',
+                    backgroundColor: const Color(0xFFFAE300),
+                    textColor: AppColors.textMain,
+                    iconPath: 'assets/icons/kakao.png',
+                    onPressed: () => _handleSocialLogin(context, 'kakao'),
+                  ),
+                  const SizedBox(height: 16),
+                  _SocialLoginButton(
+                    text: '애플로 시작하기',
+                    backgroundColor: Colors.black,
+                    textColor: Colors.white,
+                    iconPath: 'assets/icons/apple.png',
+                    onPressed: () => _handleSocialLogin(context, 'apple'),
+                  ),
+                  const SizedBox(height: 16),
+                  _SocialLoginButton(
+                    text: '네이버로 시작하기',
+                    backgroundColor: const Color(0xFF00BF18),
+                    textColor: Colors.white,
+                    iconPath: 'assets/icons/naver.png',
+                    onPressed: () => _handleSocialLogin(context, 'naver'),
+                  ),
+                  const SizedBox(height: 16),
+                  _SocialLoginButton(
+                    text: '구글로 시작하기',
+                    backgroundColor: Colors.white,
+                    textColor: AppColors.textMain,
+                    iconPath: 'assets/icons/google.png',
+                    onPressed: () => _handleSocialLogin(context, 'google'),
+                  ),
+                  const SizedBox(height: 16),
+                  // 이메일 로그인 링크
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: TextButton(
+                      onPressed: () => _navigateToEmailLogin(context),
+                      style: TextButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        '이메일로 로그인하기',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textInverse,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 34),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGradientTitle() {
+    return ShaderMask(
+      shaderCallback: (bounds) {
+        return const LinearGradient(
+          begin: Alignment(-0.5, -0.5),
+          end: Alignment(0.8, 1.2),
+          colors: [
+            Color(0xFFF9FAFC),
+            Color(0x99000E24), // rgba(0, 14, 36, 0.6)
+          ],
+          stops: [0.2368, 0.924],
+        ).createShader(bounds);
+      },
+      blendMode: BlendMode.srcIn,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '우물,',
+            style: AppTextStyles.displayLarge.copyWith(
+              fontSize: 36,
+              fontWeight: FontWeight.w600,
+              height: 48 / 36,
+              letterSpacing: -0.5,
+              color: Colors.white,
+            ),
+          ),
+          Text(
+            '우리가 함께하는',
+            style: AppTextStyles.displayLarge.copyWith(
+              fontSize: 36,
+              fontWeight: FontWeight.w600,
+              height: 48 / 36,
+              letterSpacing: -0.5,
+              color: Colors.white,
+            ),
+          ),
+          Text(
+            '물생활',
+            style: AppTextStyles.displayLarge.copyWith(
+              fontSize: 36,
+              fontWeight: FontWeight.w600,
+              height: 48 / 36,
+              letterSpacing: -0.5,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleSocialLogin(BuildContext context, String provider) {
+    // TODO: 소셜 로그인 구현
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$provider 로그인은 준비 중입니다')),
+    );
+  }
+
+  void _navigateToEmailLogin(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const EmailLoginScreen()),
+    );
+  }
+}
+
+/// 소셜 로그인 버튼
+class _SocialLoginButton extends StatelessWidget {
+  const _SocialLoginButton({
+    required this.text,
+    required this.backgroundColor,
+    required this.textColor,
+    required this.iconPath,
+    required this.onPressed,
+  });
+
+  final String text;
+  final Color backgroundColor;
+  final Color textColor;
+  final String iconPath;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 52,
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(999),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.35),
+            blurRadius: 60,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onPressed,
+          borderRadius: BorderRadius.circular(999),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Image.asset(
+                  iconPath,
+                  width: 24,
+                  height: 24,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const SizedBox(width: 24, height: 24);
+                  },
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  text,
+                  style: AppTextStyles.bodyMediumMedium.copyWith(
+                    color: textColor,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

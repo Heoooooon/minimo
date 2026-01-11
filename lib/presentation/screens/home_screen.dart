@@ -33,8 +33,8 @@ class _HomeContentState extends State<HomeContent> {
   // 어항 데이터 (Mock Repository에서 로드)
   List<AquariumData> _aquariums = [];
 
-  final ScheduleRepository _scheduleRepository = MockScheduleRepository();
-  final MockAquariumRepository _aquariumRepository = MockAquariumRepository.instance;
+  final ScheduleRepository _scheduleRepository = PocketBaseScheduleRepository.instance;
+  final AquariumRepository _aquariumRepository = PocketBaseAquariumRepository.instance;
   List<ScheduleData> _scheduleItems = [];
 
   // 추천 콘텐츠 페이지 인덱스

@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../data/repositories/aquarium_repository.dart';
@@ -32,11 +33,15 @@ class AquariumRegisterViewModel extends ChangeNotifier {
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
+  /// 사진 bytes (웹 지원용)
+  Uint8List? _photoBytes;
+  Uint8List? get photoBytes => _photoBytes;
+
   /// ImagePicker 인스턴스
   final ImagePicker _picker = ImagePicker();
 
-  /// Mock Repository 사용
-  final AquariumRepository _repository = MockAquariumRepository.instance;
+  /// PocketBase Repository 사용
+  final AquariumRepository _repository = PocketBaseAquariumRepository.instance;
 
   // ==================== Step Navigation ====================
 
@@ -175,6 +180,8 @@ class AquariumRegisterViewModel extends ChangeNotifier {
 
       if (image != null) {
         _data = _data.copyWith(photoPath: image.path);
+        // 웹 지원을 위해 bytes도 저장
+        _photoBytes = await image.readAsBytes();
       }
     } catch (e) {
       debugPrint('Error picking image from gallery: $e');
@@ -200,6 +207,8 @@ class AquariumRegisterViewModel extends ChangeNotifier {
 
       if (image != null) {
         _data = _data.copyWith(photoPath: image.path);
+        // 웹 지원을 위해 bytes도 저장
+        _photoBytes = await image.readAsBytes();
       }
     } catch (e) {
       debugPrint('Error taking photo: $e');
@@ -228,6 +237,7 @@ class AquariumRegisterViewModel extends ChangeNotifier {
       photoPath: null,
       photoUrl: null,
     );
+    _photoBytes = null;
     notifyListeners();
   }
 
@@ -273,6 +283,7 @@ class AquariumRegisterViewModel extends ChangeNotifier {
     _data = AquariumData();
     _isLoading = false;
     _errorMessage = null;
+    _photoBytes = null;
     notifyListeners();
   }
 }

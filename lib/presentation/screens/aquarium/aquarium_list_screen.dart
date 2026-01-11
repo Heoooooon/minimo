@@ -6,6 +6,7 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../viewmodels/aquarium_list_viewmodel.dart';
 import '../../widgets/common/app_button.dart';
+import '../../widgets/aquarium/aquarium_card.dart';
 
 /// 어항 목록 화면
 ///
@@ -315,156 +316,61 @@ class _AquariumListScreenState extends State<AquariumListScreen> {
     );
   }
 
-  /// 어항 리스트 UI
+  /// 어항 리스트 UI - Figma 디자인 기반
   Widget _buildAquariumList(AquariumListViewModel viewModel) {
+    final count = viewModel.aquariums.length;
+
     return RefreshIndicator(
       onRefresh: viewModel.refresh,
       color: AppColors.brand,
-      child: ListView.builder(
+      child: ListView(
         padding: const EdgeInsets.only(top: 136, left: 16, right: 16, bottom: 16),
-        itemCount: viewModel.aquariums.length,
-        itemBuilder: (context, index) {
-          final aquarium = viewModel.aquariums[index];
-          return _buildAquariumCard(aquarium, viewModel);
-        },
-      ),
-    );
-  }
-
-  Widget _buildAquariumCard(
-    AquariumData aquarium,
-    AquariumListViewModel viewModel,
-  ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: AppColors.backgroundSurface,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            // TODO: 어항 상세 화면으로 이동
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('어항 상세 화면 (추후 구현)'),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          },
-          onLongPress: () {
-            _showDeleteDialog(aquarium, viewModel);
-          },
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                // 어항 이미지
-                _buildAquariumImage(aquarium),
-                const SizedBox(width: 16),
-                // 어항 정보
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        aquarium.name ?? '이름 없음',
-                        style: AppTextStyles.bodyMediumMedium.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          _buildTag(
-                            aquarium.type?.label ?? '유형 없음',
-                            aquarium.type == AquariumType.freshwater
-                                ? AppColors.brand
-                                : AppColors.secondary,
-                          ),
-                          const SizedBox(width: 8),
-                          if (aquarium.purpose != null)
-                            _buildTag(
-                              aquarium.purpose!.label,
-                              AppColors.textSubtle,
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _formatDate(aquarium.settingDate),
-                        style: AppTextStyles.captionRegular.copyWith(
-                          color: AppColors.textHint,
-                        ),
-                      ),
-                    ],
-                  ),
+        children: [
+          // 어항 개수 헤더
+          Padding(
+            padding: const EdgeInsets.only(bottom: 32),
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(
+                  fontFamily: 'WantedSans',
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF212529),
+                  height: 24 / 16,
+                  letterSpacing: -0.5,
                 ),
-                const Icon(Icons.chevron_right, color: AppColors.textHint),
-              ],
+                children: [
+                  const TextSpan(text: '총 '),
+                  TextSpan(
+                    text: '$count',
+                    style: const TextStyle(color: Color(0xFF0165FE)),
+                  ),
+                  const TextSpan(text: '개의 어항이 있어요'),
+                ],
+              ),
             ),
           ),
-        ),
-      ),
-    );
-  }
 
-  Widget _buildAquariumImage(AquariumData aquarium) {
-    return Container(
-      width: 72,
-      height: 72,
-      decoration: BoxDecoration(
-        color: AppColors.chipPrimaryBg,
-        borderRadius: BorderRadius.circular(12),
-        image: aquarium.photoUrl != null
-            ? DecorationImage(
-                image: NetworkImage(aquarium.photoUrl!),
-                fit: BoxFit.cover,
-              )
-            : null,
-      ),
-      child: aquarium.photoUrl == null
-          ? Center(
-              child: SvgPicture.asset(
-                'assets/icons/icon_aquarium.svg',
-                width: 32,
-                height: 32,
-                colorFilter: const ColorFilter.mode(
-                  AppColors.brand,
-                  BlendMode.srcIn,
+          // 어항 카드 목록
+          ...viewModel.aquariums.map((aquarium) => Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: AquariumCard(
+                  aquarium: aquarium,
+                  onTap: () => _navigateToDetail(aquarium),
+                  onLongPress: () => _showDeleteDialog(aquarium, viewModel),
                 ),
-              ),
-            )
-          : null,
-    );
-  }
-
-  Widget _buildTag(String text, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        text,
-        style: AppTextStyles.captionMedium.copyWith(color: color),
+              )),
+        ],
       ),
     );
   }
 
-  String _formatDate(DateTime? date) {
-    if (date == null) return '';
-    return '${date.year}.${date.month.toString().padLeft(2, '0')}.${date.day.toString().padLeft(2, '0')} 세팅';
+  void _navigateToDetail(AquariumData aquarium) {
+    Navigator.pushNamed(
+      context,
+      '/aquarium/detail',
+      arguments: aquarium,
+    );
   }
 
   void _showDeleteDialog(

@@ -1,0 +1,192 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:pocketbase/pocketbase.dart';
+import 'package:http/http.dart' as http;
+import '../../domain/models/creature_data.dart';
+import 'pocketbase_service.dart';
+
+/// 생물 관리 서비스
+///
+/// PocketBase creatures 컬렉션 CRUD 및 파일 업로드
+class CreatureService {
+  CreatureService._();
+
+  static CreatureService? _instance;
+  static CreatureService get instance => _instance ??= CreatureService._();
+
+  PocketBase get _client => PocketBaseService.instance.client;
+  String get _baseUrl => PocketBaseService.serverUrl;
+
+  static const String _collection = 'creatures';
+
+  /// 어항별 생물 목록 조회
+  Future<List<CreatureData>> getCreaturesByAquarium(String aquariumId) async {
+    try {
+      final records = await _client.collection(_collection).getFullList(
+        filter: 'aquarium_id = "$aquariumId"',
+        sort: '-created',
+      );
+
+      return records
+          .map((r) => CreatureData.fromJson(r.toJson(), baseUrl: _baseUrl))
+          .toList();
+    } catch (e) {
+      debugPrint('Failed to get creatures: $e');
+      rethrow;
+    }
+  }
+
+  /// 생물 상세 조회
+  Future<CreatureData> getCreature(String id) async {
+    try {
+      final record = await _client.collection(_collection).getOne(id);
+      return CreatureData.fromJson(record.toJson(), baseUrl: _baseUrl);
+    } catch (e) {
+      debugPrint('Failed to get creature: $e');
+      rethrow;
+    }
+  }
+
+  /// 생물 상세 조회 (메모 포함)
+  Future<CreatureData> getCreatureWithMemos(String id) async {
+    try {
+      final record = await _client.collection(_collection).getOne(id);
+      final creature = CreatureData.fromJson(record.toJson(), baseUrl: _baseUrl);
+
+      // 메모 조회
+      final memoRecords = await _client.collection('creature_memos').getFullList(
+        filter: 'creature_id = "$id"',
+        sort: '-created',
+      );
+
+      final memos = memoRecords
+          .map((r) => CreatureMemoData.fromJson(r.toJson()))
+          .toList();
+
+      return creature.copyWith(memos: memos);
+    } catch (e) {
+      debugPrint('Failed to get creature with memos: $e');
+      rethrow;
+    }
+  }
+
+  /// 생물 등록
+  Future<CreatureData> createCreature(CreatureData creature) async {
+    try {
+      // 파일 업로드 준비
+      final files = <http.MultipartFile>[];
+      for (final filePath in creature.photoFiles) {
+        final file = File(filePath);
+        if (await file.exists()) {
+          files.add(await http.MultipartFile.fromPath('photos', filePath));
+        }
+      }
+
+      final record = await _client.collection(_collection).create(
+        body: creature.toJson(),
+        files: files,
+      );
+
+      return CreatureData.fromJson(record.toJson(), baseUrl: _baseUrl);
+    } catch (e) {
+      debugPrint('Failed to create creature: $e');
+      rethrow;
+    }
+  }
+
+  /// 생물 수정
+  Future<CreatureData> updateCreature(CreatureData creature) async {
+    if (creature.id == null) {
+      throw ArgumentError('Creature ID is required for update');
+    }
+
+    try {
+      // 새 파일 업로드 준비
+      final files = <http.MultipartFile>[];
+      for (final filePath in creature.photoFiles) {
+        final file = File(filePath);
+        if (await file.exists()) {
+          files.add(await http.MultipartFile.fromPath('photos', filePath));
+        }
+      }
+
+      final record = await _client.collection(_collection).update(
+        creature.id!,
+        body: creature.toJson(),
+        files: files,
+      );
+
+      return CreatureData.fromJson(record.toJson(), baseUrl: _baseUrl);
+    } catch (e) {
+      debugPrint('Failed to update creature: $e');
+      rethrow;
+    }
+  }
+
+  /// 생물 삭제
+  Future<void> deleteCreature(String id) async {
+    try {
+      await _client.collection(_collection).delete(id);
+    } catch (e) {
+      debugPrint('Failed to delete creature: $e');
+      rethrow;
+    }
+  }
+
+  /// 생물 사진 추가
+  Future<CreatureData> addPhotos(String id, List<String> filePaths) async {
+    try {
+      final files = <http.MultipartFile>[];
+      for (final filePath in filePaths) {
+        final file = File(filePath);
+        if (await file.exists()) {
+          files.add(await http.MultipartFile.fromPath('photos', filePath));
+        }
+      }
+
+      if (files.isEmpty) {
+        throw ArgumentError('No valid files to upload');
+      }
+
+      final record = await _client.collection(_collection).update(
+        id,
+        files: files,
+      );
+
+      return CreatureData.fromJson(record.toJson(), baseUrl: _baseUrl);
+    } catch (e) {
+      debugPrint('Failed to add photos: $e');
+      rethrow;
+    }
+  }
+
+  /// 생물 사진 삭제
+  Future<CreatureData> removePhoto(String id, String filename) async {
+    try {
+      final record = await _client.collection(_collection).update(
+        id,
+        body: {'photos-': filename},
+      );
+
+      return CreatureData.fromJson(record.toJson(), baseUrl: _baseUrl);
+    } catch (e) {
+      debugPrint('Failed to remove photo: $e');
+      rethrow;
+    }
+  }
+
+  /// 어항별 생물 수 조회
+  Future<int> getCreatureCount(String aquariumId) async {
+    try {
+      final result = await _client.collection(_collection).getList(
+        page: 1,
+        perPage: 1,
+        filter: 'aquarium_id = "$aquariumId"',
+      );
+      return result.totalItems;
+    } catch (e) {
+      debugPrint('Failed to get creature count: $e');
+      return 0;
+    }
+  }
+}
