@@ -116,6 +116,9 @@ class _SignUpScreenState extends State<SignUpScreen>
     _passwordController.addListener(() => setState(() {}));
     _passwordConfirmController.addListener(() => setState(() {}));
 
+    // 이름 필드 포커스 감지 (포커스 빠질 때 다음 단계로)
+    _nameFocusNode.addListener(_onNameFocusChanged);
+
     // 첫 필드에 포커스
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _nameFocusNode.requestFocus();
@@ -124,6 +127,7 @@ class _SignUpScreenState extends State<SignUpScreen>
 
   @override
   void dispose() {
+    _nameFocusNode.removeListener(_onNameFocusChanged);
     _nameController.dispose();
     _emailController.dispose();
     _verificationCodeController.dispose();
@@ -142,21 +146,28 @@ class _SignUpScreenState extends State<SignUpScreen>
   }
 
   void _onNameChanged() {
+    // 이름 변경 시 상태만 업데이트 (자동 전환 X)
+    setState(() {});
+  }
+
+  /// 이름 입력 완료 후 이메일 섹션으로 전환
+  void _proceedToEmail() {
     final text = _nameController.text.trim();
-    if (text.isNotEmpty && _visibleStep == 0) {
+    if (text.length >= 2 && _visibleStep == 0) {
       setState(() => _visibleStep = 1);
       _emailAnimController.forward();
-      // 이메일 필드로 자동 포커스
       Future.delayed(const Duration(milliseconds: 300), () {
         _emailFocusNode.requestFocus();
       });
-    } else if (text.isEmpty && _visibleStep >= 1 && !_codeSent) {
-      // 이름 지우면 이메일 숨기기 (아직 인증 전이면)
-      _emailAnimController.reverse().then((_) {
-        if (mounted) setState(() => _visibleStep = 0);
-      });
     }
-    setState(() {});
+  }
+
+  /// 이름 필드 포커스 변경 감지
+  void _onNameFocusChanged() {
+    if (!_nameFocusNode.hasFocus) {
+      // 포커스가 빠질 때 이메일 섹션으로 전환
+      _proceedToEmail();
+    }
   }
 
   void _onEmailChanged() {
@@ -411,13 +422,9 @@ class _SignUpScreenState extends State<SignUpScreen>
         _buildTextField(
           controller: _nameController,
           focusNode: _nameFocusNode,
-          hintText: '이름/닉네임을 입력해주세요',
+          hintText: '이름/닉네임을 입력해주세요 (2자 이상)',
           textInputAction: TextInputAction.next,
-          onSubmitted: (_) {
-            if (_nameController.text.trim().isNotEmpty) {
-              _emailFocusNode.requestFocus();
-            }
-          },
+          onSubmitted: (_) => _proceedToEmail(),
         ),
       ],
     );
