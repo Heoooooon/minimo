@@ -1,0 +1,26 @@
+# Flutter SDK (will be cloned during build)
+flutter/
+
+# Build directories
+build/
+.dart_tool/
+
+# Platform-specific
+android/
+ios/
+macos/
+windows/
+linux/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Backend (deployed separately to Fly.io)
+backend/
+
+# Other
+*.lock
+.git/
+.github/
