@@ -59,10 +59,7 @@ class CreatureMemoData {
 
   /// PocketBase JSON으로 변환
   Map<String, dynamic> toJson() {
-    return {
-      'creature_id': creatureId,
-      'content': content,
-    };
+    return {'creature_id': creatureId, 'content': content};
   }
 
   /// PocketBase JSON에서 생성
@@ -86,6 +83,7 @@ class CreatureData {
   CreatureData({
     this.id,
     required this.aquariumId,
+    this.catalogId,
     required this.name,
     required this.type,
     this.nickname,
@@ -107,6 +105,8 @@ class CreatureData {
 
   /// 어항 ID (FK)
   String aquariumId;
+
+  String? catalogId;
 
   /// 종류명 (예: "플라캇 베타")
   String name;
@@ -169,6 +169,7 @@ class CreatureData {
   CreatureData copyWith({
     String? id,
     String? aquariumId,
+    String? catalogId,
     String? name,
     String? type,
     String? nickname,
@@ -187,6 +188,7 @@ class CreatureData {
     return CreatureData(
       id: id ?? this.id,
       aquariumId: aquariumId ?? this.aquariumId,
+      catalogId: catalogId ?? this.catalogId,
       name: name ?? this.name,
       type: type ?? this.type,
       nickname: nickname ?? this.nickname,
@@ -208,6 +210,7 @@ class CreatureData {
   Map<String, dynamic> toJson() {
     return {
       'aquarium_id': aquariumId,
+      'catalog_id': catalogId,
       'name': name,
       'type': type,
       'nickname': nickname,
@@ -234,6 +237,7 @@ class CreatureData {
     return CreatureData(
       id: json['id'] as String?,
       aquariumId: json['aquarium_id'] as String,
+      catalogId: json['catalog_id'] as String?,
       name: json['name'] as String,
       type: json['type'] as String,
       nickname: json['nickname'] as String?,

@@ -10,6 +10,8 @@ abstract class RecordRepository {
     String? filter,
     String sort = '-date',
   });
+  Future<List<RecordData>> getRecordsByDate(DateTime date);
+  Future<List<DateTime>> getRecordDatesInMonth(DateTime month);
   Future<RecordData> createRecord(RecordData data);
   Future<void> deleteRecord(String id);
 }
@@ -82,6 +84,30 @@ class MockRecordRepository implements RecordRepository {
       _records.removeAt(index);
       debugPrint('[MockRecordRepository] Deleted: $id');
     }
+  }
+
+  @override
+  Future<List<RecordData>> getRecordsByDate(DateTime date) async {
+    await Future.delayed(const Duration(milliseconds: 200));
+
+    return _records.where((r) {
+      return r.date.year == date.year &&
+          r.date.month == date.month &&
+          r.date.day == date.day;
+    }).toList();
+  }
+
+  @override
+  Future<List<DateTime>> getRecordDatesInMonth(DateTime month) async {
+    await Future.delayed(const Duration(milliseconds: 200));
+
+    final dates = <DateTime>{};
+    for (final record in _records) {
+      if (record.date.year == month.year && record.date.month == month.month) {
+        dates.add(DateTime(record.date.year, record.date.month, record.date.day));
+      }
+    }
+    return dates.toList()..sort();
   }
 
   /// 테스트용: 샘플 데이터 추가
@@ -162,5 +188,15 @@ class PocketBaseRecordRepository implements RecordRepository {
   @override
   Future<void> deleteRecord(String id) async {
     return _service.deleteRecord(id);
+  }
+
+  @override
+  Future<List<RecordData>> getRecordsByDate(DateTime date) async {
+    return _service.getRecordsByDate(date);
+  }
+
+  @override
+  Future<List<DateTime>> getRecordDatesInMonth(DateTime month) async {
+    return _service.getRecordDatesInMonth(month);
   }
 }

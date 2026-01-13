@@ -8,6 +8,8 @@ import '../widgets/home/tip_card.dart';
 import '../../domain/models/schedule_data.dart';
 import '../../data/repositories/schedule_repository.dart';
 import '../../data/repositories/aquarium_repository.dart';
+import '../../data/services/auth_service.dart';
+import '../../domain/models/aquarium_data.dart' as domain;
 
 /// 홈 화면 (MainShell에서 사용)
 class HomeScreen extends StatelessWidget {
@@ -32,10 +34,14 @@ class HomeContent extends StatefulWidget {
 class _HomeContentState extends State<HomeContent> {
   // 어항 데이터 (Mock Repository에서 로드)
   List<AquariumData> _aquariums = [];
+  List<domain.AquariumData> _domainAquariums = [];
 
   final ScheduleRepository _scheduleRepository = PocketBaseScheduleRepository.instance;
   final AquariumRepository _aquariumRepository = PocketBaseAquariumRepository.instance;
   List<ScheduleData> _scheduleItems = [];
+
+  // 사용자 닉네임
+  String _userName = '미니모';
 
   // 추천 콘텐츠 페이지 인덱스
   int _contentPageIndex = 0;
@@ -46,8 +52,21 @@ class _HomeContentState extends State<HomeContent> {
   @override
   void initState() {
     super.initState();
+    _loadUserInfo();
     _loadSchedule();
     _loadAquariums();
+  }
+
+  void _loadUserInfo() {
+    final user = AuthService.instance.currentUser;
+    if (user != null) {
+      final name = user.getStringValue('name');
+      if (name.isNotEmpty && mounted) {
+        setState(() {
+          _userName = name;
+        });
+      }
+    }
   }
 
   int _aquariumRetryCount = 0;
@@ -59,6 +78,7 @@ class _HomeContentState extends State<HomeContent> {
       _aquariumRetryCount = 0; // 성공 시 리셋
       if (mounted) {
         setState(() {
+          _domainAquariums = domainAquariums;
           // domain.AquariumData를 UI용 AquariumData로 변환
           _aquariums = domainAquariums.map((a) => AquariumData(
             id: a.id ?? '',
@@ -203,7 +223,13 @@ class _HomeContentState extends State<HomeContent> {
                     const SizedBox(height: 16),
                     AquariumCardList(
                       aquariums: _aquariums,
-                      onAquariumTap: (aquarium) {},
+                      onAquariumTap: (aquarium) {
+                        Navigator.pushNamed(
+                          context,
+                          '/aquarium/detail',
+                          arguments: aquarium.id,
+                        );
+                      },
                     ),
                     const SizedBox(height: 32),
                   ],
@@ -334,7 +360,10 @@ class _HomeContentState extends State<HomeContent> {
                           const SizedBox(height: 18),
                           _buildGreeting(),
                           const SizedBox(height: 16),
-                          if (_hasAquariums) _buildStatusTags(),
+                          if (_hasAquariums)
+                            _buildStatusTags()
+                          else
+                            _buildRegisterAquariumButton(),
                         ],
                       ),
                     ),
@@ -512,45 +541,65 @@ class _HomeContentState extends State<HomeContent> {
     );
   }
 
-  /// Greeting Text
+  /// Greeting Text - 어항 유무에 따라 다른 인사말
   Widget _buildGreeting() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '미니모 님, 오늘도 덕분에',
-          style: AppTextStyles.headlineLarge.copyWith(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-            fontSize: 24,
-            height: 36 / 24,
-            letterSpacing: -0.25,
-          ),
-        ),
-        Text(
-          '잘 지내고 있어요! 🐠',
-          style: AppTextStyles.headlineLarge.copyWith(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-            fontSize: 24,
-            height: 36 / 24,
-            letterSpacing: -0.25,
-          ),
-        ),
-      ],
+    final textStyle = AppTextStyles.headlineLarge.copyWith(
+      color: Colors.white,
+      fontWeight: FontWeight.w600,
+      fontSize: 24,
+      height: 36 / 24,
+      letterSpacing: -0.25,
     );
+
+    if (_hasAquariums) {
+      // 어항이 있는 경우
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('$_userName 님, 오늘도 덕분에', style: textStyle),
+          Text('잘 지내고 있어요! 🐠', style: textStyle),
+        ],
+      );
+    } else {
+      // 어항이 없는 경우
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('$_userName 님, 반가워요!', style: textStyle),
+          Text('첫 어항을 등록해보세요 🐠', style: textStyle),
+        ],
+      );
+    }
   }
 
-  /// Status Tags (glass effect)
+  /// Status Tags (glass effect) - 동적 D-day 계산
   Widget _buildStatusTags() {
-    return Row(
-      children: [
-        _buildStatusTag('오늘 챙김 3건'),
-        const SizedBox(width: 7),
-        _buildStatusTag('물잡이 2일차'),
-        const SizedBox(width: 7),
-        _buildStatusTag('약욕중'),
-      ],
+    final tags = <String>[];
+
+    // 오늘 할 일 수 (미완료)
+    final todoCount = _scheduleItems.where((s) => !s.isCompleted).length;
+    if (todoCount > 0) {
+      tags.add('오늘 해야 $todoCount건');
+    }
+
+    // 물잡이 D-day 계산 (첫 번째 어항의 세팅일 기준)
+    if (_domainAquariums.isNotEmpty) {
+      final firstAquarium = _domainAquariums.first;
+      if (firstAquarium.settingDate != null) {
+        final days = DateTime.now().difference(firstAquarium.settingDate!).inDays + 1;
+        tags.add('물잡이 $days일차');
+      }
+    }
+
+    // 태그가 없으면 기본 태그 표시
+    if (tags.isEmpty) {
+      tags.add('어항 관리 중');
+    }
+
+    return Wrap(
+      spacing: 7,
+      runSpacing: 7,
+      children: tags.map((tag) => _buildStatusTag(tag)).toList(),
     );
   }
 
@@ -569,6 +618,38 @@ class _HomeContentState extends State<HomeContent> {
           fontSize: 14,
           height: 20 / 14,
           letterSpacing: -0.25,
+        ),
+      ),
+    );
+  }
+
+  /// 어항 등록하기 버튼 (어항이 없을 때만 표시)
+  Widget _buildRegisterAquariumButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 40,
+      child: ElevatedButton(
+        onPressed: () {
+          Navigator.pushNamed(context, '/aquarium/register');
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.brand,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(4),
+          ),
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 2),
+        ),
+        child: Text(
+          '어항 등록하기',
+          style: AppTextStyles.bodySmall.copyWith(
+            color: Colors.white,
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
+            height: 20 / 14,
+            letterSpacing: -0.25,
+          ),
         ),
       ),
     );

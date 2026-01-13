@@ -29,7 +29,7 @@ class AquariumService {
         page: page,
         perPage: perPage,
         filter: filter,
-        sort: sort ?? '', // 빈 문자열로 기본값 설정 (정렬 없음)
+        sort: (sort != null && sort.isNotEmpty) ? sort : null,
       );
 
       return result.items.map((record) => _recordToAquariumData(record)).toList();
@@ -43,7 +43,7 @@ class AquariumService {
   Future<List<AquariumData>> getAllAquariums({String? sort}) async {
     try {
       final records = await _pb.collection(_collection).getFullList(
-        sort: sort ?? '',
+        sort: (sort != null && sort.isNotEmpty) ? sort : null,
       );
 
       return records.map((record) => _recordToAquariumData(record)).toList();

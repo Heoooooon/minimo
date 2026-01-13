@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import '../widgets/common/bottom_nav_bar.dart';
 import 'home_screen.dart';
 import 'aquarium/aquarium_list_screen.dart';
-import 'record_screen.dart';
+import 'record_home_screen.dart';
+import 'community/community_screen.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 
@@ -41,9 +42,9 @@ class _MainShellState extends State<MainShell> {
       case NavTab.aquarium:
         return const AquariumListScreen();
       case NavTab.record:
-        return const RecordScreen();
+        return const RecordHomeScreen();
       case NavTab.community:
-        return const _PlaceholderScreen(title: '커뮤니티');
+        return const CommunityScreen();
       case NavTab.settings:
         return const _PlaceholderScreen(title: '설정');
     }

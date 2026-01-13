@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import '../../../data/services/creature_service.dart';
+import '../../../domain/models/creature_data.dart' as domain;
 import '../../../theme/app_colors.dart';
 import '../../widgets/common/date_picker_bottom_sheet.dart';
 import 'creature_search_screen.dart';
@@ -20,12 +22,14 @@ enum CreatureGender {
 ///
 /// Figma 디자인 기반 - 내 생물 등록
 class CreatureRegisterScreen extends StatefulWidget {
+  final String? aquariumId;
   final String? creatureName;
   final String? creatureType;
-  final CreatureData? selectedCreature;
+  final CreatureSearchItem? selectedCreature;
 
   const CreatureRegisterScreen({
     super.key,
+    this.aquariumId,
     this.creatureName,
     this.creatureType,
     this.selectedCreature,
@@ -37,7 +41,7 @@ class CreatureRegisterScreen extends StatefulWidget {
 
 class _CreatureRegisterScreenState extends State<CreatureRegisterScreen> {
   // 선택된 생물 정보
-  CreatureData? _selectedCreature;
+  CreatureSearchItem? _selectedCreature;
 
   // 필수 입력 필드
   DateTime? _adoptionDate;
@@ -52,6 +56,9 @@ class _CreatureRegisterScreenState extends State<CreatureRegisterScreen> {
   final List<File> _photos = [];
   final TextEditingController _notesController = TextEditingController();
 
+  // 저장 중 상태
+  bool _isSaving = false;
+
   // 최대 사진 개수
   static const int _maxPhotos = 5;
 
@@ -62,7 +69,7 @@ class _CreatureRegisterScreenState extends State<CreatureRegisterScreen> {
     if (widget.selectedCreature != null) {
       _selectedCreature = widget.selectedCreature;
     } else if (widget.creatureName != null) {
-      _selectedCreature = CreatureData(
+      _selectedCreature = CreatureSearchItem(
         id: 'new',
         name: widget.creatureName!,
         category: widget.creatureType ?? '미분류',
@@ -80,15 +87,16 @@ class _CreatureRegisterScreenState extends State<CreatureRegisterScreen> {
   }
 
   bool get _isFormValid {
-    // 필수 항목 체크: 생물 선택 + (입양일 또는 모름 체크) + 마릿수
+    // 필수 항목 체크: 어항 ID + 생물 선택 + (입양일 또는 모름 체크) + 마릿수
+    final hasAquarium = widget.aquariumId != null;
     final hasCreature = _selectedCreature != null;
     final hasAdoptionInfo = _adoptionDate != null || _unknownAdoptionDate;
     final hasQuantity = _quantity > 0;
-    return hasCreature && hasAdoptionInfo && hasQuantity;
+    return hasAquarium && hasCreature && hasAdoptionInfo && hasQuantity;
   }
 
   void _onChangeCreature() async {
-    final result = await Navigator.push<CreatureData>(
+    final result = await Navigator.push<CreatureSearchItem>(
       context,
       MaterialPageRoute(
         builder: (context) => const CreatureSearchScreen(),
@@ -171,22 +179,67 @@ class _CreatureRegisterScreenState extends State<CreatureRegisterScreen> {
     });
   }
 
-  void _onSave() {
-    if (!_isFormValid) return;
+  Future<void> _onSave() async {
+    if (!_isFormValid || _isSaving) return;
 
-    // TODO: 실제 저장 로직 구현
-    Navigator.pop(context, {
-      'creature': _selectedCreature,
-      'adoptionDate': _adoptionDate,
-      'unknownAdoptionDate': _unknownAdoptionDate,
-      'quantity': _quantity,
-      'name': _nameController.text,
-      'gender': _selectedGender,
-      'source': _sourceController.text,
-      'price': _priceController.text,
-      'photos': _photos,
-      'notes': _notesController.text,
-    });
+    setState(() => _isSaving = true);
+
+    try {
+      // 성별 변환
+      domain.CreatureGender? domainGender;
+      if (_selectedGender != null) {
+        switch (_selectedGender!) {
+          case CreatureGender.male:
+            domainGender = domain.CreatureGender.male;
+            break;
+          case CreatureGender.female:
+            domainGender = domain.CreatureGender.female;
+            break;
+          case CreatureGender.mixed:
+            domainGender = domain.CreatureGender.mixed;
+            break;
+          case CreatureGender.unknown:
+            domainGender = domain.CreatureGender.unknown;
+            break;
+        }
+      }
+
+      // CreatureData 생성
+      final creature = domain.CreatureData(
+        aquariumId: widget.aquariumId!,
+        name: _selectedCreature!.name,
+        type: _selectedCreature!.category,
+        nickname: _nameController.text.isNotEmpty ? _nameController.text : null,
+        adoptionDate: _adoptionDate,
+        unknownAdoptionDate: _unknownAdoptionDate,
+        quantity: _quantity,
+        gender: domainGender,
+        source: _sourceController.text.isNotEmpty ? _sourceController.text : null,
+        price: _priceController.text.isNotEmpty ? _priceController.text : null,
+        photoFiles: _photos.map((f) => f.path).toList(),
+      );
+
+      // 저장
+      await CreatureService.instance.createCreature(creature);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('생물이 등록되었습니다.')),
+        );
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      debugPrint('Failed to save creature: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('저장에 실패했습니다: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
   }
 
   @override
@@ -895,6 +948,8 @@ class _CreatureRegisterScreenState extends State<CreatureRegisterScreen> {
   }
 
   Widget _buildBottomButton() {
+    final isEnabled = _isFormValid && !_isSaving;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
       decoration: BoxDecoration(
@@ -910,25 +965,34 @@ class _CreatureRegisterScreenState extends State<CreatureRegisterScreen> {
       ),
       child: SafeArea(
         child: GestureDetector(
-          onTap: _isFormValid ? _onSave : null,
+          onTap: isEnabled ? _onSave : null,
           child: Container(
             height: 56,
             decoration: BoxDecoration(
-              color: _isFormValid ? AppColors.brand : AppColors.backgroundDisabled,
+              color: isEnabled ? AppColors.brand : AppColors.backgroundDisabled,
               borderRadius: BorderRadius.circular(8),
             ),
             alignment: Alignment.center,
-            child: Text(
-              '저장하기',
-              style: TextStyle(
-                fontFamily: 'WantedSans',
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: _isFormValid ? AppColors.backgroundApp : AppColors.disabledText,
-                height: 24 / 16,
-                letterSpacing: -0.5,
-              ),
-            ),
+            child: _isSaving
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : Text(
+                    '저장하기',
+                    style: TextStyle(
+                      fontFamily: 'WantedSans',
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: isEnabled ? AppColors.backgroundApp : AppColors.disabledText,
+                      height: 24 / 16,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
           ),
         ),
       ),

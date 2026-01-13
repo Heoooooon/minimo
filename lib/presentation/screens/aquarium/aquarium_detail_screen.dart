@@ -4,8 +4,11 @@ import 'dart:io';
 import '../../../domain/models/aquarium_data.dart';
 import '../../../domain/models/creature_data.dart';
 import '../../../domain/models/gallery_photo_data.dart';
+import '../../../domain/models/schedule_data.dart';
 import '../../../data/services/creature_service.dart';
 import '../../../data/services/gallery_photo_service.dart';
+import '../../../data/services/aquarium_service.dart';
+import '../../../data/services/schedule_service.dart';
 import '../../../theme/app_colors.dart';
 
 /// 어항 상세 화면
@@ -25,6 +28,7 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
   AquariumData? _aquarium;
   List<CreatureData> _creatures = [];
   List<GalleryPhotoData> _galleryPhotos = [];
+  List<ScheduleData> _schedules = [];
   String? _selectedCreatureFilter; // null이면 전체
   bool _sortNewest = true; // true: 최신순, false: 오래된순
   bool _isLoading = true;
@@ -41,16 +45,22 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
     setState(() => _isLoading = true);
 
     try {
-      final creatures = await CreatureService.instance.getCreaturesByAquarium(_aquarium!.id!);
+      final creatures = await CreatureService.instance.getCreaturesByAquarium(
+        _aquarium!.id!,
+      );
       final photos = await GalleryPhotoService.instance.getPhotosByAquarium(
         _aquarium!.id!,
         newestFirst: _sortNewest,
+      );
+      final schedules = await ScheduleService.instance.getSchedulesByAquarium(
+        _aquarium!.id!,
       );
 
       if (mounted) {
         setState(() {
           _creatures = creatures;
           _galleryPhotos = photos;
+          _schedules = schedules;
           _isLoading = false;
         });
       }
@@ -69,6 +79,23 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
     if (args is AquariumData && _aquarium?.id != args.id) {
       _aquarium = args;
       _loadData();
+    } else if (args is String && _aquarium?.id != args) {
+      // ID가 문자열로 전달된 경우 어항 조회
+      _loadAquariumById(args);
+    }
+  }
+
+  Future<void> _loadAquariumById(String id) async {
+    try {
+      final aquarium = await AquariumService.instance.getAquarium(id);
+      if (aquarium != null && mounted) {
+        setState(() {
+          _aquarium = aquarium;
+        });
+        _loadData();
+      }
+    } catch (e) {
+      debugPrint('Failed to load aquarium by id: $e');
     }
   }
 
@@ -99,10 +126,19 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
           context,
           '/creature/search',
           arguments: _aquarium,
-        );
+        ).then((_) {
+          if (mounted) _loadData();
+        });
         break;
       case 1:
-        // TODO: 알림 추가 기능
+        // 알림 추가 -> 알림 추가 화면으로 이동
+        Navigator.pushNamed(
+          context,
+          '/schedule/add',
+          arguments: _aquarium,
+        ).then((_) {
+          if (mounted) _loadData();
+        });
         break;
       case 2:
         // TODO: 사진 추가 기능
@@ -113,9 +149,7 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
   @override
   Widget build(BuildContext context) {
     if (_aquarium == null) {
-      return Scaffold(
-        body: Center(child: Text('어항 정보를 불러올 수 없습니다.')),
-      );
+      return Scaffold(body: Center(child: Text('어항 정보를 불러올 수 없습니다.')));
     }
 
     // 사진 유무에 따라 다른 레이아웃
@@ -130,52 +164,64 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
   Widget _buildWithPhotoLayout() {
     final isTreatment = _aquarium!.purpose == AquariumPurpose.fry;
     final daysCount = _calculateDays(_aquarium!.settingDate);
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    // 반응형 계산: 375px 기준 비율 적용
+    // 헤더 이미지 높이: 299px (기준), 흰색 카드 시작: 215px (기준)
+    const baseWidth = 375.0;
+    const baseHeaderHeight = 299.0;
+    const baseCardTop = 215.0;
+
+    final scale = screenWidth / baseWidth;
+    final headerHeight = baseHeaderHeight * scale;
+    final cardTop = baseCardTop * scale;
 
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
       body: Stack(
         children: [
           // 상단 이미지 영역
-          _buildHeaderImage(),
+          _buildHeaderImage(headerHeight),
 
-          // 콘텐츠
-          Column(
-            children: [
-              // 상단 앱바 (흰색 아이콘)
-              _buildAppBar(isOverImage: true),
+          // 상단 앱바 (흰색 아이콘)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: _buildAppBar(isOverImage: true),
+          ),
 
-              const SizedBox(height: 135),
-
-              // 메인 콘텐츠 (흰색 카드)
-              Expanded(
-                child: Container(
-                  width: double.infinity,
-                  decoration: const BoxDecoration(
-                    color: AppColors.backgroundApp,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(24),
-                      topRight: Radius.circular(24),
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      _buildInfoSection(isTreatment, daysCount),
-                      _buildTabBar(),
-                      Expanded(
-                        child: TabBarView(
-                          controller: _tabController,
-                          children: [
-                            _buildCreatureTab(),
-                            _buildEmptyState('알림'),
-                            _buildGalleryTab(),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+          // 메인 콘텐츠 (흰색 카드)
+          Positioned(
+            top: cardTop,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Container(
+              decoration: const BoxDecoration(
+                color: AppColors.backgroundApp,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(24),
+                  topRight: Radius.circular(24),
                 ),
               ),
-            ],
+              child: Column(
+                children: [
+                  _buildInfoSection(isTreatment, daysCount),
+                  _buildTabBar(),
+                  Expanded(
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildCreatureTab(),
+                        _buildScheduleTab(),
+                        _buildGalleryTab(),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
 
           // 하단 버튼
@@ -203,7 +249,7 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
               controller: _tabController,
               children: [
                 _buildCreatureTab(),
-                _buildEmptyState('알림'),
+                _buildScheduleTab(),
                 _buildGalleryTab(),
               ],
             ),
@@ -216,13 +262,14 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
     );
   }
 
-  Widget _buildHeaderImage() {
+  Widget _buildHeaderImage(double height) {
+    // Figma: 이미지가 화면 밖으로 살짝 확장됨
     return Positioned(
-      top: 0,
-      left: 0,
-      right: 0,
+      top: -4,
+      left: -12,
+      right: -12,
       child: Container(
-        height: 299,
+        height: height,
         decoration: BoxDecoration(
           color: AppColors.brand.withValues(alpha: 0.3),
           image: _aquarium?.photoUrl != null
@@ -230,7 +277,12 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
                   image: NetworkImage(_aquarium!.photoUrl!),
                   fit: BoxFit.cover,
                 )
-              : null,
+              : _aquarium?.photoPath != null
+                  ? DecorationImage(
+                      image: FileImage(File(_aquarium!.photoPath!)),
+                      fit: BoxFit.cover,
+                    )
+                  : null,
         ),
         child: Container(
           decoration: BoxDecoration(
@@ -238,7 +290,7 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Colors.transparent,
+                const Color(0xFF87B1FF).withValues(alpha: 0),
                 const Color(0xFFA9C7FF).withValues(alpha: 0.3),
               ],
             ),
@@ -262,11 +314,7 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
             // 뒤로가기 버튼
             IconButton(
               onPressed: () => Navigator.pop(context),
-              icon: Icon(
-                Icons.arrow_back_ios,
-                color: iconColor,
-                size: 24,
-              ),
+              icon: Icon(Icons.arrow_back_ios, color: iconColor, size: 24),
             ),
 
             // 타이틀
@@ -287,11 +335,7 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
               onPressed: () {
                 // TODO: 어항 편집 기능
               },
-              icon: Icon(
-                Icons.edit_outlined,
-                color: iconColor,
-                size: 24,
-              ),
+              icon: Icon(Icons.edit_outlined, color: iconColor, size: 24),
             ),
           ],
         ),
@@ -300,8 +344,14 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
   }
 
   Widget _buildInfoSection(bool isTreatment, int daysCount) {
+    // 총 생물 수 계산
+    final totalCreatureCount = _creatures.fold<int>(
+      0,
+      (sum, creature) => sum + creature.quantity,
+    );
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -342,9 +392,9 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
                     ),
                   ),
                   const SizedBox(width: 8),
-                  const Text(
-                    '0', // TODO: 실제 생물 수
-                    style: TextStyle(
+                  Text(
+                    '$totalCreatureCount',
+                    style: const TextStyle(
                       fontFamily: 'WantedSans',
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
@@ -471,10 +521,7 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
         letterSpacing: -0.5,
       ),
       indicator: const UnderlineTabIndicator(
-        borderSide: BorderSide(
-          color: AppColors.brand,
-          width: 1.5,
-        ),
+        borderSide: BorderSide(color: AppColors.brand, width: 1.5),
       ),
       indicatorSize: TabBarIndicatorSize.tab,
       dividerColor: const Color(0xFFE8EBF0),
@@ -486,11 +533,16 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
     );
   }
 
-/// 생물 탭 콘텐츠
+  /// 생물 탭 콘텐츠
   Widget _buildCreatureTab() {
+    // 빈 상태일 때는 툴바 없이 empty state만 표시 (Figma 디자인 기준)
+    if (_creatures.isEmpty) {
+      return _buildEmptyState('생물');
+    }
+
     return Column(
       children: [
-        // 상단 툴바 (뷰 전환 + 생물 추가 버튼)
+        // 상단 툴바 (뷰 전환 + 생물 추가 버튼) - 생물이 있을 때만 표시
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
           child: Row(
@@ -539,24 +591,146 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
         ),
         // 생물 그리드
         Expanded(
-          child: _creatures.isEmpty
-              ? _buildEmptyState('생물')
-              : GridView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 13,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 165 / 150,
-                  ),
-                  itemCount: _creatures.length,
-                  itemBuilder: (context, index) {
-                    return _buildCreatureCard(_creatures[index]);
-                  },
-                ),
+          child: GridView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 13,
+              mainAxisSpacing: 12,
+              childAspectRatio: 165 / 150,
+            ),
+            itemCount: _creatures.length,
+            itemBuilder: (context, index) {
+              return _buildCreatureCard(_creatures[index]);
+            },
+          ),
         ),
       ],
     );
+  }
+
+  /// 알림 탭 콘텐츠
+  Widget _buildScheduleTab() {
+    if (_schedules.isEmpty) {
+      return _buildEmptyState('알림');
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+      itemCount: _schedules.length,
+      itemBuilder: (context, index) {
+        return _buildScheduleCard(_schedules[index]);
+      },
+    );
+  }
+
+  /// 알림 카드 위젯
+  Widget _buildScheduleCard(ScheduleData schedule) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.borderLight),
+      ),
+      child: Row(
+        children: [
+          // 아이콘
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppColors.chipPrimaryBg,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              _getIconForAlarmType(schedule.alarmType),
+              color: AppColors.brand,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+          // 정보
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  schedule.title,
+                  style: const TextStyle(
+                    fontFamily: 'WantedSans',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF212529),
+                    height: 24 / 16,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text(
+                      schedule.time,
+                      style: const TextStyle(
+                        fontFamily: 'WantedSans',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF666E78),
+                        height: 20 / 14,
+                      ),
+                    ),
+                    if (schedule.repeatCycle != RepeatCycle.none) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.backgroundApp,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          schedule.repeatCycle.label,
+                          style: const TextStyle(
+                            fontFamily: 'WantedSans',
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF666E78),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // 알림 아이콘
+          if (schedule.isNotificationEnabled)
+            const Icon(
+              Icons.notifications_active_outlined,
+              color: AppColors.brand,
+              size: 20,
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// 알림 종류에 따른 아이콘
+  IconData _getIconForAlarmType(AlarmType type) {
+    switch (type) {
+      case AlarmType.waterChange:
+        return Icons.water_drop_outlined;
+      case AlarmType.feeding:
+        return Icons.restaurant_outlined;
+      case AlarmType.cleaning:
+        return Icons.cleaning_services_outlined;
+      case AlarmType.waterTest:
+        return Icons.science_outlined;
+      case AlarmType.medication:
+        return Icons.medication_outlined;
+      case AlarmType.other:
+        return Icons.more_horiz;
+    }
   }
 
   /// 뷰 전환 버튼
@@ -579,11 +753,7 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
 
     return GestureDetector(
       onTap: () {
-        Navigator.pushNamed(
-          context,
-          '/creature/detail',
-          arguments: creature,
-        );
+        Navigator.pushNamed(context, '/creature/detail', arguments: creature);
       },
       child: Container(
         decoration: BoxDecoration(
@@ -706,17 +876,14 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
     );
   }
 
-/// 갤러리 탭 콘텐츠
+  /// 갤러리 탭 콘텐츠
   Widget _buildGalleryTab() {
     return Column(
       children: [
         // 생물 필터 칩
         _buildCreatureFilterChips(),
         // 구분선
-        Container(
-          height: 8,
-          color: AppColors.borderLight,
-        ),
+        Container(height: 8, color: AppColors.borderLight),
         // 월별 헤더 + 정렬
         _buildGalleryHeader(),
         // 날짜별 사진 그리드
@@ -737,9 +904,11 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
     }).toList();
 
     // 정렬
-    photos.sort((a, b) => _sortNewest
-        ? b.photoDate.compareTo(a.photoDate)
-        : a.photoDate.compareTo(b.photoDate));
+    photos.sort(
+      (a, b) => _sortNewest
+          ? b.photoDate.compareTo(a.photoDate)
+          : a.photoDate.compareTo(b.photoDate),
+    );
 
     return photos;
   }
@@ -763,10 +932,12 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
           _buildFilterChip(null, '전체'),
           const SizedBox(width: 8),
           // 생물별 필터
-          ...creatureNames.map((creature) => Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: _buildFilterChip(creature['id'], creature['name']!),
-              )),
+          ...creatureNames.map(
+            (creature) => Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: _buildFilterChip(creature['id'], creature['name']!),
+            ),
+          ),
         ],
       ),
     );
@@ -815,7 +986,8 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
 
     // 가장 최근 사진의 년월
     final latestDate = photos.first.photoDate;
-    final yearMonth = '${latestDate.year}. ${latestDate.month.toString().padLeft(2, '0')}';
+    final yearMonth =
+        '${latestDate.year}. ${latestDate.month.toString().padLeft(2, '0')}';
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -873,7 +1045,8 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
     // 날짜별로 그룹화
     final Map<String, List<GalleryPhotoData>> groupedPhotos = {};
     for (final photo in photos) {
-      final dateKey = '${photo.photoDate.year}-${photo.photoDate.month}-${photo.photoDate.day}';
+      final dateKey =
+          '${photo.photoDate.year}-${photo.photoDate.month}-${photo.photoDate.day}';
       groupedPhotos.putIfAbsent(dateKey, () => []).add(photo);
     }
 
@@ -953,9 +1126,7 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
               for (var j = 0; j < 3; j++)
                 Expanded(
                   child: Padding(
-                    padding: EdgeInsets.only(
-                      left: j > 0 ? 8 : 0,
-                    ),
+                    padding: EdgeInsets.only(left: j > 0 ? 8 : 0),
                     child: j < rowPhotos.length
                         ? _buildPhotoThumbnail(rowPhotos[j])
                         : const SizedBox.shrink(),
@@ -1066,27 +1237,21 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
       left: 0,
       right: 0,
       child: Container(
+        // Figma: padding 16px 좌우, 24px 상단, 8px 하단
         padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
-        decoration: BoxDecoration(
-          color: AppColors.backgroundApp,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 8,
-              offset: const Offset(0, -4),
-            ),
-          ],
-        ),
+        color: AppColors.backgroundApp,
         child: SafeArea(
           top: false,
           child: SizedBox(
             height: 56,
+            width: double.infinity,
             child: ElevatedButton(
               onPressed: _onAddButtonPressed,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.brand,
                 foregroundColor: Colors.white,
                 elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 3),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -1131,26 +1296,19 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
   Widget _buildBottomButtonInline() {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
-      decoration: BoxDecoration(
-        color: AppColors.backgroundApp,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
+      color: AppColors.backgroundApp,
       child: SafeArea(
         top: false,
         child: SizedBox(
           height: 56,
+          width: double.infinity,
           child: ElevatedButton(
             onPressed: _onAddButtonPressed,
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.brand,
               foregroundColor: Colors.white,
               elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 3),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),

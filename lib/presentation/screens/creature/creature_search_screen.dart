@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
+import '../../../domain/models/aquarium_data.dart';
 import '../../../theme/app_colors.dart';
 import 'creature_register_screen.dart';
 
-/// 생물 데이터 모델
-class CreatureData {
+/// 생물 검색 결과 아이템 모델
+class CreatureSearchItem {
   final String id;
   final String name;
   final String category;
   final String? imageUrl;
 
-  const CreatureData({
+  const CreatureSearchItem({
     required this.id,
     required this.name,
     required this.category,
@@ -19,48 +20,48 @@ class CreatureData {
 
 /// 하드코딩된 생물 데이터
 class CreatureDatabase {
-  static const List<CreatureData> suggestedCreatures = [
-    CreatureData(id: '1', name: '하프문 베타', category: '베타'),
-    CreatureData(id: '2', name: '니모', category: '해수어'),
-    CreatureData(id: '3', name: '구피', category: '구피'),
-    CreatureData(id: '4', name: '플라캣 베타', category: '베타'),
-    CreatureData(id: '5', name: '네온테트라', category: '테트라'),
+  static const List<CreatureSearchItem> suggestedCreatures = [
+    CreatureSearchItem(id: '1', name: '하프문 베타', category: '베타'),
+    CreatureSearchItem(id: '2', name: '니모', category: '해수어'),
+    CreatureSearchItem(id: '3', name: '구피', category: '구피'),
+    CreatureSearchItem(id: '4', name: '플라캣 베타', category: '베타'),
+    CreatureSearchItem(id: '5', name: '네온테트라', category: '테트라'),
   ];
 
-  static const List<CreatureData> allCreatures = [
+  static const List<CreatureSearchItem> allCreatures = [
     // 구피 종류
-    CreatureData(id: '3', name: '구피', category: '구피'),
-    CreatureData(id: '10', name: '알비노 풀레드', category: '구피'),
-    CreatureData(id: '11', name: '몽키 바나나', category: '구피'),
-    CreatureData(id: '12', name: '풀블랙', category: '구피'),
-    CreatureData(id: '13', name: '코이 글라스벨리', category: '구피'),
-    CreatureData(id: '14', name: '시크릿 바이올렛', category: '구피'),
-    CreatureData(id: '15', name: '블루 모자이크', category: '구피'),
-    CreatureData(id: '16', name: '레드 코브라', category: '구피'),
+    CreatureSearchItem(id: '3', name: '구피', category: '구피'),
+    CreatureSearchItem(id: '10', name: '알비노 풀레드', category: '구피'),
+    CreatureSearchItem(id: '11', name: '몽키 바나나', category: '구피'),
+    CreatureSearchItem(id: '12', name: '풀블랙', category: '구피'),
+    CreatureSearchItem(id: '13', name: '코이 글라스벨리', category: '구피'),
+    CreatureSearchItem(id: '14', name: '시크릿 바이올렛', category: '구피'),
+    CreatureSearchItem(id: '15', name: '블루 모자이크', category: '구피'),
+    CreatureSearchItem(id: '16', name: '레드 코브라', category: '구피'),
 
     // 베타 종류
-    CreatureData(id: '1', name: '하프문 베타', category: '베타'),
-    CreatureData(id: '4', name: '플라캣 베타', category: '베타'),
-    CreatureData(id: '20', name: '크라운테일 베타', category: '베타'),
-    CreatureData(id: '21', name: '덤보 베타', category: '베타'),
+    CreatureSearchItem(id: '1', name: '하프문 베타', category: '베타'),
+    CreatureSearchItem(id: '4', name: '플라캣 베타', category: '베타'),
+    CreatureSearchItem(id: '20', name: '크라운테일 베타', category: '베타'),
+    CreatureSearchItem(id: '21', name: '덤보 베타', category: '베타'),
 
     // 테트라 종류
-    CreatureData(id: '5', name: '네온테트라', category: '테트라'),
-    CreatureData(id: '30', name: '카디날 테트라', category: '테트라'),
-    CreatureData(id: '31', name: '블랙 네온 테트라', category: '테트라'),
+    CreatureSearchItem(id: '5', name: '네온테트라', category: '테트라'),
+    CreatureSearchItem(id: '30', name: '카디날 테트라', category: '테트라'),
+    CreatureSearchItem(id: '31', name: '블랙 네온 테트라', category: '테트라'),
 
     // 해수어
-    CreatureData(id: '2', name: '니모', category: '해수어'),
-    CreatureData(id: '40', name: '블루탱', category: '해수어'),
-    CreatureData(id: '41', name: '옐로우탱', category: '해수어'),
+    CreatureSearchItem(id: '2', name: '니모', category: '해수어'),
+    CreatureSearchItem(id: '40', name: '블루탱', category: '해수어'),
+    CreatureSearchItem(id: '41', name: '옐로우탱', category: '해수어'),
 
     // 기타
-    CreatureData(id: '50', name: '금붕어', category: '금붕어'),
-    CreatureData(id: '51', name: '코리도라스', category: '코리도라스'),
-    CreatureData(id: '52', name: '플레코', category: '플레코'),
+    CreatureSearchItem(id: '50', name: '금붕어', category: '금붕어'),
+    CreatureSearchItem(id: '51', name: '코리도라스', category: '코리도라스'),
+    CreatureSearchItem(id: '52', name: '플레코', category: '플레코'),
   ];
 
-  static List<CreatureData> search(String query) {
+  static List<CreatureSearchItem> search(String query) {
     if (query.isEmpty) return [];
     final lowerQuery = query.toLowerCase();
     return allCreatures
@@ -83,8 +84,9 @@ class CreatureSearchScreen extends StatefulWidget {
 
 class _CreatureSearchScreenState extends State<CreatureSearchScreen> {
   final TextEditingController _searchController = TextEditingController();
-  List<CreatureData> _searchResults = [];
+  List<CreatureSearchItem> _searchResults = [];
   bool _isSearching = false;
+  AquariumData? _aquarium;
 
   // 최근 검색어 목록
   final List<String> _recentSearches = ['청소 물고기', '구피', '니모', '플라캣 베타'];
@@ -93,6 +95,15 @@ class _CreatureSearchScreenState extends State<CreatureSearchScreen> {
   void initState() {
     super.initState();
     _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args = ModalRoute.of(context)?.settings.arguments;
+    if (args is AquariumData) {
+      _aquarium = args;
+    }
   }
 
   @override
@@ -110,7 +121,7 @@ class _CreatureSearchScreenState extends State<CreatureSearchScreen> {
     });
   }
 
-  void _onSuggestionTap(CreatureData creature) {
+  void _onSuggestionTap(CreatureSearchItem creature) {
     _addToRecentSearches(creature.name);
     _searchController.text = creature.name;
   }
@@ -143,9 +154,22 @@ class _CreatureSearchScreenState extends State<CreatureSearchScreen> {
     });
   }
 
-  void _onCreatureSelect(CreatureData creature) {
+  void _onCreatureSelect(CreatureSearchItem creature) async {
     _addToRecentSearches(creature.name);
-    Navigator.pop(context, creature);
+    // 등록 화면으로 이동
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CreatureRegisterScreen(
+          aquariumId: _aquarium?.id,
+          selectedCreature: creature,
+        ),
+      ),
+    );
+    // 등록 완료 시 이전 화면으로 돌아감
+    if (result == true && mounted) {
+      Navigator.pop(context, true);
+    }
   }
 
   @override
@@ -396,7 +420,7 @@ class _CreatureSearchScreenState extends State<CreatureSearchScreen> {
     );
   }
 
-  Widget _buildSuggestionChip(CreatureData creature) {
+  Widget _buildSuggestionChip(CreatureSearchItem creature) {
     return GestureDetector(
       onTap: () => _onSuggestionTap(creature),
       child: Container(
@@ -440,16 +464,21 @@ class _CreatureSearchScreenState extends State<CreatureSearchScreen> {
     );
   }
 
-  void _onAddCreature() {
+  void _onAddCreature() async {
     // 검색어를 기반으로 새 생물 등록 화면으로 이동
-    Navigator.push(
+    final result = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => CreatureRegisterScreen(
+          aquariumId: _aquarium?.id,
           creatureName: _searchController.text,
         ),
       ),
     );
+    // 등록 완료 시 이전 화면으로 돌아감
+    if (result == true && mounted) {
+      Navigator.pop(context, true);
+    }
   }
 
   Widget _buildSearchResults() {
@@ -473,7 +502,7 @@ class _CreatureSearchScreenState extends State<CreatureSearchScreen> {
     );
   }
 
-  Widget _buildSearchResultItem(CreatureData creature) {
+  Widget _buildSearchResultItem(CreatureSearchItem creature) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Row(

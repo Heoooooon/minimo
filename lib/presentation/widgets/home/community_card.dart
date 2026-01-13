@@ -160,6 +160,8 @@ class CommunityCard extends StatelessWidget {
   Widget _buildContentText() {
     // Check if content has "더보기" link
     final hasMoreLink = data.content.contains('더보기');
+    // Reduce maxLines when image is present to prevent overflow
+    final maxLines = data.imageUrl != null ? 3 : 8;
 
     if (hasMoreLink) {
       final parts = data.content.split('더보기');
@@ -185,7 +187,7 @@ class CommunityCard extends StatelessWidget {
             ),
           ],
         ),
-        maxLines: 8,
+        maxLines: maxLines,
         overflow: TextOverflow.ellipsis,
       );
     }
@@ -198,7 +200,7 @@ class CommunityCard extends StatelessWidget {
         height: 24 / 16,
         letterSpacing: -0.5,
       ),
-      maxLines: 8,
+      maxLines: maxLines,
       overflow: TextOverflow.ellipsis,
     );
   }

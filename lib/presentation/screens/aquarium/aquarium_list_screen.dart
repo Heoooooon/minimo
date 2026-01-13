@@ -188,22 +188,25 @@ class _AquariumListScreenState extends State<AquariumListScreen> {
     );
   }
 
-  /// Empty State UI - Figma 디자인 기반
+  /// Empty State UI - Figma 디자인 기반 (반응형)
   Widget _buildEmptyState(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width;
+
     return Stack(
       children: [
-        // 배경 어항 아이콘 (회전, 30% 투명도)
+        // 배경 어항 아이콘 (회전, 30% 투명도) - 반응형 위치
         Positioned(
-          left: 117,
-          top: 419,
+          left: screenWidth * 0.15,
+          bottom: screenHeight * 0.08,
           child: Transform.rotate(
             angle: -30.965 * (3.14159265359 / 180), // 329도 회전
             child: Opacity(
               opacity: 0.3,
               child: SvgPicture.asset(
                 'assets/icons/icon_aquarium.svg',
-                width: 247,
-                height: 247,
+                width: screenWidth * 0.6,
+                height: screenWidth * 0.6,
                 colorFilter: const ColorFilter.mode(
                   Color(0xFFE8EBF0),
                   BlendMode.srcIn,
@@ -220,93 +223,93 @@ class _AquariumListScreenState extends State<AquariumListScreen> {
               // 상단 타이틀 바 영역 (120px)
               const SizedBox(height: 120),
 
-              // 콘텐츠 영역
+              // 콘텐츠 영역 - 가운데 정렬
               Expanded(
-                child: Column(
-                  children: [
-                    const SizedBox(height: 159),
-
-                    // 메인 타이틀 + 서브 텍스트
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 62),
-                      child: Column(
-                        children: [
-                          // 메인 타이틀
-                          RichText(
-                            textAlign: TextAlign.center,
-                            text: const TextSpan(
-                              style: TextStyle(
-                                fontFamily: 'WantedSans',
-                                fontSize: 24,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF212529),
-                                height: 36 / 24,
-                                letterSpacing: -0.25,
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // 메인 타이틀
+                        RichText(
+                          textAlign: TextAlign.center,
+                          text: const TextSpan(
+                            style: TextStyle(
+                              fontFamily: 'WantedSans',
+                              fontSize: 24,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF212529),
+                              height: 36 / 24,
+                              letterSpacing: -0.25,
+                            ),
+                            children: [
+                              TextSpan(text: '첫 번째 '),
+                              TextSpan(
+                                text: '내 어항',
+                                style: TextStyle(color: Color(0xFF0165FE)),
                               ),
-                              children: [
-                                TextSpan(text: '첫 번째 '),
-                                TextSpan(
-                                  text: '내 어항',
-                                  style: TextStyle(color: Color(0xFF0165FE)),
+                              TextSpan(text: '을\n등록해 보세요!'),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // 서브 텍스트
+                        const Text(
+                          '기록하는 물생활을 시작해요',
+                          style: TextStyle(
+                            fontFamily: 'WantedSans',
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF666E78),
+                            height: 24 / 16,
+                            letterSpacing: -0.5,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+
+                        const SizedBox(height: 48),
+
+                        // CTA 버튼 - 반응형 너비
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            minWidth: 200,
+                            maxWidth: 280,
+                          ),
+                          child: SizedBox(
+                            width: double.infinity,
+                            height: 56,
+                            child: ElevatedButton(
+                              onPressed: _navigateToRegister,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF0165FE),
+                                foregroundColor: const Color(0xFFF9FAFC),
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
-                                TextSpan(text: '을\n등록해 보세요!'),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-
-                          // 서브 텍스트
-                          const Text(
-                            '기록하는 물생활을 시작해요',
-                            style: TextStyle(
-                              fontFamily: 'WantedSans',
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFF666E78),
-                              height: 24 / 16,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 48),
-
-                    // CTA 버튼
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 62),
-                      child: SizedBox(
-                        width: 251,
-                        height: 56,
-                        child: ElevatedButton(
-                          onPressed: _navigateToRegister,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0165FE),
-                            foregroundColor: const Color(0xFFF9FAFC),
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 32,
-                              vertical: 3,
-                            ),
-                          ),
-                          child: const Text(
-                            '어항 등록하기',
-                            style: TextStyle(
-                              fontFamily: 'WantedSans',
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                              height: 24 / 16,
-                              letterSpacing: -0.5,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 32,
+                                  vertical: 3,
+                                ),
+                              ),
+                              child: const Text(
+                                '어항 등록하기',
+                                style: TextStyle(
+                                  fontFamily: 'WantedSans',
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                  height: 24 / 16,
+                                  letterSpacing: -0.5,
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ],

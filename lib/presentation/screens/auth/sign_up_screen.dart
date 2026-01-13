@@ -5,6 +5,7 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../widgets/common/app_button.dart';
 import '../main_shell.dart';
+import '../onboarding/onboarding_survey_screen.dart';
 
 /// 회원가입 화면 (연속 플로우 애니메이션)
 class SignUpScreen extends StatefulWidget {
@@ -740,7 +741,8 @@ class _SignUpScreenState extends State<SignUpScreen>
                 expanded: true,
                 onPressed: () {
                   Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (_) => const MainShell()),
+                    MaterialPageRoute(
+                        builder: (_) => const OnboardingSurveyScreen()),
                     (route) => false,
                   );
                 },

@@ -8,7 +8,7 @@ abstract class AquariumRepository {
     int page = 1,
     int perPage = 20,
     String? filter,
-    String sort = '-created',
+    String? sort,
   });
   Future<AquariumData?> getAquarium(String id);
   Future<AquariumData> createAquarium(AquariumData data);
@@ -36,16 +36,16 @@ class MockAquariumRepository implements AquariumRepository {
     int page = 1,
     int perPage = 20,
     String? filter,
-    String sort = '-created',
+    String? sort,
   }) async {
     // 네트워크 지연 시뮬레이션
     await Future.delayed(const Duration(milliseconds: 300));
 
     // 정렬 (최신순)
     final sorted = List<AquariumData>.from(_aquariums);
-    if (sort.startsWith('-')) {
+    if (sort != null && sort.startsWith('-')) {
       sorted.sort((a, b) => (b.id ?? '').compareTo(a.id ?? ''));
-    } else {
+    } else if (sort != null && sort.isNotEmpty) {
       sorted.sort((a, b) => (a.id ?? '').compareTo(b.id ?? ''));
     }
 
@@ -167,7 +167,7 @@ class PocketBaseAquariumRepository implements AquariumRepository {
     int page = 1,
     int perPage = 20,
     String? filter,
-    String sort = '-created',
+    String? sort,
   }) async {
     return _service.getAquariums(
       page: page,

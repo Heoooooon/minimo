@@ -6,18 +6,22 @@ import 'theme/app_colors.dart';
 import 'theme/app_text_styles.dart';
 import 'data/services/pocketbase_service.dart';
 import 'data/services/auth_service.dart';
+import 'data/services/notification_service.dart';
+import 'data/services/onboarding_service.dart';
 import 'presentation/screens/main_shell.dart';
 import 'presentation/screens/tank_register_screen.dart';
-import 'presentation/screens/record_screen.dart';
+import 'presentation/screens/record_add_screen.dart';
 import 'presentation/screens/community_question_screen.dart';
 import 'presentation/screens/aquarium/aquarium_list_screen.dart';
 import 'presentation/screens/aquarium/aquarium_register_screen.dart';
 import 'presentation/screens/aquarium/aquarium_detail_screen.dart';
-import 'presentation/screens/creature/creature_search_screen.dart' hide CreatureData;
+import 'presentation/screens/creature/creature_search_screen.dart';
 import 'presentation/screens/creature/creature_detail_screen.dart';
+import 'presentation/screens/schedule/schedule_add_screen.dart';
 import 'presentation/screens/auth/social_login_screen.dart';
 import 'presentation/screens/auth/email_login_screen.dart';
 import 'presentation/screens/auth/sign_up_screen.dart';
+import 'presentation/screens/onboarding/onboarding_survey_screen.dart';
 import 'domain/models/creature_data.dart';
 import 'presentation/widgets/common/app_button.dart';
 import 'presentation/widgets/common/app_chip.dart';
@@ -30,6 +34,12 @@ void main() async {
 
   // PocketBase 초기화
   await PocketBaseService.instance.initialize();
+
+  // NotificationService 초기화
+  await NotificationService.instance.initialize();
+
+  // OnboardingService 초기화
+  await OnboardingService.instance.initialize();
 
   // 상태바 스타일 설정
   SystemChrome.setSystemUIOverlayStyle(
@@ -49,26 +59,38 @@ class OomoolApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // 로그인 상태에 따라 시작 화면 결정
+    // 로그인 상태 및 온보딩 완료 여부에 따라 시작 화면 결정
     final isLoggedIn = AuthService.instance.isLoggedIn;
+    final isOnboardingCompleted = OnboardingService.instance.isOnboardingCompleted;
+
+    Widget homeScreen;
+    if (!isLoggedIn) {
+      homeScreen = const SocialLoginScreen();
+    } else if (!isOnboardingCompleted) {
+      homeScreen = const OnboardingSurveyScreen();
+    } else {
+      homeScreen = const MainShell();
+    }
 
     return MaterialApp(
       title: '우물 - 반려어 관리',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: isLoggedIn ? const MainShell() : const SocialLoginScreen(),
+      home: homeScreen,
       routes: {
         '/login': (context) => const SocialLoginScreen(),
         '/login/email': (context) => const EmailLoginScreen(),
         '/signup': (context) => const SignUpScreen(),
+        '/onboarding': (context) => const OnboardingSurveyScreen(),
         '/tank-register': (context) => const TankRegisterScreen(),
-        '/record': (context) => const RecordScreen(),
+        '/record': (context) => const RecordAddScreen(),
         '/community-question': (context) => const CommunityQuestionScreen(),
         '/aquarium': (context) => const AquariumListScreen(),
         '/aquarium/register': (context) => const AquariumRegisterScreen(),
         '/aquarium/detail': (context) => const AquariumDetailScreen(),
         '/creature/search': (context) => const CreatureSearchScreen(),
         '/creature/detail': (context) => const _CreatureDetailWrapper(),
+        '/schedule/add': (context) => const ScheduleAddScreen(),
         '/design-system': (context) => const DesignSystemScreen(),
         '/demo': (context) => const DemoHomeScreen(),
       },
@@ -82,7 +104,8 @@ class _CreatureDetailWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final creature = ModalRoute.of(context)?.settings.arguments as CreatureData?;
+    final creature =
+        ModalRoute.of(context)?.settings.arguments as CreatureData?;
     if (creature == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('오류')),

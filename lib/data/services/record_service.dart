@@ -53,6 +53,53 @@ class RecordService {
     );
   }
 
+  /// 특정 날짜의 기록 조회
+  Future<List<RecordData>> getRecordsByDate(DateTime date) async {
+    final startOfDay = DateTime(date.year, date.month, date.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+
+    final filter = 'date >= "${startOfDay.toIso8601String()}" && date < "${endOfDay.toIso8601String()}"';
+
+    return getRecords(
+      filter: filter,
+      perPage: 100,
+      sort: '-created',
+    );
+  }
+
+  /// 특정 월의 기록이 있는 날짜 목록 조회
+  Future<List<DateTime>> getRecordDatesInMonth(DateTime month) async {
+    try {
+      final startOfMonth = DateTime(month.year, month.month, 1);
+      final endOfMonth = DateTime(month.year, month.month + 1, 0, 23, 59, 59);
+
+      final filter =
+          'date >= "${startOfMonth.toIso8601String()}" && date <= "${endOfMonth.toIso8601String()}"';
+
+      final result = await _pb.collection(_collection).getList(
+        page: 1,
+        perPage: 100,
+        filter: filter,
+        sort: 'date',
+      );
+
+      // 날짜만 추출하고 중복 제거
+      final dates = <DateTime>{};
+      for (final record in result.items) {
+        final dateStr = record.getStringValue('date');
+        final date = DateTime.tryParse(dateStr);
+        if (date != null) {
+          dates.add(DateTime(date.year, date.month, date.day));
+        }
+      }
+
+      return dates.toList()..sort();
+    } catch (e) {
+      debugPrint('Failed to get record dates in month: $e');
+      return [];
+    }
+  }
+
   /// 특정 기록 조회
   Future<RecordData?> getRecord(String id) async {
     try {

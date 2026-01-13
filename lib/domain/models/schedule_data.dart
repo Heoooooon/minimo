@@ -1,3 +1,47 @@
+/// 알림 종류
+enum AlarmType {
+  waterChange('water_change', '물갈이'),
+  feeding('feeding', '먹이주기'),
+  cleaning('cleaning', '청소'),
+  waterTest('water_test', '수질검사'),
+  medication('medication', '투약'),
+  other('other', '기타');
+
+  const AlarmType(this.value, this.label);
+  final String value;
+  final String label;
+
+  static AlarmType fromValue(String? value) {
+    if (value == null) return AlarmType.other;
+    return AlarmType.values.firstWhere(
+      (e) => e.value == value,
+      orElse: () => AlarmType.other,
+    );
+  }
+}
+
+/// 반복 주기
+enum RepeatCycle {
+  none('none', '반복 안함'),
+  daily('daily', '매일'),
+  everyOtherDay('every_other_day', '격일'),
+  weekly('weekly', '매주'),
+  biweekly('biweekly', '격주'),
+  monthly('monthly', '매월');
+
+  const RepeatCycle(this.value, this.label);
+  final String value;
+  final String label;
+
+  static RepeatCycle fromValue(String? value) {
+    if (value == null) return RepeatCycle.none;
+    return RepeatCycle.values.firstWhere(
+      (e) => e.value == value,
+      orElse: () => RepeatCycle.none,
+    );
+  }
+}
+
 /// 일정 데이터 모델
 class ScheduleData {
   ScheduleData({
@@ -8,6 +52,9 @@ class ScheduleData {
     this.aquariumId,
     this.isCompleted = false,
     required this.date,
+    this.alarmType = AlarmType.other,
+    this.repeatCycle = RepeatCycle.none,
+    this.isNotificationEnabled = false,
   });
 
   final String id;
@@ -17,6 +64,9 @@ class ScheduleData {
   final String? aquariumId;
   final bool isCompleted;
   final DateTime date;
+  final AlarmType alarmType;
+  final RepeatCycle repeatCycle;
+  final bool isNotificationEnabled;
 
   ScheduleData copyWith({
     String? id,
@@ -26,6 +76,9 @@ class ScheduleData {
     String? aquariumId,
     bool? isCompleted,
     DateTime? date,
+    AlarmType? alarmType,
+    RepeatCycle? repeatCycle,
+    bool? isNotificationEnabled,
   }) {
     return ScheduleData(
       id: id ?? this.id,
@@ -35,31 +88,38 @@ class ScheduleData {
       aquariumId: aquariumId ?? this.aquariumId,
       isCompleted: isCompleted ?? this.isCompleted,
       date: date ?? this.date,
+      alarmType: alarmType ?? this.alarmType,
+      repeatCycle: repeatCycle ?? this.repeatCycle,
+      isNotificationEnabled: isNotificationEnabled ?? this.isNotificationEnabled,
     );
   }
 
-  // PocketBase 연동을 위한 준비 (현재는 Mock 데이터용으로만 사용될 수 있음)
   factory ScheduleData.fromJson(Map<String, dynamic> json) {
     return ScheduleData(
       id: json['id'] ?? '',
       time: json['time'] ?? '',
       title: json['title'] ?? '',
       aquariumName: json['aquarium_name'] ?? '',
-      aquariumId: json['aquarium_id'],
+      aquariumId: json['aquarium'],
       isCompleted: json['is_completed'] ?? false,
-      date: DateTime.parse(json['date']),
+      date: json['date'] != null ? DateTime.parse(json['date']) : DateTime.now(),
+      alarmType: AlarmType.fromValue(json['alarm_type']),
+      repeatCycle: RepeatCycle.fromValue(json['repeat_cycle']),
+      isNotificationEnabled: json['is_notification_enabled'] ?? false,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
       'time': time,
       'title': title,
       'aquarium_name': aquariumName,
-      'aquarium_id': aquariumId,
+      'aquarium': aquariumId,
       'is_completed': isCompleted,
       'date': date.toIso8601String(),
+      'alarm_type': alarmType.value,
+      'repeat_cycle': repeatCycle.value,
+      'is_notification_enabled': isNotificationEnabled,
     };
   }
 }

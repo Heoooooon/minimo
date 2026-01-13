@@ -80,6 +80,9 @@ class ScheduleService {
         'title': data.title,
         'aquarium_name': data.aquariumName,
         'is_completed': data.isCompleted,
+        'alarm_type': data.alarmType.value,
+        'repeat_cycle': data.repeatCycle.value,
+        'is_notification_enabled': data.isNotificationEnabled,
       };
 
       final record = await _pb.collection(_collection).create(body: body);
@@ -102,6 +105,9 @@ class ScheduleService {
         'title': data.title,
         'aquarium_name': data.aquariumName,
         'is_completed': data.isCompleted,
+        'alarm_type': data.alarmType.value,
+        'repeat_cycle': data.repeatCycle.value,
+        'is_notification_enabled': data.isNotificationEnabled,
       };
 
       final record = await _pb.collection(_collection).update(id, body: body);
@@ -149,6 +155,9 @@ class ScheduleService {
       title: record.getStringValue('title'),
       aquariumName: record.getStringValue('aquarium_name'),
       isCompleted: record.getBoolValue('is_completed'),
+      alarmType: AlarmType.fromValue(record.getStringValue('alarm_type')),
+      repeatCycle: RepeatCycle.fromValue(record.getStringValue('repeat_cycle')),
+      isNotificationEnabled: record.getBoolValue('is_notification_enabled'),
     );
   }
 }

@@ -2,13 +2,15 @@
 
 /// 기록 태그 타입
 enum RecordTag {
+  temperatureCheck('온도 체크', 'temperature_check'),
+  plantCare('수초 관리', 'plant_care'),
+  maintenance('장비 관리', 'maintenance'),
   waterChange('물갈이', 'water_change'),
-  cleaning('청소', 'cleaning'),
   feeding('먹이주기', 'feeding'),
-  waterTest('수질검사', 'water_test'),
+  cleaning('어항 청소', 'cleaning'),
+  waterTest('수질 체크', 'water_test'),
   fishAdded('물고기 추가', 'fish_added'),
-  medication('치료/약품', 'medication'),
-  maintenance('장비 관리', 'maintenance');
+  medication('치료/약품', 'medication');
 
   const RecordTag(this.label, this.value);
   final String label;
@@ -18,6 +20,17 @@ enum RecordTag {
     if (value == null) return null;
     return RecordTag.values.where((e) => e.value == value).firstOrNull;
   }
+
+  /// 활동 추가 바텀시트에 표시될 태그 목록
+  static List<RecordTag> get activityTags => [
+        temperatureCheck,
+        plantCare,
+        maintenance,
+        waterChange,
+        feeding,
+        cleaning,
+        waterTest,
+      ];
 }
 
 /// 기록 데이터 모델

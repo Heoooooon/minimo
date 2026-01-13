@@ -7,20 +7,22 @@ import '../viewmodels/record_viewmodel.dart';
 import '../widgets/common/app_button.dart';
 import '../widgets/common/app_chip.dart';
 
-/// 기록하기 화면
+/// 기록 추가 화면
 ///
 /// 주요 기능:
 /// - Chips를 사용하여 태그 선택 기능
 /// - Switch를 사용하여 '공개 여부' 설정
 /// - Medium Round Button으로 저장 액션
-class RecordScreen extends StatefulWidget {
-  const RecordScreen({super.key});
+class RecordAddScreen extends StatefulWidget {
+  final DateTime? initialDate;
+
+  const RecordAddScreen({super.key, this.initialDate});
 
   @override
-  State<RecordScreen> createState() => _RecordScreenState();
+  State<RecordAddScreen> createState() => _RecordAddScreenState();
 }
 
-class _RecordScreenState extends State<RecordScreen> {
+class _RecordAddScreenState extends State<RecordAddScreen> {
   final TextEditingController _contentController = TextEditingController();
   final Set<RecordTag> _selectedTags = {};
   bool _isPublic = true;
@@ -32,6 +34,9 @@ class _RecordScreenState extends State<RecordScreen> {
   void initState() {
     super.initState();
     _viewModel = RecordViewModel();
+    if (widget.initialDate != null) {
+      _selectedDate = widget.initialDate!;
+    }
   }
 
   @override
@@ -263,10 +268,12 @@ class _RecordScreenState extends State<RecordScreen> {
         switch(tag) {
           case RecordTag.waterChange:
           case RecordTag.waterTest:
+          case RecordTag.temperatureCheck:
             chipType = AppChipType.primary;
             break;
           case RecordTag.cleaning:
           case RecordTag.fishAdded:
+          case RecordTag.plantCare:
              chipType = AppChipType.secondary;
              break;
           case RecordTag.feeding:
