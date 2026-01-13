@@ -47,3 +47,4 @@ app.*.map.json
 # PocketBase
 backend/pocketbase
 backend/pb_data/
+.vercel

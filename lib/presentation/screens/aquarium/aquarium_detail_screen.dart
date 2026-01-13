@@ -9,6 +9,7 @@ import '../../../data/services/creature_service.dart';
 import '../../../data/services/gallery_photo_service.dart';
 import '../../../data/services/aquarium_service.dart';
 import '../../../data/services/schedule_service.dart';
+import '../../../data/services/notification_service.dart';
 import '../../../theme/app_colors.dart';
 
 /// 어항 상세 화면
@@ -626,93 +627,202 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
 
   /// 알림 카드 위젯
   Widget _buildScheduleCard(ScheduleData schedule) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borderLight),
-      ),
-      child: Row(
-        children: [
-          // 아이콘
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: AppColors.chipPrimaryBg,
-              borderRadius: BorderRadius.circular(12),
+    return GestureDetector(
+      onLongPress: () => _showScheduleOptions(schedule),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.borderLight),
+        ),
+        child: Row(
+          children: [
+            // 아이콘
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppColors.chipPrimaryBg,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                _getIconForAlarmType(schedule.alarmType),
+                color: AppColors.brand,
+                size: 24,
+              ),
             ),
-            child: Icon(
-              _getIconForAlarmType(schedule.alarmType),
-              color: AppColors.brand,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 16),
-          // 정보
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  schedule.title,
-                  style: const TextStyle(
-                    fontFamily: 'WantedSans',
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF212529),
-                    height: 24 / 16,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Text(
-                      schedule.time,
-                      style: const TextStyle(
-                        fontFamily: 'WantedSans',
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFF666E78),
-                        height: 20 / 14,
-                      ),
+            const SizedBox(width: 16),
+            // 정보
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    schedule.title,
+                    style: const TextStyle(
+                      fontFamily: 'WantedSans',
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF212529),
+                      height: 24 / 16,
                     ),
-                    if (schedule.repeatCycle != RepeatCycle.none) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.backgroundApp,
-                          borderRadius: BorderRadius.circular(4),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Text(
+                        schedule.time,
+                        style: const TextStyle(
+                          fontFamily: 'WantedSans',
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF666E78),
+                          height: 20 / 14,
                         ),
-                        child: Text(
-                          schedule.repeatCycle.label,
-                          style: const TextStyle(
-                            fontFamily: 'WantedSans',
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF666E78),
+                      ),
+                      if (schedule.repeatCycle != RepeatCycle.none) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.backgroundApp,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            schedule.repeatCycle.label,
+                            style: const TextStyle(
+                              fontFamily: 'WantedSans',
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF666E78),
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                     ],
-                  ],
+                  ),
+                ],
+              ),
+            ),
+            // 알림 아이콘
+            if (schedule.isNotificationEnabled)
+              const Icon(
+                Icons.notifications_active_outlined,
+                color: AppColors.brand,
+                size: 20,
+              ),
+            // 더보기 버튼
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, color: Color(0xFF666E78), size: 20),
+              onSelected: (value) {
+                if (value == 'delete') {
+                  _confirmDeleteSchedule(schedule);
+                }
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem<String>(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                      SizedBox(width: 8),
+                      Text('삭제', style: TextStyle(color: Colors.red)),
+                    ],
+                  ),
                 ),
               ],
             ),
-          ),
-          // 알림 아이콘
-          if (schedule.isNotificationEnabled)
-            const Icon(
-              Icons.notifications_active_outlined,
-              color: AppColors.brand,
-              size: 20,
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 알림 옵션 표시 (롱프레스)
+  void _showScheduleOptions(ScheduleData schedule) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.delete_outline, color: Colors.red),
+              title: const Text('알림 삭제', style: TextStyle(color: Colors.red)),
+              onTap: () {
+                Navigator.pop(context);
+                _confirmDeleteSchedule(schedule);
+              },
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 알림 삭제 확인
+  void _confirmDeleteSchedule(ScheduleData schedule) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('알림 삭제'),
+        content: Text('"${schedule.title}" 알림을 삭제하시겠습니까?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteSchedule(schedule);
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('삭제'),
+          ),
         ],
       ),
     );
+  }
+
+  /// 알림 삭제 실행
+  Future<void> _deleteSchedule(ScheduleData schedule) async {
+    try {
+      // DB에서 삭제
+      await ScheduleService.instance.deleteSchedule(schedule.id);
+
+      // 푸시 알림 취소
+      if (schedule.isNotificationEnabled) {
+        final notificationId = NotificationService.instance.scheduleIdToNotificationId(schedule.id);
+        await NotificationService.instance.cancelNotification(notificationId);
+      }
+
+      // 목록에서 제거
+      if (mounted) {
+        setState(() {
+          _schedules.removeWhere((s) => s.id == schedule.id);
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('알림이 삭제되었습니다'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Failed to delete schedule: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('알림 삭제에 실패했습니다: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 
   /// 알림 종류에 따른 아이콘
