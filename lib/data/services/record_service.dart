@@ -53,17 +53,27 @@ class RecordService {
     );
   }
 
+  /// PocketBase용 날짜 포맷 (YYYY-MM-DD HH:MM:SS)
+  String _formatDateForPocketBase(DateTime date) {
+    return '${date.year.toString().padLeft(4, '0')}-'
+        '${date.month.toString().padLeft(2, '0')}-'
+        '${date.day.toString().padLeft(2, '0')} '
+        '${date.hour.toString().padLeft(2, '0')}:'
+        '${date.minute.toString().padLeft(2, '0')}:'
+        '${date.second.toString().padLeft(2, '0')}';
+  }
+
   /// 특정 날짜의 기록 조회
   Future<List<RecordData>> getRecordsByDate(DateTime date) async {
     final startOfDay = DateTime(date.year, date.month, date.day);
     final endOfDay = startOfDay.add(const Duration(days: 1));
 
-    final filter = 'date >= "${startOfDay.toIso8601String()}" && date < "${endOfDay.toIso8601String()}"';
+    final filter = 'date >= "${_formatDateForPocketBase(startOfDay)}" && date < "${_formatDateForPocketBase(endOfDay)}"';
 
     return getRecords(
       filter: filter,
       perPage: 100,
-      sort: '-created',
+      sort: '-date',
     );
   }
 
@@ -74,7 +84,7 @@ class RecordService {
       final endOfMonth = DateTime(month.year, month.month + 1, 0, 23, 59, 59);
 
       final filter =
-          'date >= "${startOfMonth.toIso8601String()}" && date <= "${endOfMonth.toIso8601String()}"';
+          'date >= "${_formatDateForPocketBase(startOfMonth)}" && date <= "${_formatDateForPocketBase(endOfMonth)}"';
 
       final result = await _pb.collection(_collection).getList(
         page: 1,
