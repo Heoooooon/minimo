@@ -18,14 +18,15 @@ enum CreatureGender {
   const CreatureGender(this.label);
 }
 
-/// 생물 등록 화면
+/// 생물 등록/수정 화면
 ///
-/// Figma 디자인 기반 - 내 생물 등록
+/// Figma 디자인 기반 - 내 생물 등록/수정
 class CreatureRegisterScreen extends StatefulWidget {
   final String? aquariumId;
   final String? creatureName;
   final String? creatureType;
   final CreatureSearchItem? selectedCreature;
+  final domain.CreatureData? existingCreature; // 수정 모드용
 
   const CreatureRegisterScreen({
     super.key,
@@ -33,7 +34,11 @@ class CreatureRegisterScreen extends StatefulWidget {
     this.creatureName,
     this.creatureType,
     this.selectedCreature,
+    this.existingCreature,
   });
+
+  /// 수정 모드인지 여부
+  bool get isEditMode => existingCreature != null;
 
   @override
   State<CreatureRegisterScreen> createState() => _CreatureRegisterScreenState();
@@ -65,8 +70,25 @@ class _CreatureRegisterScreenState extends State<CreatureRegisterScreen> {
   @override
   void initState() {
     super.initState();
-    // 전달받은 생물 정보로 초기화
-    if (widget.selectedCreature != null) {
+
+    // 수정 모드인 경우 기존 데이터로 초기화
+    if (widget.existingCreature != null) {
+      final creature = widget.existingCreature!;
+      _selectedCreature = CreatureSearchItem(
+        id: creature.catalogId ?? 'existing',
+        name: creature.name,
+        category: creature.type,
+      );
+      _adoptionDate = creature.adoptionDate;
+      _unknownAdoptionDate = creature.unknownAdoptionDate;
+      _quantity = creature.quantity;
+      _nameController.text = creature.nickname ?? '';
+      _selectedGender = _convertDomainGender(creature.gender);
+      _sourceController.text = creature.source ?? '';
+      _priceController.text = creature.price ?? '';
+      // 기존 사진은 URL로만 표시 (수정 시 새 사진 추가 가능)
+    } else if (widget.selectedCreature != null) {
+      // 전달받은 생물 정보로 초기화
       _selectedCreature = widget.selectedCreature;
     } else if (widget.creatureName != null) {
       _selectedCreature = CreatureSearchItem(
@@ -74,6 +96,21 @@ class _CreatureRegisterScreenState extends State<CreatureRegisterScreen> {
         name: widget.creatureName!,
         category: widget.creatureType ?? '미분류',
       );
+    }
+  }
+
+  /// domain.CreatureGender를 로컬 CreatureGender로 변환
+  CreatureGender? _convertDomainGender(domain.CreatureGender? gender) {
+    if (gender == null) return null;
+    switch (gender) {
+      case domain.CreatureGender.male:
+        return CreatureGender.male;
+      case domain.CreatureGender.female:
+        return CreatureGender.female;
+      case domain.CreatureGender.mixed:
+        return CreatureGender.mixed;
+      case domain.CreatureGender.unknown:
+        return CreatureGender.unknown;
     }
   }
 
@@ -87,8 +124,12 @@ class _CreatureRegisterScreenState extends State<CreatureRegisterScreen> {
   }
 
   bool get _isFormValid {
+    // 수정 모드인 경우 기존 어항 ID 사용
+    final aquariumId = widget.isEditMode
+        ? widget.existingCreature!.aquariumId
+        : widget.aquariumId;
     // 필수 항목 체크: 어항 ID + 생물 선택 + (입양일 또는 모름 체크) + 마릿수
-    final hasAquarium = widget.aquariumId != null;
+    final hasAquarium = aquariumId != null;
     final hasCreature = _selectedCreature != null;
     final hasAdoptionInfo = _adoptionDate != null || _unknownAdoptionDate;
     final hasQuantity = _quantity > 0;
@@ -204,9 +245,16 @@ class _CreatureRegisterScreenState extends State<CreatureRegisterScreen> {
         }
       }
 
+      // 어항 ID 결정
+      final aquariumId = widget.isEditMode
+          ? widget.existingCreature!.aquariumId
+          : widget.aquariumId!;
+
       // CreatureData 생성
       final creature = domain.CreatureData(
-        aquariumId: widget.aquariumId!,
+        id: widget.existingCreature?.id, // 수정 모드일 때 기존 ID 유지
+        aquariumId: aquariumId,
+        catalogId: widget.existingCreature?.catalogId,
         name: _selectedCreature!.name,
         type: _selectedCreature!.category,
         nickname: _nameController.text.isNotEmpty ? _nameController.text : null,
@@ -216,17 +264,26 @@ class _CreatureRegisterScreenState extends State<CreatureRegisterScreen> {
         gender: domainGender,
         source: _sourceController.text.isNotEmpty ? _sourceController.text : null,
         price: _priceController.text.isNotEmpty ? _priceController.text : null,
+        photoUrls: widget.existingCreature?.photoUrls ?? [],
         photoFiles: _photos.map((f) => f.path).toList(),
+        memos: widget.existingCreature?.memos ?? [],
       );
 
-      // 저장
-      await CreatureService.instance.createCreature(creature);
+      // 저장 또는 업데이트
+      domain.CreatureData result;
+      if (widget.isEditMode) {
+        result = await CreatureService.instance.updateCreature(creature);
+      } else {
+        result = await CreatureService.instance.createCreature(creature);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('생물이 등록되었습니다.')),
+          SnackBar(
+            content: Text(widget.isEditMode ? '생물 정보가 수정되었습니다.' : '생물이 등록되었습니다.'),
+          ),
         );
-        Navigator.pop(context, true);
+        Navigator.pop(context, result); // 수정된 데이터 반환
       }
     } catch (e) {
       debugPrint('Failed to save creature: $e');
@@ -283,9 +340,9 @@ class _CreatureRegisterScreenState extends State<CreatureRegisterScreen> {
           size: 24,
         ),
       ),
-      title: const Text(
-        '내 생물 등록',
-        style: TextStyle(
+      title: Text(
+        widget.isEditMode ? '생물 정보 수정' : '내 생물 등록',
+        style: const TextStyle(
           fontFamily: 'WantedSans',
           fontSize: 18,
           fontWeight: FontWeight.w600,

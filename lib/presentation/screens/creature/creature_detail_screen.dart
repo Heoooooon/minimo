@@ -54,21 +54,21 @@ class _CreatureDetailScreenState extends State<CreatureDetailScreen> {
   }
 
   void _onEdit() async {
-    // TODO: 수정 화면으로 이동
-    final result = await Navigator.push(
+    final result = await Navigator.push<CreatureData>(
       context,
       MaterialPageRoute(
         builder: (context) => CreatureRegisterScreen(
-          creatureName: _creature.name,
-          creatureType: _creature.type,
+          existingCreature: _creature, // 수정 모드로 기존 데이터 전달
         ),
       ),
     );
-    if (result != null) {
+    if (result != null && mounted) {
       // 수정된 데이터 반영
       setState(() {
-        // TODO: 실제 데이터 업데이트 로직
+        _creature = result;
       });
+      // 메모 목록 다시 로드
+      _loadCreatureWithMemos();
     }
   }
 
