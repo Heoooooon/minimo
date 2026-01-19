@@ -61,6 +61,7 @@ class CommunityCard extends StatelessWidget {
         child: Container(
           width: 311,
           padding: const EdgeInsets.all(16),
+          clipBehavior: Clip.hardEdge,
           decoration: BoxDecoration(
             color: const Color(0xFFFDFDFF),
             borderRadius: BorderRadius.circular(16),
@@ -74,14 +75,13 @@ class CommunityCard extends StatelessWidget {
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
             children: [
               // Author Profile Row
               _buildAuthorProfile(),
               const SizedBox(height: 13),
 
-              // Content Text
-              _buildContentText(),
+              // Content Text (flexible to fit remaining space)
+              Expanded(child: _buildContentText()),
 
               // Optional Image
               if (data.imageUrl != null) ...[

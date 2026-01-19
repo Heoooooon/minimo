@@ -11,6 +11,7 @@ import '../../../data/services/aquarium_service.dart';
 import '../../../data/services/schedule_service.dart';
 import '../../../data/services/notification_service.dart';
 import '../../../theme/app_colors.dart';
+import '../../widgets/common/skeleton_loader.dart';
 
 /// 어항 상세 화면
 ///
@@ -32,7 +33,11 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
   List<ScheduleData> _schedules = [];
   String? _selectedCreatureFilter; // null이면 전체
   bool _sortNewest = true; // true: 최신순, false: 오래된순
-  bool _isLoading = true;
+
+  // 탭별 독립 로딩 상태
+  bool _isLoadingCreatures = true;
+  bool _isLoadingSchedules = true;
+  bool _isLoadingPhotos = true;
 
   @override
   void initState() {
@@ -40,35 +45,80 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
     _tabController = TabController(length: 3, vsync: this);
   }
 
-  Future<void> _loadData() async {
+  /// 데이터 로딩 - 병렬 실행
+  void _loadData() {
     if (_aquarium?.id == null) return;
 
-    setState(() => _isLoading = true);
+    // 모든 로딩 상태 초기화
+    setState(() {
+      _isLoadingCreatures = true;
+      _isLoadingSchedules = true;
+      _isLoadingPhotos = true;
+    });
 
+    // 병렬로 데이터 로딩 시작
+    _loadCreatures();
+    _loadSchedules();
+    _loadPhotos();
+  }
+
+  /// 생물 데이터 로딩
+  Future<void> _loadCreatures() async {
     try {
       final creatures = await CreatureService.instance.getCreaturesByAquarium(
         _aquarium!.id!,
       );
+      if (mounted) {
+        setState(() {
+          _creatures = creatures;
+          _isLoadingCreatures = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to load creatures: $e');
+      if (mounted) {
+        setState(() => _isLoadingCreatures = false);
+      }
+    }
+  }
+
+  /// 알림 데이터 로딩
+  Future<void> _loadSchedules() async {
+    try {
+      final schedules = await ScheduleService.instance.getSchedulesByAquarium(
+        _aquarium!.id!,
+      );
+      if (mounted) {
+        setState(() {
+          _schedules = schedules;
+          _isLoadingSchedules = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to load schedules: $e');
+      if (mounted) {
+        setState(() => _isLoadingSchedules = false);
+      }
+    }
+  }
+
+  /// 갤러리 사진 로딩
+  Future<void> _loadPhotos() async {
+    try {
       final photos = await GalleryPhotoService.instance.getPhotosByAquarium(
         _aquarium!.id!,
         newestFirst: _sortNewest,
       );
-      final schedules = await ScheduleService.instance.getSchedulesByAquarium(
-        _aquarium!.id!,
-      );
-
       if (mounted) {
         setState(() {
-          _creatures = creatures;
           _galleryPhotos = photos;
-          _schedules = schedules;
-          _isLoading = false;
+          _isLoadingPhotos = false;
         });
       }
     } catch (e) {
-      debugPrint('Failed to load data: $e');
+      debugPrint('Failed to load photos: $e');
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() => _isLoadingPhotos = false);
       }
     }
   }
@@ -536,12 +586,20 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
 
   /// 생물 탭 콘텐츠
   Widget _buildCreatureTab() {
+    // 로딩 중일 때 스켈레톤 표시
+    if (_isLoadingCreatures) {
+      return const CreatureGridSkeleton();
+    }
+
     // 빈 상태일 때는 툴바 없이 empty state만 표시 (Figma 디자인 기준)
     if (_creatures.isEmpty) {
       return _buildEmptyState('생물');
     }
 
-    return Column(
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 300),
+      child: Column(
+        key: const ValueKey('creature_content'),
       children: [
         // 상단 툴바 (뷰 전환 + 생물 추가 버튼) - 생물이 있을 때만 표시
         Padding(
@@ -607,21 +665,31 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
           ),
         ),
       ],
+      ),
     );
   }
 
   /// 알림 탭 콘텐츠
   Widget _buildScheduleTab() {
+    // 로딩 중일 때 스켈레톤 표시
+    if (_isLoadingSchedules) {
+      return const ScheduleListSkeleton();
+    }
+
     if (_schedules.isEmpty) {
       return _buildEmptyState('알림');
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-      itemCount: _schedules.length,
-      itemBuilder: (context, index) {
-        return _buildScheduleCard(_schedules[index]);
-      },
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 300),
+      child: ListView.builder(
+        key: const ValueKey('schedule_content'),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+        itemCount: _schedules.length,
+        itemBuilder: (context, index) {
+          return _buildScheduleCard(_schedules[index]);
+        },
+      ),
     );
   }
 
@@ -901,7 +969,7 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
             Positioned(
               left: 16,
               right: 16,
-              bottom: hasPhoto ? 16 : 16,
+              bottom: 12,
               top: hasPhoto ? null : 50,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -928,7 +996,7 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       // 이름
-                      Expanded(
+                      Flexible(
                         child: Text(
                           creature.displayName,
                           style: TextStyle(
@@ -944,9 +1012,9 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const SizedBox(width: 8),
                       // 물고기 아이콘 + 마릿수
                       Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           SvgPicture.asset(
                             'assets/icons/icon_fish.svg',
@@ -988,21 +1056,30 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
 
   /// 갤러리 탭 콘텐츠
   Widget _buildGalleryTab() {
-    return Column(
-      children: [
-        // 생물 필터 칩
-        _buildCreatureFilterChips(),
-        // 구분선
-        Container(height: 8, color: AppColors.borderLight),
-        // 월별 헤더 + 정렬
-        _buildGalleryHeader(),
-        // 날짜별 사진 그리드
-        Expanded(
-          child: _filteredPhotos.isEmpty
-              ? _buildEmptyState('갤러리')
-              : _buildPhotoGrid(),
-        ),
-      ],
+    // 로딩 중일 때 스켈레톤 표시
+    if (_isLoadingPhotos) {
+      return const GalleryGridSkeleton();
+    }
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 300),
+      child: Column(
+        key: const ValueKey('gallery_content'),
+        children: [
+          // 생물 필터 칩
+          _buildCreatureFilterChips(),
+          // 구분선
+          Container(height: 8, color: AppColors.borderLight),
+          // 월별 헤더 + 정렬
+          _buildGalleryHeader(),
+          // 날짜별 사진 그리드
+          Expanded(
+            child: _filteredPhotos.isEmpty
+                ? _buildEmptyState('갤러리')
+                : _buildPhotoGrid(),
+          ),
+        ],
+      ),
     );
   }
 

@@ -5,6 +5,7 @@ import '../widgets/home/aquarium_card.dart';
 import '../widgets/home/community_card.dart';
 import '../widgets/home/qna_card.dart';
 import '../widgets/home/tip_card.dart';
+import '../widgets/common/skeleton_loader.dart';
 import '../../domain/models/schedule_data.dart';
 import '../../data/repositories/schedule_repository.dart';
 import '../../data/repositories/aquarium_repository.dart';
@@ -49,12 +50,30 @@ class _HomeContentState extends State<HomeContent> {
     viewportFraction: 0.85,
   );
 
+  // 스크롤 컨트롤러 (sticky header용)
+  final ScrollController _scrollController = ScrollController();
+  double _scrollOffset = 0;
+
+  // Hero 섹션 높이 (흰색 배경 전환점)
+  static const double _heroHeight = 266;
+
+  // 로딩 상태
+  bool _isLoadingSchedule = true;
+  bool _isLoadingAquariums = true;
+
   @override
   void initState() {
     super.initState();
     _loadUserInfo();
     _loadSchedule();
     _loadAquariums();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    setState(() {
+      _scrollOffset = _scrollController.offset;
+    });
   }
 
   void _loadUserInfo() {
@@ -89,6 +108,7 @@ class _HomeContentState extends State<HomeContent> {
             ph: 7.2,
             fishCount: 0,
           )).toList();
+          _isLoadingAquariums = false;
         });
       }
     } catch (e) {
@@ -99,6 +119,10 @@ class _HomeContentState extends State<HomeContent> {
         debugPrint('Retrying... ($_aquariumRetryCount/$_maxRetries)');
         await Future.delayed(const Duration(seconds: 2));
         _loadAquariums();
+      } else if (mounted) {
+        setState(() {
+          _isLoadingAquariums = false;
+        });
       }
     }
   }
@@ -106,15 +130,27 @@ class _HomeContentState extends State<HomeContent> {
   @override
   void dispose() {
     _contentPageController.dispose();
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     super.dispose();
   }
 
   Future<void> _loadSchedule() async {
-    final items = await _scheduleRepository.getDailySchedule(DateTime.now());
-    if (mounted) {
-      setState(() {
-        _scheduleItems = items;
-      });
+    try {
+      final items = await _scheduleRepository.getDailySchedule(DateTime.now());
+      if (mounted) {
+        setState(() {
+          _scheduleItems = items;
+          _isLoadingSchedule = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading schedule: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingSchedule = false;
+        });
+      }
     }
   }
 
@@ -201,68 +237,180 @@ class _HomeContentState extends State<HomeContent> {
 
   @override
   Widget build(BuildContext context) {
+    // 상단 바 색상 계산 (스크롤 위치에 따라)
+    final isScrolledPastHero = _scrollOffset > _heroHeight - 100;
+    final topBarBackgroundOpacity = isScrolledPastHero
+        ? ((_scrollOffset - (_heroHeight - 100)) / 50).clamp(0.0, 1.0)
+        : 0.0;
+
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Hero + Schedule Section (with overlap using negative margin approach)
-            _buildHeroWithSchedule(),
+      body: Stack(
+        children: [
+          // 스크롤 가능한 콘텐츠
+          SingleChildScrollView(
+            controller: _scrollController,
+            child: Column(
+              children: [
+                // Hero + Schedule Section (with overlap using negative margin approach)
+                _buildHeroWithSchedule(),
 
-            // Main Content Area
-            Container(
-              color: AppColors.backgroundApp,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 32),
+                // Main Content Area
+                Container(
+                  color: AppColors.backgroundApp,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 32),
 
-                  // My Aquarium Section
-                  if (_hasAquariums) ...[
-                    _buildSectionHeader('나의 어항', showMore: false),
-                    const SizedBox(height: 16),
-                    AquariumCardList(
-                      aquariums: _aquariums,
-                      onAquariumTap: (aquarium) {
-                        Navigator.pushNamed(
-                          context,
-                          '/aquarium/detail',
-                          arguments: aquarium.id,
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 32),
-                  ],
+                      // My Aquarium Section
+                      if (_isLoadingAquariums) ...[
+                        _buildSectionHeader('나의 어항', showMore: false),
+                        const SizedBox(height: 16),
+                        const AquariumCardSkeleton(),
+                        const SizedBox(height: 32),
+                      ] else if (_hasAquariums) ...[
+                        _buildSectionHeader('나의 어항', showMore: false),
+                        const SizedBox(height: 16),
+                        AquariumCardList(
+                          aquariums: _aquariums,
+                          onAquariumTap: (aquarium) {
+                            Navigator.pushNamed(
+                              context,
+                              '/aquarium/detail',
+                              arguments: aquarium.id,
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 32),
+                      ],
 
-                  // Recommended Content Section
-                  _buildSectionHeader('추천 컨텐츠', showMore: true),
-                  const SizedBox(height: 11),
-                  _buildContentCarousel(),
-                  const SizedBox(height: 32),
+                      // Recommended Content Section
+                      _buildSectionHeader('추천 컨텐츠', showMore: true),
+                      const SizedBox(height: 11),
+                      _buildContentCarousel(),
+                      const SizedBox(height: 32),
 
-                  // Q&A Section
-                  _buildSectionHeader('답변을 기다리고 있어요', showMore: true),
-                  const SizedBox(height: 11),
-                  QnACard(
-                    data: _qnaItem,
-                    onTap: () {},
-                    onCuriousTap: () {},
-                    onAnswerTap: () {
-                      Navigator.pushNamed(context, '/community-question');
-                    },
+                      // Q&A Section
+                      _buildSectionHeader('답변을 기다리고 있어요', showMore: true),
+                      const SizedBox(height: 11),
+                      QnACard(
+                        data: _qnaItem,
+                        onTap: () {},
+                        onCuriousTap: () {},
+                        onAnswerTap: () {
+                          Navigator.pushNamed(context, '/community-question');
+                        },
+                      ),
+                      const SizedBox(height: 32),
+
+                      // Tips Section
+                      _buildSectionHeader('오늘의 사육 꿀팁', showMore: true),
+                      const SizedBox(height: 11),
+                      TipList(tips: _tips, onTipTap: (tip) {}),
+
+                      const SizedBox(height: 100),
+                    ],
                   ),
-                  const SizedBox(height: 32),
-
-                  // Tips Section
-                  _buildSectionHeader('오늘의 사육 꿀팁', showMore: true),
-                  const SizedBox(height: 11),
-                  TipList(tips: _tips, onTipTap: (tip) {}),
-
-                  const SizedBox(height: 100),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
+
+          // Sticky Top Bar
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: _buildStickyTopBar(
+              isScrolledPastHero: isScrolledPastHero,
+              backgroundOpacity: topBarBackgroundOpacity,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Sticky Top Bar - 스크롤 위치에 따라 배경색/아이콘색 변경
+  Widget _buildStickyTopBar({
+    required bool isScrolledPastHero,
+    required double backgroundOpacity,
+  }) {
+    // 아이콘 색상 (흰 배경에서는 어두운 색, 어두운 배경에서는 흰색)
+    final iconColor = isScrolledPastHero
+        ? Color.lerp(Colors.white, AppColors.textMain, backgroundOpacity)!
+        : Colors.white;
+    final textColor = isScrolledPastHero
+        ? Color.lerp(Colors.white, AppColors.textMain, backgroundOpacity)!
+        : Colors.white;
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.transparent,
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Notification Icon with badge (40x40 컨테이너, 24x24 아이콘)
+              GestureDetector(
+                onTap: () {},
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  padding: const EdgeInsets.all(8),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Icon(
+                        Icons.notifications_outlined,
+                        color: iconColor,
+                        size: 24,
+                      ),
+                      // Orange badge (4x4, positioned at right:4, top:-3 from icon)
+                      Positioned(
+                        right: -4,
+                        top: -3,
+                        child: Container(
+                          width: 4,
+                          height: 4,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFFE8A24),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Guide Button
+              GestureDetector(
+                onTap: () {},
+                child: Container(
+                  height: 40,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+                  child: Center(
+                    child: Text(
+                      '가이드',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: textColor,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                        height: 20 / 14,
+                        letterSpacing: -0.25,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -348,15 +496,14 @@ class _HomeContentState extends State<HomeContent> {
                       ),
                     ),
                   ),
-                  // Content
+                  // Content (상단 바 공간 확보를 위해 상단 패딩 추가)
                   SafeArea(
                     bottom: false,
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                      padding: const EdgeInsets.fromLTRB(16, 48, 16, 0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildTopBar(),
                           const SizedBox(height: 18),
                           _buildGreeting(),
                           const SizedBox(height: 16),
@@ -375,168 +522,6 @@ class _HomeContentState extends State<HomeContent> {
         ),
         // Schedule Section (follows immediately, creating overlap effect visually)
         _buildScheduleSection(),
-      ],
-    );
-  }
-
-  /// Hero Section - Figma design with gradient and aquarium background
-  Widget _buildHeroSection() {
-    return Container(
-      width: double.infinity,
-      height: 352,
-      decoration: const BoxDecoration(
-        color: Color(0xFF7E4A4A), // Base color from Figma
-      ),
-      child: Stack(
-        children: [
-          // Background gradient + image overlay
-          Positioned.fill(
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppColors.brand, AppColors.brand],
-                ),
-              ),
-            ),
-          ),
-
-          // Aquarium image with overlay
-          Positioned.fill(
-            child: Opacity(
-              opacity: 0.7,
-              child: Container(
-                color: Colors.white,
-                child: Stack(
-                  children: [
-                    // Placeholder for aquarium background image
-                    Positioned.fill(
-                      child: Image.asset(
-                        'assets/images/main_background.png',
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  AppColors.brand.withValues(alpha: 0.8),
-                                  const Color(0xFF00183C).withValues(alpha: 0.8),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    // Gradient overlay
-                    Positioned.fill(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
-                            colors: [
-                              Colors.transparent,
-                              const Color(0xFF00183C).withValues(alpha: 0.8),
-                            ],
-                            stops: const [0.3447, 1.0],
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned.fill(
-                      child: Container(
-                        color: Colors.black.withValues(alpha: 0.5),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // Content
-          SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Top Bar
-                  _buildTopBar(),
-                  const SizedBox(height: 18),
-
-                  // Greeting Text
-                  _buildGreeting(),
-                  const SizedBox(height: 16),
-
-                  // Status Tags
-                  if (_hasAquariums) _buildStatusTags(),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Top Bar with notification and guide
-  Widget _buildTopBar() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        // Notification Icon with badge
-        GestureDetector(
-          onTap: () {},
-          child: Container(
-            width: 40,
-            height: 40,
-            padding: const EdgeInsets.all(8),
-            child: Stack(
-              children: [
-                const Icon(
-                  Icons.notifications_outlined,
-                  color: Colors.white,
-                  size: 24,
-                ),
-                // Orange badge
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  child: Container(
-                    width: 4,
-                    height: 4,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFFE8A24),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-
-        // Guide Button
-        GestureDetector(
-          onTap: () {},
-          child: Container(
-            height: 40,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 2),
-            child: Center(
-              child: Text(
-                '가이드',
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ),
-        ),
       ],
     );
   }
@@ -673,7 +658,9 @@ class _HomeContentState extends State<HomeContent> {
             const SizedBox(height: 17),
 
             // Timeline Items
-            if (_scheduleItems.isEmpty || !_hasAquariums)
+            if (_isLoadingSchedule)
+              const ScheduleSkeleton()
+            else if (_scheduleItems.isEmpty || !_hasAquariums)
               _buildEmptyTimeline()
             else
               _buildTimelineItems(),
@@ -964,6 +951,7 @@ class _HomeContentState extends State<HomeContent> {
           height: 340,
           child: PageView.builder(
             controller: _contentPageController,
+            padEnds: false,
             onPageChanged: (index) {
               setState(() {
                 _contentPageIndex = index;
@@ -972,7 +960,10 @@ class _HomeContentState extends State<HomeContent> {
             itemCount: _communityItems.length,
             itemBuilder: (context, index) {
               return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
+                padding: EdgeInsets.only(
+                  left: index == 0 ? 16 : 6,
+                  right: 6,
+                ),
                 child: CommunityCard(
                   data: _communityItems[index],
                   onTap: () {},
