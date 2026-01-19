@@ -48,3 +48,6 @@ app.*.map.json
 backend/pocketbase
 backend/pb_data/
 .vercel
+
+# App Icon Package
+Appicon_Package/
