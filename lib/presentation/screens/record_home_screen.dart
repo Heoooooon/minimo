@@ -25,22 +25,47 @@ class RecordHomeScreen extends StatefulWidget {
   State<RecordHomeScreen> createState() => _RecordHomeScreenState();
 }
 
-class _RecordHomeScreenState extends State<RecordHomeScreen> {
+class _RecordHomeScreenState extends State<RecordHomeScreen>
+    with SingleTickerProviderStateMixin {
   CalendarViewType _viewType = CalendarViewType.weekly;
   DateTime _currentMonth = DateTime.now();
   DateTime _selectedDate = DateTime.now();
 
   late RecordHomeViewModel _viewModel;
 
+  // 드래그 애니메이션 관련
+  late AnimationController _animationController;
+  late Animation<double> _heightAnimation;
+  double _dragStartY = 0;
+  bool _isDragging = false;
+  static const double _weeklyHeight = 46.0; // 주간 뷰 높이 (한 줄)
+  static const double _monthlyHeight = 276.0; // 월간 뷰 높이 (6줄)
+
   @override
   void initState() {
     super.initState();
     _viewModel = RecordHomeViewModel();
+
+    // 애니메이션 컨트롤러 초기화
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+
+    _heightAnimation = Tween<double>(
+      begin: _weeklyHeight,
+      end: _weeklyHeight,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOutCubic,
+    ));
+
     _loadData();
   }
 
   @override
   void dispose() {
+    _animationController.dispose();
     _viewModel.dispose();
     super.dispose();
   }
@@ -69,10 +94,76 @@ class _RecordHomeScreenState extends State<RecordHomeScreen> {
   }
 
   void _toggleViewType() {
-    setState(() {
-      _viewType = _viewType == CalendarViewType.weekly
-          ? CalendarViewType.monthly
-          : CalendarViewType.weekly;
+    final targetHeight = _viewType == CalendarViewType.weekly
+        ? _monthlyHeight
+        : _weeklyHeight;
+
+    _heightAnimation = Tween<double>(
+      begin: _heightAnimation.value,
+      end: targetHeight,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOutCubic,
+    ));
+
+    _animationController.forward(from: 0).then((_) {
+      setState(() {
+        _viewType = _viewType == CalendarViewType.weekly
+            ? CalendarViewType.monthly
+            : CalendarViewType.weekly;
+      });
+    });
+  }
+
+  void _onDragStart(DragStartDetails details) {
+    _dragStartY = details.globalPosition.dy;
+    _isDragging = true;
+  }
+
+  void _onDragUpdate(DragUpdateDetails details) {
+    if (!_isDragging) return;
+
+    final delta = details.globalPosition.dy - _dragStartY;
+    final currentHeight = _viewType == CalendarViewType.weekly
+        ? _weeklyHeight
+        : _monthlyHeight;
+
+    // 드래그에 따른 높이 계산 (제한 적용)
+    double newHeight = currentHeight + delta * 0.5;
+    newHeight = newHeight.clamp(_weeklyHeight, _monthlyHeight);
+
+    _heightAnimation = AlwaysStoppedAnimation(newHeight);
+    setState(() {});
+  }
+
+  void _onDragEnd(DragEndDetails details) {
+    if (!_isDragging) return;
+    _isDragging = false;
+
+    final currentHeight = _heightAnimation.value;
+    final threshold = (_weeklyHeight + _monthlyHeight) / 2;
+
+    // 임계값 기준으로 뷰 타입 결정
+    final targetViewType = currentHeight > threshold
+        ? CalendarViewType.monthly
+        : CalendarViewType.weekly;
+
+    final targetHeight = targetViewType == CalendarViewType.monthly
+        ? _monthlyHeight
+        : _weeklyHeight;
+
+    _heightAnimation = Tween<double>(
+      begin: currentHeight,
+      end: targetHeight,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOutCubic,
+    ));
+
+    _animationController.forward(from: 0).then((_) {
+      setState(() {
+        _viewType = targetViewType;
+      });
     });
   }
 
@@ -167,60 +258,77 @@ class _RecordHomeScreenState extends State<RecordHomeScreen> {
   }
 
   Widget _buildCalendarCard(RecordHomeViewModel viewModel) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.backgroundSurface,
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(32),
-          bottomRight: Radius.circular(32),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.only(top: 16, bottom: 8),
-          child: Column(
-            children: [
-              // 월 선택 헤더
-              _buildMonthHeader(),
-              const SizedBox(height: 24),
-
-              // 요일 헤더
-              _buildWeekdayHeader(),
-              const SizedBox(height: 8),
-
-              // 날짜 그리드
-              _viewType == CalendarViewType.monthly
-                  ? _buildMonthlyCalendar(viewModel)
-                  : _buildWeeklyCalendar(viewModel),
-
-              const SizedBox(height: 8),
-
-              // 뷰 타입 인디케이터
-              _buildViewIndicator(),
+    return AnimatedBuilder(
+      animation: _heightAnimation,
+      builder: (context, child) {
+        return Container(
+          decoration: BoxDecoration(
+            color: AppColors.backgroundSurface,
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(32),
+              bottomRight: Radius.circular(32),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 12,
+                offset: const Offset(0, 3),
+              ),
             ],
           ),
-        ),
-      ),
+          child: SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 16, bottom: 8),
+              child: Column(
+                children: [
+                  // 월 선택 헤더
+                  _buildMonthHeader(),
+                  const SizedBox(height: 24),
+
+                  // 요일 헤더
+                  _buildWeekdayHeader(),
+                  const SizedBox(height: 8),
+
+                  // 날짜 그리드 (애니메이션 높이 적용)
+                  ClipRect(
+                    child: SizedBox(
+                      height: _heightAnimation.value,
+                      child: SingleChildScrollView(
+                        physics: const NeverScrollableScrollPhysics(),
+                        child: _buildMonthlyCalendar(viewModel),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  // 드래그 핸들 (뷰 타입 인디케이터)
+                  _buildDragHandle(),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
   Widget _buildMonthHeader() {
+    // 높이가 중간 이상이면 월 탐색 버튼 표시
+    final showNavButtons = _heightAnimation.value > (_weeklyHeight + _monthlyHeight) / 2;
+    final navButtonOpacity = ((_heightAnimation.value - _weeklyHeight) / (_monthlyHeight - _weeklyHeight)).clamp(0.0, 1.0);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          if (_viewType == CalendarViewType.monthly) ...[
-            // 이전 월 버튼
-            GestureDetector(
-              onTap: () => _onMonthChanged(-1),
+          // 이전 월 버튼 (애니메이션 투명도)
+          AnimatedOpacity(
+            opacity: navButtonOpacity,
+            duration: const Duration(milliseconds: 100),
+            child: GestureDetector(
+              onTap: showNavButtons ? () => _onMonthChanged(-1) : null,
               child: Container(
                 width: 40,
                 height: 40,
@@ -232,7 +340,7 @@ class _RecordHomeScreenState extends State<RecordHomeScreen> {
                 ),
               ),
             ),
-          ],
+          ),
           // 월 표시
           Text(
             '${_currentMonth.month}월',
@@ -240,10 +348,12 @@ class _RecordHomeScreenState extends State<RecordHomeScreen> {
               fontWeight: FontWeight.w600,
             ),
           ),
-          if (_viewType == CalendarViewType.monthly) ...[
-            // 다음 월 버튼
-            GestureDetector(
-              onTap: () => _onMonthChanged(1),
+          // 다음 월 버튼 (애니메이션 투명도)
+          AnimatedOpacity(
+            opacity: navButtonOpacity,
+            duration: const Duration(milliseconds: 100),
+            child: GestureDetector(
+              onTap: showNavButtons ? () => _onMonthChanged(1) : null,
               child: Container(
                 width: 40,
                 height: 40,
@@ -255,7 +365,7 @@ class _RecordHomeScreenState extends State<RecordHomeScreen> {
                 ),
               ),
             ),
-          ],
+          ),
         ],
       ),
     );
@@ -294,20 +404,36 @@ class _RecordHomeScreenState extends State<RecordHomeScreen> {
   Widget _buildMonthlyCalendar(RecordHomeViewModel viewModel) {
     final weeks = _getMonthWeeks(_currentMonth);
 
+    // 선택된 날짜가 포함된 주의 인덱스 찾기
+    int selectedWeekIndex = 0;
+    for (int i = 0; i < weeks.length; i++) {
+      if (weeks[i].any((date) =>
+          date != null &&
+          date.year == _selectedDate.year &&
+          date.month == _selectedDate.month &&
+          date.day == _selectedDate.day)) {
+        selectedWeekIndex = i;
+        break;
+      }
+    }
+
+    // 선택된 주가 첫 번째에 오도록 재정렬 (주간 뷰일 때)
+    final orderedWeeks = <List<DateTime?>>[];
+    for (int i = 0; i < weeks.length; i++) {
+      final index = (selectedWeekIndex + i) % weeks.length;
+      orderedWeeks.add(weeks[index]);
+    }
+
+    // 현재 높이에 따라 월간/주간 달력 표시
+    final isMonthlyExpanded = _heightAnimation.value > (_weeklyHeight + _monthlyHeight) / 2;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32),
       child: Column(
-        children: weeks.map((week) => _buildWeekRow(week, viewModel)).toList(),
+        children: (isMonthlyExpanded ? weeks : orderedWeeks)
+            .map((week) => _buildWeekRow(week, viewModel))
+            .toList(),
       ),
-    );
-  }
-
-  Widget _buildWeeklyCalendar(RecordHomeViewModel viewModel) {
-    final weekDates = _getCurrentWeekDates();
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
-      child: _buildWeekRow(weekDates, viewModel),
     );
   }
 
@@ -388,15 +514,24 @@ class _RecordHomeScreenState extends State<RecordHomeScreen> {
     );
   }
 
-  Widget _buildViewIndicator() {
+  Widget _buildDragHandle() {
     return GestureDetector(
       onTap: _toggleViewType,
+      onVerticalDragStart: _onDragStart,
+      onVerticalDragUpdate: _onDragUpdate,
+      onVerticalDragEnd: _onDragEnd,
       child: Container(
-        width: 40,
-        height: 4,
-        decoration: BoxDecoration(
-          color: AppColors.border,
-          borderRadius: BorderRadius.circular(999),
+        width: double.infinity,
+        height: 24,
+        color: Colors.transparent,
+        alignment: Alignment.center,
+        child: Container(
+          width: 40,
+          height: 4,
+          decoration: BoxDecoration(
+            color: AppColors.border,
+            borderRadius: BorderRadius.circular(999),
+          ),
         ),
       ),
     );
