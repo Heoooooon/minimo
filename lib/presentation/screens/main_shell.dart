@@ -18,36 +18,72 @@ class MainShell extends StatefulWidget {
 }
 
 class _MainShellState extends State<MainShell> {
-  NavTab _currentTab = NavTab.home;
+  int _currentTabIndex = 0;
+  int _previousTabIndex = 0;
+
+  // 각 화면의 GlobalKey
+  final GlobalKey<HomeContentState> _homeKey = GlobalKey<HomeContentState>();
+  final GlobalKey<AquariumListScreenState> _aquariumListKey = GlobalKey<AquariumListScreenState>();
+  final GlobalKey<RecordHomeScreenState> _recordHomeKey = GlobalKey<RecordHomeScreenState>();
+
+  late final List<Widget> _screens;
+
+  @override
+  void initState() {
+    super.initState();
+    _screens = [
+      HomeContent(key: _homeKey),
+      AquariumListScreen(key: _aquariumListKey),
+      RecordHomeScreen(key: _recordHomeKey),
+      const CommunityScreen(),
+      const _PlaceholderScreen(title: '설정'),
+    ];
+  }
+
+  void _onTabSelected(NavTab tab) {
+    final newIndex = tab.index;
+
+    if (newIndex != _currentTabIndex) {
+      _previousTabIndex = _currentTabIndex;
+      setState(() {
+        _currentTabIndex = newIndex;
+      });
+
+      // 탭 전환 시 해당 화면 새로고침 트리거
+      _refreshTabData(newIndex);
+    }
+  }
+
+  /// 탭 전환 시 데이터 새로고침
+  void _refreshTabData(int tabIndex) {
+    // 약간의 딜레이 후 새로고침 (UI 전환 완료 후)
+    Future.microtask(() {
+      switch (tabIndex) {
+        case 0:
+          _homeKey.currentState?.refreshData();
+          break;
+        case 1:
+          _aquariumListKey.currentState?.refreshData();
+          break;
+        case 2:
+          _recordHomeKey.currentState?.refreshData();
+          break;
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _buildBody(),
+      body: IndexedStack(
+        index: _currentTabIndex,
+        children: _screens,
+      ),
       bottomNavigationBar: AppBottomNavBar(
-        currentTab: _currentTab,
-        onTabSelected: (tab) {
-          setState(() {
-            _currentTab = tab;
-          });
-        },
+        currentTab: NavTab.values[_currentTabIndex],
+        onTabSelected: _onTabSelected,
       ),
     );
-  }
-
-  Widget _buildBody() {
-    switch (_currentTab) {
-      case NavTab.home:
-        return const HomeContent();
-      case NavTab.aquarium:
-        return const AquariumListScreen();
-      case NavTab.record:
-        return const RecordHomeScreen();
-      case NavTab.community:
-        return const CommunityScreen();
-      case NavTab.settings:
-        return const _PlaceholderScreen(title: '설정');
-    }
   }
 }
 

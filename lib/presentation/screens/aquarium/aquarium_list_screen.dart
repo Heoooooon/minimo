@@ -16,10 +16,10 @@ class AquariumListScreen extends StatefulWidget {
   const AquariumListScreen({super.key});
 
   @override
-  State<AquariumListScreen> createState() => _AquariumListScreenState();
+  AquariumListScreenState createState() => AquariumListScreenState();
 }
 
-class _AquariumListScreenState extends State<AquariumListScreen> {
+class AquariumListScreenState extends State<AquariumListScreen> {
   late AquariumListViewModel _viewModel;
 
   @override
@@ -32,6 +32,11 @@ class _AquariumListScreenState extends State<AquariumListScreen> {
   void dispose() {
     _viewModel.dispose();
     super.dispose();
+  }
+
+  /// 외부에서 데이터 새로고침 호출용 (탭 전환 시)
+  void refreshData() {
+    _viewModel.refresh();
   }
 
   Future<void> _navigateToRegister() async {
@@ -86,7 +91,7 @@ class _AquariumListScreenState extends State<AquariumListScreen> {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               Padding(
-                padding: const EdgeInsets.only(bottom: 24),
+                padding: const EdgeInsets.only(bottom: 20),
                 child: Row(
                   children: [
                     // 왼쪽 빈 버튼 (균형용)
@@ -361,6 +366,7 @@ class _AquariumListScreenState extends State<AquariumListScreen> {
                   aquarium: aquarium,
                   onTap: () => _navigateToDetail(aquarium),
                   onLongPress: () => _showDeleteDialog(aquarium, viewModel),
+                  creatureCount: viewModel.getCreatureCount(aquarium.id),
                 ),
               )),
         ],

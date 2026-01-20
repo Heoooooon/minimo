@@ -22,10 +22,10 @@ class RecordHomeScreen extends StatefulWidget {
   const RecordHomeScreen({super.key});
 
   @override
-  State<RecordHomeScreen> createState() => _RecordHomeScreenState();
+  RecordHomeScreenState createState() => RecordHomeScreenState();
 }
 
-class _RecordHomeScreenState extends State<RecordHomeScreen>
+class RecordHomeScreenState extends State<RecordHomeScreen>
     with SingleTickerProviderStateMixin {
   CalendarViewType _viewType = CalendarViewType.weekly;
   DateTime _currentMonth = DateTime.now();
@@ -73,6 +73,11 @@ class _RecordHomeScreenState extends State<RecordHomeScreen>
   Future<void> _loadData() async {
     await _viewModel.loadRecordDatesInMonth(_currentMonth);
     await _viewModel.loadRecordsByDate(_selectedDate);
+  }
+
+  /// 외부에서 데이터 새로고침 호출용 (탭 전환 시)
+  void refreshData() {
+    _viewModel.refresh(_currentMonth, _selectedDate);
   }
 
   void _onDateSelected(DateTime date) {
@@ -366,9 +371,34 @@ class _RecordHomeScreenState extends State<RecordHomeScreen>
               ),
             ),
           ),
+          const Spacer(),
+          // 스케줄 추가 버튼
+          GestureDetector(
+            onTap: _navigateToScheduleAdd,
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: AppColors.chipPrimaryBg,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.notifications_outlined,
+                color: AppColors.brand,
+                size: 18,
+              ),
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _navigateToScheduleAdd() async {
+    final result = await Navigator.pushNamed(context, '/schedule/add');
+    if (result == true && mounted) {
+      _loadData();
+    }
   }
 
   Widget _buildWeekdayHeader() {

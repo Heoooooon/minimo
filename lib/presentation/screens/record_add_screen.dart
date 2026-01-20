@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../domain/models/record_data.dart';
+import '../../domain/models/aquarium_data.dart';
+import '../../domain/models/schedule_data.dart';
+import '../../data/services/aquarium_service.dart';
+import '../../data/services/schedule_service.dart';
+import '../../data/services/notification_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../viewmodels/record_viewmodel.dart';
 import '../widgets/common/app_button.dart';
 import '../widgets/common/app_chip.dart';
+import '../widgets/schedule/repeat_cycle_selector.dart';
 
 /// 기록 추가 화면
 ///
@@ -28,6 +34,16 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
   bool _isPublic = true;
   DateTime _selectedDate = DateTime.now();
 
+  // 어항 선택 관련
+  List<AquariumData> _aquariums = [];
+  AquariumData? _selectedAquarium;
+  bool _isLoadingAquariums = true;
+
+  // 스케줄 연동 관련
+  bool _registerSchedule = false;
+  RepeatCycle _selectedRepeatCycle = RepeatCycle.daily;
+  TimeOfDay _scheduleTime = TimeOfDay.now();
+
   late RecordViewModel _viewModel;
 
   @override
@@ -36,6 +52,26 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
     _viewModel = RecordViewModel();
     if (widget.initialDate != null) {
       _selectedDate = widget.initialDate!;
+    }
+    _loadAquariums();
+  }
+
+  Future<void> _loadAquariums() async {
+    try {
+      final aquariums = await AquariumService.instance.getAllAquariums();
+      if (mounted) {
+        setState(() {
+          _aquariums = aquariums;
+          _isLoadingAquariums = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading aquariums: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingAquariums = false;
+        });
+      }
     }
   }
 
@@ -58,14 +94,19 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
       tags: _selectedTags.toList(),
       content: _contentController.text,
       isPublic: _isPublic,
-      // aquariumId: TODO: 어항 선택 기능 추가 시 연동
+      aquariumId: _selectedAquarium?.id,
     );
 
     if (success && mounted) {
+      // 스케줄 연동 처리
+      if (_registerSchedule && _selectedTags.isNotEmpty) {
+        await _createScheduleFromRecord();
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '기록이 저장되었습니다.',
+            _registerSchedule ? '기록과 다음 일정이 저장되었습니다.' : '기록이 저장되었습니다.',
             style: AppTextStyles.bodySmall.copyWith(
               color: AppColors.textInverse,
             ),
@@ -76,7 +117,7 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
         ),
       );
 
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(true);
     } else if (_viewModel.errorMessage != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -85,6 +126,96 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
           behavior: SnackBarBehavior.floating,
         ),
       );
+    }
+  }
+
+  /// 기록에서 스케줄 생성
+  Future<void> _createScheduleFromRecord() async {
+    try {
+      // 첫 번째 태그를 알림 종류로 매핑
+      final firstTag = _selectedTags.first;
+      final alarmType = _mapTagToAlarmType(firstTag);
+
+      // 다음 일정 날짜 계산
+      final nextDate = _calculateNextScheduleDate();
+
+      // 시간 문자열 생성 (HH:mm 형식)
+      final timeString =
+          '${_scheduleTime.hour.toString().padLeft(2, '0')}:${_scheduleTime.minute.toString().padLeft(2, '0')}';
+
+      final scheduleData = ScheduleData(
+        id: '',
+        aquariumId: _selectedAquarium?.id,
+        date: DateTime(
+          nextDate.year,
+          nextDate.month,
+          nextDate.day,
+          _scheduleTime.hour,
+          _scheduleTime.minute,
+        ),
+        time: timeString,
+        title: firstTag.label,
+        aquariumName: _selectedAquarium?.name ?? '',
+        isCompleted: false,
+        alarmType: alarmType,
+        repeatCycle: _selectedRepeatCycle,
+        isNotificationEnabled: true,
+      );
+
+      final created = await ScheduleService.instance.createSchedule(scheduleData);
+
+      // 푸시 알림 예약
+      try {
+        await NotificationService.instance.scheduleNotification(
+          id: NotificationService.instance.scheduleIdToNotificationId(created.id),
+          title: firstTag.label,
+          body: '${_selectedAquarium?.name ?? '어항'} - ${alarmType.label}',
+          scheduledTime: scheduleData.date,
+          repeatCycle: _selectedRepeatCycle,
+          payload: created.id,
+        );
+      } catch (e) {
+        debugPrint('Notification scheduling failed: $e');
+      }
+    } catch (e) {
+      debugPrint('Failed to create schedule from record: $e');
+    }
+  }
+
+  /// RecordTag를 AlarmType으로 매핑
+  AlarmType _mapTagToAlarmType(RecordTag tag) {
+    switch (tag) {
+      case RecordTag.waterChange:
+        return AlarmType.waterChange;
+      case RecordTag.feeding:
+        return AlarmType.feeding;
+      case RecordTag.cleaning:
+        return AlarmType.cleaning;
+      case RecordTag.waterTest:
+        return AlarmType.waterTest;
+      case RecordTag.medication:
+        return AlarmType.medication;
+      default:
+        return AlarmType.other;
+    }
+  }
+
+  /// 반복 주기에 따른 다음 일정 날짜 계산
+  DateTime _calculateNextScheduleDate() {
+    final now = DateTime.now();
+    switch (_selectedRepeatCycle) {
+      case RepeatCycle.daily:
+        return now.add(const Duration(days: 1));
+      case RepeatCycle.everyOtherDay:
+        return now.add(const Duration(days: 2));
+      case RepeatCycle.weekly:
+        return now.add(const Duration(days: 7));
+      case RepeatCycle.biweekly:
+        return now.add(const Duration(days: 14));
+      case RepeatCycle.monthly:
+        return DateTime(now.year, now.month + 1, now.day);
+      case RepeatCycle.none:
+        return now.add(const Duration(days: 1));
     }
   }
 
@@ -151,6 +282,10 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
                         children: [
                           // 날짜 선택
                           _buildDateSelector(),
+                          const SizedBox(height: 16),
+
+                          // 어항 선택
+                          _buildAquariumSelector(),
                           const SizedBox(height: 24),
 
                           // 태그 선택
@@ -182,6 +317,10 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
 
                           // 공개 여부 설정
                           _buildVisibilityToggle(),
+                          const SizedBox(height: 16),
+
+                          // 다음 일정 등록 옵션
+                          _buildScheduleToggle(),
                         ],
                       ),
                     ),
@@ -329,6 +468,210 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildAquariumSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '어항 선택',
+          style: AppTextStyles.bodySmall.copyWith(
+            color: AppColors.textSubtle,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.backgroundSurface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.borderLight),
+          ),
+          child: _isLoadingAquariums
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      SizedBox(width: 12),
+                      Text('어항 목록 로딩 중...'),
+                    ],
+                  ),
+                )
+              : DropdownButtonHideUnderline(
+                  child: DropdownButton<AquariumData?>(
+                    value: _selectedAquarium,
+                    isExpanded: true,
+                    hint: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      child: Text('어항을 선택하세요 (선택사항)'),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    borderRadius: BorderRadius.circular(12),
+                    icon: const Icon(
+                      Icons.keyboard_arrow_down,
+                      color: AppColors.textSubtle,
+                    ),
+                    items: [
+                      const DropdownMenuItem<AquariumData?>(
+                        value: null,
+                        child: Text('선택 안함'),
+                      ),
+                      ..._aquariums.map((aquarium) {
+                        return DropdownMenuItem<AquariumData?>(
+                          value: aquarium,
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.water_drop,
+                                size: 20,
+                                color: AppColors.brand,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  aquarium.name ?? '이름 없음',
+                                  style: AppTextStyles.bodyMedium,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _selectedAquarium = value;
+                      });
+                    },
+                  ),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildScheduleToggle() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.backgroundSurface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.borderLight),
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('다음 일정도 등록하기', style: AppTextStyles.bodyMediumMedium),
+                        const SizedBox(height: 4),
+                        Text(
+                          '이 활동에 대한 정기 알림을 설정해요',
+                          style: AppTextStyles.captionRegular.copyWith(
+                            color: AppColors.textSubtle,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Switch(
+                    value: _registerSchedule,
+                    onChanged: (value) => setState(() => _registerSchedule = value),
+                    activeTrackColor: AppColors.switchActiveTrack,
+                    thumbColor: WidgetStateProperty.resolveWith((states) {
+                      if (states.contains(WidgetState.selected)) {
+                        return AppColors.brand;
+                      }
+                      return AppColors.textHint;
+                    }),
+                  ),
+                ],
+              ),
+              // 스케줄 옵션 (토글 활성화 시 표시)
+              if (_registerSchedule) ...[
+                const Divider(height: 24),
+                // 알림 시간 선택
+                GestureDetector(
+                  onTap: _selectScheduleTime,
+                  child: Row(
+                    children: [
+                      const Icon(Icons.access_time, color: AppColors.textSubtle, size: 20),
+                      const SizedBox(width: 12),
+                      Text(
+                        '알림 시간',
+                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSubtle),
+                      ),
+                      const Spacer(),
+                      Text(
+                        _formatTime(_scheduleTime),
+                        style: AppTextStyles.bodyMediumMedium.copyWith(color: AppColors.brand),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.chevron_right, color: AppColors.textSubtle, size: 20),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                // 반복 주기 선택
+                RepeatCycleSelector(
+                  selectedCycle: _selectedRepeatCycle,
+                  onChanged: (cycle) {
+                    setState(() => _selectedRepeatCycle = cycle);
+                  },
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _selectScheduleTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: _scheduleTime,
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.brand,
+              onPrimary: AppColors.textInverse,
+              surface: AppColors.backgroundSurface,
+              onSurface: AppColors.textMain,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _scheduleTime = picked;
+      });
+    }
+  }
+
+  String _formatTime(TimeOfDay time) {
+    final hour = time.hour;
+    final minute = time.minute.toString().padLeft(2, '0');
+    final period = hour < 12 ? '오전' : '오후';
+    final displayHour = hour <= 12 ? hour : hour - 12;
+    return '$period $displayHour:$minute';
   }
 
   Widget _buildBottomButton(RecordViewModel viewModel) {

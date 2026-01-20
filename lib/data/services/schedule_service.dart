@@ -19,12 +19,12 @@ class ScheduleService {
   /// 특정 날짜의 일정 조회
   Future<List<ScheduleData>> getDailySchedule(DateTime date) async {
     try {
-      // 날짜 범위로 필터링 (해당 날짜의 시작~끝)
-      final startOfDay = DateTime(date.year, date.month, date.day);
-      final endOfDay = startOfDay.add(const Duration(days: 1));
+      // 날짜 범위로 필터링 - 날짜만 비교 (시간 무시)
+      final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+      final filter = 'date >= "$dateStr 00:00:00" && date < "$dateStr 23:59:59"';
 
       final result = await _pb.collection(_collection).getList(
-        filter: 'date >= "${startOfDay.toIso8601String()}" && date < "${endOfDay.toIso8601String()}"',
+        filter: filter,
         sort: 'time',
       );
 

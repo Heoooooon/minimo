@@ -29,10 +29,10 @@ class HomeContent extends StatefulWidget {
   const HomeContent({super.key});
 
   @override
-  State<HomeContent> createState() => _HomeContentState();
+  HomeContentState createState() => HomeContentState();
 }
 
-class _HomeContentState extends State<HomeContent> {
+class HomeContentState extends State<HomeContent> {
   // 어항 데이터 (Mock Repository에서 로드)
   List<AquariumData> _aquariums = [];
   List<domain.AquariumData> _domainAquariums = [];
@@ -61,6 +61,11 @@ class _HomeContentState extends State<HomeContent> {
   bool _isLoadingSchedule = true;
   bool _isLoadingAquariums = true;
 
+  // 캐싱 관련 필드
+  DateTime? _lastAquariumFetchTime;
+  DateTime? _lastScheduleFetchTime;
+  static const Duration _cacheValidDuration = Duration(minutes: 5);
+
   @override
   void initState() {
     super.initState();
@@ -68,6 +73,12 @@ class _HomeContentState extends State<HomeContent> {
     _loadSchedule();
     _loadAquariums();
     _scrollController.addListener(_onScroll);
+  }
+
+  /// 외부에서 데이터 새로고침 호출용 (탭 전환 시)
+  void refreshData() {
+    _loadAquariums(forceRefresh: true);
+    _loadSchedule(forceRefresh: true);
   }
 
   void _onScroll() {
@@ -91,10 +102,28 @@ class _HomeContentState extends State<HomeContent> {
   int _aquariumRetryCount = 0;
   static const int _maxRetries = 3;
 
-  Future<void> _loadAquariums() async {
+  /// 어항 캐시가 유효한지 확인
+  bool _isAquariumCacheValid() {
+    return _lastAquariumFetchTime != null &&
+        DateTime.now().difference(_lastAquariumFetchTime!) < _cacheValidDuration &&
+        _domainAquariums.isNotEmpty;
+  }
+
+  Future<void> _loadAquariums({bool forceRefresh = false}) async {
+    // 캐시가 유효하고 강제 새로고침이 아니면 스킵
+    if (!forceRefresh && _isAquariumCacheValid()) {
+      if (mounted && _isLoadingAquariums) {
+        setState(() {
+          _isLoadingAquariums = false;
+        });
+      }
+      return;
+    }
+
     try {
       final domainAquariums = await _aquariumRepository.getAquariums();
       _aquariumRetryCount = 0; // 성공 시 리셋
+      _lastAquariumFetchTime = DateTime.now();
       if (mounted) {
         setState(() {
           _domainAquariums = domainAquariums;
@@ -135,9 +164,27 @@ class _HomeContentState extends State<HomeContent> {
     super.dispose();
   }
 
-  Future<void> _loadSchedule() async {
+  /// 스케줄 캐시가 유효한지 확인
+  bool _isScheduleCacheValid() {
+    return _lastScheduleFetchTime != null &&
+        DateTime.now().difference(_lastScheduleFetchTime!) < _cacheValidDuration &&
+        _scheduleItems.isNotEmpty;
+  }
+
+  Future<void> _loadSchedule({bool forceRefresh = false}) async {
+    // 캐시가 유효하고 강제 새로고침이 아니면 스킵
+    if (!forceRefresh && _isScheduleCacheValid()) {
+      if (mounted && _isLoadingSchedule) {
+        setState(() {
+          _isLoadingSchedule = false;
+        });
+      }
+      return;
+    }
+
     try {
       final items = await _scheduleRepository.getDailySchedule(DateTime.now());
+      _lastScheduleFetchTime = DateTime.now();
       if (mounted) {
         setState(() {
           _scheduleItems = items;
@@ -614,8 +661,11 @@ class _HomeContentState extends State<HomeContent> {
       width: double.infinity,
       height: 40,
       child: ElevatedButton(
-        onPressed: () {
-          Navigator.pushNamed(context, '/aquarium/register');
+        onPressed: () async {
+          final result = await Navigator.pushNamed(context, '/aquarium/register');
+          if (result == true && mounted) {
+            _loadAquariums(forceRefresh: true);
+          }
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.brand,
@@ -693,9 +743,34 @@ class _HomeContentState extends State<HomeContent> {
               color: AppColors.textMain,
             ),
           ),
+          // 스케줄 추가 버튼
+          if (_hasAquariums)
+            GestureDetector(
+              onTap: _navigateToScheduleAdd,
+              child: Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: AppColors.chipPrimaryBg,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.add,
+                  color: AppColors.brand,
+                  size: 20,
+                ),
+              ),
+            ),
         ],
       ),
     );
+  }
+
+  Future<void> _navigateToScheduleAdd() async {
+    final result = await Navigator.pushNamed(context, '/schedule/add');
+    if (result == true && mounted) {
+      _loadSchedule(forceRefresh: true);
+    }
   }
 
   Widget _buildEmptyTimeline() {

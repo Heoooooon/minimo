@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../../../domain/models/aquarium_data.dart';
 import '../../../domain/models/creature_data.dart';
@@ -123,6 +124,218 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
     }
   }
 
+  /// 사진 추가 BottomSheet 표시
+  void _showPhotoAddSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 핸들 바
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE8EBF0),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // 타이틀
+              const Padding(
+                padding: EdgeInsets.only(bottom: 16),
+                child: Text(
+                  '사진 추가',
+                  style: TextStyle(
+                    fontFamily: 'WantedSans',
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF212529),
+                  ),
+                ),
+              ),
+              // 카메라 촬영 옵션
+              ListTile(
+                leading: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: AppColors.chipPrimaryBg,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.camera_alt_outlined, color: AppColors.brand),
+                ),
+                title: const Text(
+                  '카메라로 촬영',
+                  style: TextStyle(
+                    fontFamily: 'WantedSans',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF212529),
+                  ),
+                ),
+                subtitle: const Text(
+                  '새 사진을 촬영합니다',
+                  style: TextStyle(
+                    fontFamily: 'WantedSans',
+                    fontSize: 14,
+                    color: Color(0xFF666E78),
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _takePhotoAndUpload();
+                },
+              ),
+              // 갤러리 선택 옵션
+              ListTile(
+                leading: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: AppColors.chipPrimaryBg,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.photo_library_outlined, color: AppColors.brand),
+                ),
+                title: const Text(
+                  '갤러리에서 선택',
+                  style: TextStyle(
+                    fontFamily: 'WantedSans',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF212529),
+                  ),
+                ),
+                subtitle: const Text(
+                  '저장된 사진을 선택합니다',
+                  style: TextStyle(
+                    fontFamily: 'WantedSans',
+                    fontSize: 14,
+                    color: Color(0xFF666E78),
+                  ),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickPhotosFromGallery();
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 카메라로 사진 촬영 후 업로드
+  Future<void> _takePhotoAndUpload() async {
+    try {
+      final picker = ImagePicker();
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1080,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
+
+      if (image != null && _aquarium?.id != null) {
+        // 로딩 표시
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('사진을 업로드하는 중...'),
+              duration: Duration(seconds: 1),
+            ),
+          );
+        }
+
+        await GalleryPhotoService.instance.uploadPhotos(
+          _aquarium!.id!,
+          [image.path],
+        );
+
+        // 사진 목록 새로고침
+        if (mounted) {
+          _loadPhotos();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('사진이 추가되었습니다'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Failed to take and upload photo: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('사진 업로드에 실패했습니다: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  /// 갤러리에서 사진 선택 후 업로드
+  Future<void> _pickPhotosFromGallery() async {
+    try {
+      final picker = ImagePicker();
+      final List<XFile> images = await picker.pickMultiImage(
+        maxWidth: 1080,
+        maxHeight: 1080,
+        imageQuality: 85,
+      );
+
+      if (images.isNotEmpty && _aquarium?.id != null) {
+        // 로딩 표시
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${images.length}개의 사진을 업로드하는 중...'),
+              duration: const Duration(seconds: 1),
+            ),
+          );
+        }
+
+        final filePaths = images.map((img) => img.path).toList();
+        await GalleryPhotoService.instance.uploadPhotos(
+          _aquarium!.id!,
+          filePaths,
+        );
+
+        // 사진 목록 새로고침
+        if (mounted) {
+          _loadPhotos();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${images.length}개의 사진이 추가되었습니다'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Failed to pick and upload photos: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('사진 업로드에 실패했습니다: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -192,7 +405,8 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
         });
         break;
       case 2:
-        // TODO: 사진 추가 기능
+        // 사진 추가 -> BottomSheet로 카메라/갤러리 선택
+        _showPhotoAddSheet();
         break;
     }
   }
@@ -384,7 +598,16 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
             // 편집 버튼
             IconButton(
               onPressed: () {
-                // TODO: 어항 편집 기능
+                Navigator.pushNamed(
+                  context,
+                  '/aquarium/register',
+                  arguments: _aquarium,
+                ).then((result) {
+                  // 수정 완료 시 데이터 새로고침
+                  if (result == true && mounted && _aquarium?.id != null) {
+                    _loadAquariumById(_aquarium!.id!);
+                  }
+                });
               },
               icon: Icon(Icons.edit_outlined, color: iconColor, size: 24),
             ),
@@ -693,119 +916,164 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
     );
   }
 
-  /// 알림 카드 위젯
+  /// 알림 리스트 아이템 위젯 (Figma 디자인)
   Widget _buildScheduleCard(ScheduleData schedule) {
+    // 시간 포맷 파싱 (HH:mm -> 오전/오후 h:mm)
+    final timeParts = schedule.time.split(':');
+    final hour = int.tryParse(timeParts.isNotEmpty ? timeParts[0] : '0') ?? 0;
+    final minute = int.tryParse(timeParts.length > 1 ? timeParts[1] : '0') ?? 0;
+    final isAM = hour < 12;
+    final displayHour = hour == 0 ? 12 : (hour > 12 ? hour - 12 : hour);
+    final timeString = '$displayHour:${minute.toString().padLeft(2, '0')}';
+    final periodString = isAM ? '오전' : '오후';
+
     return GestureDetector(
       onLongPress: () => _showScheduleOptions(schedule),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.borderLight),
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // 아이콘
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: AppColors.chipPrimaryBg,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                _getIconForAlarmType(schedule.alarmType),
-                color: AppColors.brand,
-                size: 24,
-              ),
+            // 시간 (큰 글씨)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  periodString,
+                  style: const TextStyle(
+                    fontFamily: 'WantedSans',
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                    color: Color(0xFF666E78),
+                    height: 18 / 12,
+                    letterSpacing: -0.25,
+                  ),
+                ),
+                Text(
+                  timeString,
+                  style: const TextStyle(
+                    fontFamily: 'WantedSans',
+                    fontSize: 28,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF212529),
+                    height: 36 / 28,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(width: 16),
-            // 정보
+            // 라벨 + 반복주기
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // 알림 라벨 (브랜드 색상)
                   Text(
                     schedule.title,
                     style: const TextStyle(
                       fontFamily: 'WantedSans',
                       fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF212529),
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF0165FE), // 브랜드 색상
                       height: 24 / 16,
+                      letterSpacing: -0.5,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Text(
-                        schedule.time,
-                        style: const TextStyle(
-                          fontFamily: 'WantedSans',
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF666E78),
-                          height: 20 / 14,
-                        ),
+                  const SizedBox(height: 2),
+                  // 반복주기
+                  if (schedule.repeatCycle != RepeatCycle.none)
+                    Text(
+                      schedule.repeatCycle.label,
+                      style: const TextStyle(
+                        fontFamily: 'WantedSans',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        color: Color(0xFF666E78),
+                        height: 20 / 14,
+                        letterSpacing: -0.25,
                       ),
-                      if (schedule.repeatCycle != RepeatCycle.none) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.backgroundApp,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            schedule.repeatCycle.label,
-                            style: const TextStyle(
-                              fontFamily: 'WantedSans',
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFF666E78),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
+                    ),
                 ],
               ),
             ),
-            // 알림 아이콘
-            if (schedule.isNotificationEnabled)
-              const Icon(
-                Icons.notifications_active_outlined,
-                color: AppColors.brand,
-                size: 20,
-              ),
-            // 더보기 버튼
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert, color: Color(0xFF666E78), size: 20),
-              onSelected: (value) {
-                if (value == 'delete') {
-                  _confirmDeleteSchedule(schedule);
+            // 토글 스위치
+            Switch(
+              value: schedule.isNotificationEnabled,
+              onChanged: (value) => _toggleScheduleNotification(schedule, value),
+              activeTrackColor: AppColors.switchActiveTrack,
+              inactiveTrackColor: AppColors.switchInactiveTrack,
+              thumbColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.selected)) {
+                  return AppColors.brand;
                 }
-              },
-              itemBuilder: (context) => [
-                const PopupMenuItem<String>(
-                  value: 'delete',
-                  child: Row(
-                    children: [
-                      Icon(Icons.delete_outline, color: Colors.red, size: 20),
-                      SizedBox(width: 8),
-                      Text('삭제', style: TextStyle(color: Colors.red)),
-                    ],
-                  ),
-                ),
-              ],
+                return AppColors.textHint;
+              }),
             ),
           ],
         ),
       ),
     );
+  }
+
+  /// 알림 토글 변경
+  Future<void> _toggleScheduleNotification(ScheduleData schedule, bool enabled) async {
+    try {
+      // UI 먼저 업데이트
+      setState(() {
+        final index = _schedules.indexWhere((s) => s.id == schedule.id);
+        if (index != -1) {
+          _schedules[index] = schedule.copyWith(isNotificationEnabled: enabled);
+        }
+      });
+
+      // 서버에 업데이트
+      await ScheduleService.instance.updateSchedule(
+        schedule.id,
+        schedule.copyWith(isNotificationEnabled: enabled),
+      );
+
+      // 푸시 알림 처리
+      if (enabled) {
+        // 알림 다시 예약
+        await NotificationService.instance.scheduleNotification(
+          id: NotificationService.instance.scheduleIdToNotificationId(schedule.id),
+          title: schedule.title,
+          body: '${_aquarium?.name ?? '어항'} - ${schedule.alarmType.label}',
+          scheduledTime: schedule.date,
+          repeatCycle: schedule.repeatCycle,
+          payload: schedule.id,
+        );
+      } else {
+        // 알림 취소
+        await NotificationService.instance.cancelNotification(
+          NotificationService.instance.scheduleIdToNotificationId(schedule.id),
+        );
+      }
+    } catch (e) {
+      debugPrint('Failed to toggle notification: $e');
+      // 실패 시 UI 롤백
+      if (mounted) {
+        setState(() {
+          final index = _schedules.indexWhere((s) => s.id == schedule.id);
+          if (index != -1) {
+            _schedules[index] = schedule.copyWith(isNotificationEnabled: !enabled);
+          }
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('알림 설정 변경에 실패했습니다: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 
   /// 알림 옵션 표시 (롱프레스)
@@ -1333,7 +1601,16 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
 
     return GestureDetector(
       onTap: () {
-        // TODO: 사진 상세 보기
+        Navigator.pushNamed(
+          context,
+          '/gallery/photo-detail',
+          arguments: photo,
+        ).then((deleted) {
+          // 삭제된 경우 목록 새로고침
+          if (deleted == true && mounted) {
+            _loadPhotos();
+          }
+        });
       },
       child: AspectRatio(
         aspectRatio: 1,

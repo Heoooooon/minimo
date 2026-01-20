@@ -3,6 +3,7 @@ import '../../../domain/models/aquarium_data.dart';
 import '../../../domain/models/schedule_data.dart';
 import '../../../data/services/schedule_service.dart';
 import '../../../data/services/notification_service.dart';
+import '../../../data/services/aquarium_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../widgets/schedule/time_picker_widget.dart';
@@ -25,6 +26,11 @@ class ScheduleAddScreen extends StatefulWidget {
 
 class _ScheduleAddScreenState extends State<ScheduleAddScreen> {
   AquariumData? _aquarium;
+  bool _hasAquariumFromArgs = false; // arguments로 어항이 전달되었는지 여부
+
+  // 어항 목록 (arguments가 없을 때 선택용)
+  List<AquariumData> _aquariums = [];
+  bool _isLoadingAquariums = true;
 
   // 폼 상태
   int _selectedHour = 8;
@@ -42,14 +48,35 @@ class _ScheduleAddScreenState extends State<ScheduleAddScreen> {
     super.initState();
     // 기본 알림 이름 설정
     _titleController.text = _selectedAlarmType.label;
+    _loadAquariums();
+  }
+
+  Future<void> _loadAquariums() async {
+    try {
+      final aquariums = await AquariumService.instance.getAllAquariums();
+      if (mounted) {
+        setState(() {
+          _aquariums = aquariums;
+          _isLoadingAquariums = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading aquariums: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingAquariums = false;
+        });
+      }
+    }
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final args = ModalRoute.of(context)?.settings.arguments;
-    if (args is AquariumData) {
+    if (args is AquariumData && !_hasAquariumFromArgs) {
       _aquarium = args;
+      _hasAquariumFromArgs = true;
     }
   }
 
@@ -178,9 +205,12 @@ class _ScheduleAddScreenState extends State<ScheduleAddScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 어항 정보 (있는 경우)
-            if (_aquarium != null) ...[
+            // 어항 정보 또는 어항 선택
+            if (_hasAquariumFromArgs && _aquarium != null) ...[
               _buildAquariumInfo(),
+              const SizedBox(height: 24),
+            ] else ...[
+              _buildAquariumSelector(),
               const SizedBox(height: 24),
             ],
 
@@ -265,6 +295,93 @@ class _ScheduleAddScreenState extends State<ScheduleAddScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildAquariumSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '어항 선택',
+          style: AppTextStyles.bodySmall.copyWith(
+            color: AppColors.textSubtle,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.backgroundSurface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.borderLight),
+          ),
+          child: _isLoadingAquariums
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      SizedBox(width: 12),
+                      Text('어항 목록 로딩 중...'),
+                    ],
+                  ),
+                )
+              : DropdownButtonHideUnderline(
+                  child: DropdownButton<AquariumData?>(
+                    value: _aquarium,
+                    isExpanded: true,
+                    hint: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      child: Text('어항을 선택하세요 (선택사항)'),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    borderRadius: BorderRadius.circular(12),
+                    icon: const Icon(
+                      Icons.keyboard_arrow_down,
+                      color: AppColors.textSubtle,
+                    ),
+                    items: [
+                      const DropdownMenuItem<AquariumData?>(
+                        value: null,
+                        child: Text('전체 (특정 어항 없음)'),
+                      ),
+                      ..._aquariums.map((aquarium) {
+                        return DropdownMenuItem<AquariumData?>(
+                          value: aquarium,
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.water_drop,
+                                size: 20,
+                                color: AppColors.brand,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  aquarium.name ?? '이름 없음',
+                                  style: AppTextStyles.bodyMedium,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        _aquarium = value;
+                      });
+                    },
+                  ),
+                ),
+        ),
+      ],
     );
   }
 
@@ -464,10 +581,14 @@ class _ScheduleAddScreenState extends State<ScheduleAddScreen> {
             onChanged: (value) {
               setState(() => _isNotificationEnabled = value);
             },
-            activeColor: AppColors.brand,
             activeTrackColor: AppColors.switchActiveTrack,
-            inactiveThumbColor: AppColors.textHint,
             inactiveTrackColor: AppColors.switchInactiveTrack,
+            thumbColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.selected)) {
+                return AppColors.brand;
+              }
+              return AppColors.textHint;
+            }),
           ),
         ],
       ),
