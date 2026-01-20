@@ -45,6 +45,20 @@ class PocketBaseService {
     await _restoreAuthIfEnabled();
   }
 
+  /// 테스트용 초기화 (mock client 주입)
+  @visibleForTesting
+  void initializeForTesting(PocketBase mockClient) {
+    _client = mockClient;
+    debugPrint('PocketBase initialized with mock client for testing');
+  }
+
+  /// 테스트용 리셋
+  @visibleForTesting
+  void resetForTesting() {
+    _client = null;
+    _instance = null;
+  }
+
   /// 자동 로그인 설정 저장
   Future<void> setAutoLogin(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();

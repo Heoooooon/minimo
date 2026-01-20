@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../viewmodels/community_viewmodel.dart';
 import '../../widgets/community/post_card.dart';
 import '../../widgets/community/recommendation_card.dart';
 import '../../widgets/community/popular_ranking_card.dart';
@@ -39,218 +41,6 @@ class _CommunityScreenState extends State<CommunityScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _showScrollToTop = false;
 
-  // Mock Data - Recommend Tab
-  final PopularRankingData _popularRanking = const PopularRankingData(
-    rank: 1,
-    title: '베타를 건강하게 키우기 위한 10가지 방법',
-    id: '1',
-  );
-
-  final List<String> _tags = const ['#베타', '#25큐브', '#초보자', '#구피', '#안시'];
-
-  final List<RecommendationData> _recommendationItems = const [
-    RecommendationData(
-      id: '1',
-      title: '이끼 어떡하면 좋나요 ㅋㅋㅋ',
-      content:
-          '장 다녀왔는데 어항에 이끼 실화인가욬ㅋㅋㅋㅋ청소할 생각에 어지러운데 혹시 도움 주실 수 있는 분 계신가요? 사진 올리고 싶은데 너무 창피해서...ㅋㅋㅋㅋ 정말 아마존 강 수준이에요\n비슷한 경험 있으신 분들 조언 부탁드려요!',
-      authorName: '미니모',
-      timeAgo: '20분 전',
-      imageUrl:
-          'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=400',
-    ),
-    RecommendationData(
-      id: '2',
-      title: '새 어항 세팅했는데 물이 뿌옇게 돼요',
-      content:
-          '이번 주말에 45큐브 새 어항 세팅했어요. 모래는 ADA 아마조니아, 여과기는 Eheim 2213 사용 중입니다. 물잡이 중인데 어제까진 맑았는데 오늘 아침 보니 갑자기 뿌옇게 변했어요. 냄새는 없고 물고기는 아직 안 넣었어요.',
-      authorName: '양이',
-      timeAgo: '20분 전',
-      imageUrl:
-          'https://images.unsplash.com/photo-1571752726703-5e7d1f6a986d?w=400',
-    ),
-    RecommendationData(
-      id: '3',
-      title: '처음으로 물생활 시작했어요!',
-      content:
-          '예전부터 어항 있는 집이 너무 부러웠는데, 이번에 드디어 30큐브 세트를 들였어요! 어항, 여과기, 모래, 수초, 구피 세 마리까지 세팅 완료했습니다.',
-      authorName: '물초보99',
-      timeAgo: '20분 전',
-      imageUrl:
-          'https://images.unsplash.com/photo-1520302519878-3836d1c96e8e?w=400',
-    ),
-  ];
-
-  final List<PostData> _postItems = const [
-    PostData(
-      id: '1',
-      authorName: 'User',
-      timeAgo: '00시간 전',
-      title: '네온테트라 군영 세팅 완료했어요!',
-      content:
-          '이번에 2자 어항 새로 입양해서 네온테트라 30마리 들였습니다 🥰  소일 깔고 수초도 심었더니 너무 예쁘네요!',
-      imageUrls: [
-        'https://images.unsplash.com/photo-1520302519878-3836d1c96e8e?w=600',
-        'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=600',
-      ],
-      likeCount: 233,
-      commentCount: 2,
-      bookmarkCount: 122,
-      isLiked: true,
-    ),
-    PostData(
-      id: '2',
-      authorName: 'User',
-      timeAgo: '00시간 전',
-      title: '어항 속 작은 마을 만들기 프로젝트',
-      content:
-          '한 달 동안 준비한 어항 레이아웃이 드디어 완성됐어요! 모래길을 중심으로 양쪽에 자바모스 숲을 만들고, 돌로 작은 아치형 다리도 세웠습니다.',
-      imageUrls: [
-        'https://images.unsplash.com/photo-1571752726703-5e7d1f6a986d?w=600',
-      ],
-      likeCount: 233,
-      commentCount: 2,
-      bookmarkCount: 122,
-      isLiked: true,
-      isBookmarked: true,
-    ),
-    PostData(
-      id: '3',
-      authorName: 'User',
-      timeAgo: '00시간 전',
-      title: '우리 어항에 봄이 온 것 같아요',
-      content:
-          '겨울 내내 삭았던 수초들이 요즘 갑자기 새순을 올리고 있어요. 자바모스는 덩어리가 커지고, 미크로소리움 잎도 진한 녹색으로 변했어요.',
-      imageUrls: [
-        'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=600',
-      ],
-      likeCount: 233,
-      commentCount: 2,
-      bookmarkCount: 122,
-      isLiked: true,
-    ),
-  ];
-
-  // Mock Data - Following Tab
-  final List<PostData> _followingPostItems = const [
-    PostData(
-      id: 'f1',
-      authorName: '네온이사랑',
-      timeAgo: '2분 전',
-      title: '네온테트라 군영 세팅 완료했어요!',
-      content:
-          '이번에 2자 어항 새로 입양해서 네온테트라 30마리 들였습니다 🥰  소일 깔고 수초도 심었더니 너무 예쁘네요!',
-      imageUrls: [
-        'https://images.unsplash.com/photo-1520302519878-3836d1c96e8e?w=600',
-        'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=600',
-      ],
-      likeCount: 233,
-      commentCount: 2,
-      bookmarkCount: 122,
-      isLiked: true,
-    ),
-    PostData(
-      id: 'f2',
-      authorName: '밥고기',
-      timeAgo: '00시간 전',
-      title: '어항 속 작은 마을 만들기 프로젝트',
-      content:
-          '한 달 동안 준비한 어항 레이아웃이 드디어 완성됐어요! 모래길을 중심으로 양쪽에 자바모스 숲을 만들고, 돌로 작은 아치형 다리도 세웠습니다.',
-      imageUrls: [
-        'https://images.unsplash.com/photo-1571752726703-5e7d1f6a986d?w=600',
-      ],
-      likeCount: 233,
-      commentCount: 2,
-      bookmarkCount: 122,
-      isLiked: true,
-      isBookmarked: true,
-    ),
-    PostData(
-      id: 'f3',
-      authorName: '퉁퉁퉁사후르',
-      timeAgo: '00시간 전',
-      title: '우리 어항에 봄이 온 것 같아요',
-      content:
-          '겨울 내내 삭았던 수초들이 요즘 갑자기 새순을 올리고 있어요. 자바모스는 덩어리가 커지고, 미크로소리움 잎도 진한 녹색으로 변했어요.',
-      imageUrls: [
-        'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=600',
-      ],
-      likeCount: 233,
-      commentCount: 2,
-      bookmarkCount: 122,
-      isLiked: true,
-    ),
-  ];
-
-  // Mock Data - Q&A Tab
-  final List<String> _qnaTags = const ['#25큐브', '#구피초보', '#물잡이', '#이끼'];
-
-  final List<QnaQuestionData> _popularQnaItems = const [
-    QnaQuestionData(
-      id: 'q1',
-      rank: 1,
-      title: '꼬리 지느러미가 해질게 변했어요',
-      content:
-          '안녕하세요. 카페에서 우연히 이 앱을 알게 되어서 질문드립니다. 가장 먼저 해야 할 일은 뭘까요? 물고기를 넣기 전에 뭔가를 체크해야 하나요?',
-      answerCount: 1,
-      timeAgo: '25분 전',
-    ),
-    QnaQuestionData(
-      id: 'q2',
-      rank: 2,
-      title: '어항에 이끼가 너무 많이 껴요',
-      content:
-          '처음 어항세팅이라 정말 긴장되네요 ㅜㅜ 카페에서 우연히 이 앱을 알게 되었는데, 가장 먼저 해야 할 일은 뭘까요? 물고기를 넣기 전에 뭔가를 체크해야 하나요?',
-      answerCount: 3,
-      timeAgo: '25분 전',
-    ),
-    QnaQuestionData(
-      id: 'q3',
-      rank: 3,
-      title: '물고기들이 자꾸 먹이를 뱉어내요',
-      content:
-          '네온테트라 4마리랑 구피 10마리 합사 중인데 먹이를 먹질 않아요. 가장 먼저 해야 할 일은 뭘까요? 물고기를 넣기 전에 뭔가를 체크해야 하나요?',
-      answerCount: 5,
-      timeAgo: '25분 전',
-    ),
-  ];
-
-  final QnaQuestionData _featuredQuestion = const QnaQuestionData(
-    id: 'fq1',
-    title: '물고기 몸에 갑자기 하얀 반점이 생겼어요',
-    content: '',
-    tags: ['흰점병백터'],
-  );
-
-  final List<QnaQuestionData> _waitingAnswerItems = const [
-    QnaQuestionData(
-      id: 'wa1',
-      title: '꼬리 지느러미가 해질게 변했어요',
-      content:
-          '안녕하세요. 처음 어항세팅이라 정말 긴장되네요 ㅜㅜ 카페에서 우연히 이 앱을 알게 되어서 질문드립니다. 가장 먼저 해야 할 일은 뭘까요?',
-      answerCount: 25,
-      timeAgo: '25분 전',
-    ),
-    QnaQuestionData(
-      id: 'wa2',
-      title: '어항에 이끼가 너무 많이 껴요!',
-      content:
-          '처음 어항세팅이라 정말 긴장되네요 ㅜㅜ 카페에서 우연히 이 앱을 알게 되어서 질문드립니다. 가장 먼저 해야 할 일은 뭘까요?',
-      answerCount: 25,
-      timeAgo: '25분 전',
-    ),
-    QnaQuestionData(
-      id: 'wa3',
-      title: '물고기가 자꾸 먹이를 뱉어내요.',
-      content:
-          '돌처럼 때를 안 뱉었어요? 벌써도 많이 아프셨데요 ㅜㅜ 카페에서 우연히 이 앱을 알게 되어서 질문드립니다.',
-      answerCount: 25,
-      timeAgo: '25분 전',
-      imageUrl:
-          'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=400',
-    ),
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -281,111 +71,221 @@ class _CommunityScreenState extends State<CommunityScreen> {
     );
   }
 
+  void _onTabChanged(CommunityTab tab) {
+    setState(() {
+      _currentTab = tab;
+    });
+
+    final viewModel = context.read<CommunityViewModel>();
+
+    switch (tab) {
+      case CommunityTab.recommend:
+        viewModel.loadRecommendTab();
+        break;
+      case CommunityTab.following:
+        viewModel.loadFollowingTab();
+        break;
+      case CommunityTab.qna:
+        viewModel.loadQnaTab();
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
-      body: Stack(
-        children: [
-          CustomScrollView(
-            controller: _scrollController,
-            slivers: [
-              // Header (Fixed)
-              SliverToBoxAdapter(
-                child: _buildHeader(),
-              ),
+      body: Consumer<CommunityViewModel>(
+        builder: (context, viewModel, child) {
+          return RefreshIndicator(
+            onRefresh: () => viewModel.refreshAll(),
+            color: AppColors.brand,
+            child: Stack(
+              children: [
+                CustomScrollView(
+                  controller: _scrollController,
+                  slivers: [
+                    // Header (Fixed)
+                    SliverToBoxAdapter(
+                      child: _buildHeader(),
+                    ),
 
-              // Content based on tab
-              ..._buildTabContent(),
+                    // Loading Indicator
+                    if (viewModel.isLoading)
+                      const SliverToBoxAdapter(
+                        child: Padding(
+                          padding: EdgeInsets.all(32),
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              color: AppColors.brand,
+                            ),
+                          ),
+                        ),
+                      ),
 
-              // Bottom padding for nav bar
-              const SliverToBoxAdapter(
-                child: SizedBox(height: 100),
-              ),
-            ],
-          ),
+                    // Error Message
+                    if (viewModel.errorMessage != null)
+                      SliverToBoxAdapter(
+                        child: _buildErrorWidget(viewModel.errorMessage!),
+                      ),
 
-          // Scroll to Top Button
-          if (_showScrollToTop)
-            Positioned(
-              right: 16,
-              bottom: 108,
-              child: _buildScrollToTopButton(),
+                    // Content based on tab
+                    if (!viewModel.isLoading && viewModel.errorMessage == null)
+                      ..._buildTabContent(viewModel),
+
+                    // Bottom padding for nav bar
+                    const SliverToBoxAdapter(
+                      child: SizedBox(height: 100),
+                    ),
+                  ],
+                ),
+
+                // Scroll to Top Button
+                if (_showScrollToTop)
+                  Positioned(
+                    right: 16,
+                    bottom: 108,
+                    child: _buildScrollToTopButton(),
+                  ),
+              ],
             ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildErrorWidget(String message) {
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.error_outline,
+            size: 48,
+            color: AppColors.textHint,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppColors.textSubtle,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          TextButton(
+            onPressed: () {
+              context.read<CommunityViewModel>().refreshAll();
+            },
+            child: Text(
+              '다시 시도',
+              style: AppTextStyles.bodyMediumMedium.copyWith(
+                color: AppColors.brand,
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  List<Widget> _buildTabContent() {
+  List<Widget> _buildTabContent(CommunityViewModel viewModel) {
     switch (_currentTab) {
       case CommunityTab.recommend:
-        return _buildRecommendTabContent();
+        return _buildRecommendTabContent(viewModel);
       case CommunityTab.following:
-        return _buildFollowingTabContent();
+        return _buildFollowingTabContent(viewModel);
       case CommunityTab.qna:
-        return _buildQnaTabContent();
+        return _buildQnaTabContent(viewModel);
     }
   }
 
   // ============================================
   // Recommend Tab Content
   // ============================================
-  List<Widget> _buildRecommendTabContent() {
+  List<Widget> _buildRecommendTabContent(CommunityViewModel viewModel) {
+    // 데이터가 없는 경우 빈 상태 표시
+    if (viewModel.latestPosts.isEmpty &&
+        viewModel.recommendationItems.isEmpty &&
+        !viewModel.isLoading) {
+      return [
+        SliverToBoxAdapter(
+          child: _buildEmptyState('아직 게시글이 없습니다.\n첫 번째 게시글을 작성해보세요!'),
+        ),
+      ];
+    }
+
     return [
       // Popular Ranking Section
-      SliverToBoxAdapter(
-        child: _buildPopularRankingSection(),
-      ),
+      if (viewModel.popularRanking != null)
+        SliverToBoxAdapter(
+          child: _buildPopularRankingSection(viewModel),
+        ),
 
       // Recommendation Section
-      SliverToBoxAdapter(
-        child: _buildRecommendationSection(),
-      ),
+      if (viewModel.recommendationItems.isNotEmpty)
+        SliverToBoxAdapter(
+          child: _buildRecommendationSection(viewModel),
+        ),
 
       // Latest Posts Section
-      SliverToBoxAdapter(
-        child: _buildLatestPostsHeader(),
-      ),
+      if (viewModel.latestPosts.isNotEmpty)
+        SliverToBoxAdapter(
+          child: _buildLatestPostsHeader(),
+        ),
 
       // Post List
-      SliverList(
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            return PostCard(
-              data: _postItems[index],
-              onTap: () {},
-              onLikeTap: () {},
-              onCommentTap: () {},
-              onBookmarkTap: () {},
-              onMoreTap: () {},
-            );
-          },
-          childCount: _postItems.length,
+      if (viewModel.latestPosts.isNotEmpty)
+        SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              final post = viewModel.latestPosts[index];
+              return PostCard(
+                data: post,
+                onTap: () => _navigateToPostDetail(post.id),
+                onLikeTap: () => viewModel.toggleLike(post.id, !post.isLiked),
+                onCommentTap: () => _navigateToPostDetail(post.id),
+                onBookmarkTap: () =>
+                    viewModel.toggleBookmark(post.id, !post.isBookmarked),
+                onMoreTap: () => _showPostOptions(post.id),
+              );
+            },
+            childCount: viewModel.latestPosts.length,
+          ),
         ),
-      ),
     ];
   }
 
   // ============================================
   // Following Tab Content
   // ============================================
-  List<Widget> _buildFollowingTabContent() {
+  List<Widget> _buildFollowingTabContent(CommunityViewModel viewModel) {
+    if (viewModel.followingPosts.isEmpty && !viewModel.isLoading) {
+      return [
+        SliverToBoxAdapter(
+          child: _buildEmptyState('팔로우한 사용자의 게시글이 없습니다.\n관심있는 사용자를 팔로우해보세요!'),
+        ),
+      ];
+    }
+
     return [
       // Post List
       SliverList(
         delegate: SliverChildBuilderDelegate(
           (context, index) {
+            final post = viewModel.followingPosts[index];
             return PostCard(
-              data: _followingPostItems[index],
-              onTap: () {},
-              onLikeTap: () {},
-              onCommentTap: () {},
-              onBookmarkTap: () {},
-              onMoreTap: () {},
+              data: post,
+              onTap: () => _navigateToPostDetail(post.id),
+              onLikeTap: () => viewModel.toggleLike(post.id, !post.isLiked),
+              onCommentTap: () => _navigateToPostDetail(post.id),
+              onBookmarkTap: () =>
+                  viewModel.toggleBookmark(post.id, !post.isBookmarked),
+              onMoreTap: () => _showPostOptions(post.id),
             );
           },
-          childCount: _followingPostItems.length,
+          childCount: viewModel.followingPosts.length,
         ),
       ),
     ];
@@ -394,7 +294,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
   // ============================================
   // Q&A Tab Content
   // ============================================
-  List<Widget> _buildQnaTabContent() {
+  List<Widget> _buildQnaTabContent(CommunityViewModel viewModel) {
     return [
       // Ask Question Button
       SliverToBoxAdapter(
@@ -407,32 +307,69 @@ class _CommunityScreenState extends State<CommunityScreen> {
       ),
 
       // Popular Tags
-      SliverToBoxAdapter(
-        child: _buildPopularTags(),
-      ),
+      if (viewModel.qnaTags.isNotEmpty)
+        SliverToBoxAdapter(
+          child: _buildPopularTags(viewModel),
+        ),
 
       // Popular Q&A Section
-      SliverToBoxAdapter(
-        child: _buildPopularQnaSection(),
-      ),
+      if (viewModel.popularQuestions.isNotEmpty)
+        SliverToBoxAdapter(
+          child: _buildPopularQnaSection(viewModel),
+        ),
 
       // Featured Question Card
-      SliverToBoxAdapter(
-        child: _buildFeaturedQuestionCard(),
-      ),
+      if (viewModel.featuredQuestion != null)
+        SliverToBoxAdapter(
+          child: _buildFeaturedQuestionCard(viewModel),
+        ),
 
       // Waiting Answer Section
-      SliverToBoxAdapter(
-        child: _buildWaitingAnswerSection(),
-      ),
+      if (viewModel.waitingQuestions.isNotEmpty)
+        SliverToBoxAdapter(
+          child: _buildWaitingAnswerSection(viewModel),
+        ),
+
+      // Empty State for Q&A
+      if (viewModel.popularQuestions.isEmpty &&
+          viewModel.waitingQuestions.isEmpty &&
+          !viewModel.isLoading)
+        SliverToBoxAdapter(
+          child: _buildEmptyState('아직 질문이 없습니다.\n첫 번째 질문을 작성해보세요!'),
+        ),
     ];
+  }
+
+  Widget _buildEmptyState(String message) {
+    return Padding(
+      padding: const EdgeInsets.all(48),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.inbox_outlined,
+            size: 64,
+            color: AppColors.textHint,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppColors.textSubtle,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildAskQuestionButton() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: GestureDetector(
-        onTap: () {},
+        onTap: () {
+          Navigator.pushNamed(context, '/community-question');
+        },
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 14),
           decoration: BoxDecoration(
@@ -507,7 +444,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
     );
   }
 
-  Widget _buildPopularTags() {
+  Widget _buildPopularTags(CommunityViewModel viewModel) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -530,19 +467,20 @@ class _CommunityScreenState extends State<CommunityScreen> {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: _qnaTags.length,
+            itemCount: viewModel.qnaTags.length,
             separatorBuilder: (_, __) => const SizedBox(width: 8),
             itemBuilder: (context, index) {
               return Container(
                 height: 32,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: AppColors.chipPrimaryBg,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Center(
                   child: Text(
-                    _qnaTags[index],
+                    viewModel.qnaTags[index],
                     style: AppTextStyles.captionMedium.copyWith(
                       color: AppColors.brand,
                       fontSize: 12,
@@ -561,7 +499,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
     );
   }
 
-  Widget _buildPopularQnaSection() {
+  Widget _buildPopularQnaSection(CommunityViewModel viewModel) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -582,7 +520,9 @@ class _CommunityScreenState extends State<CommunityScreen> {
                 ),
               ),
               GestureDetector(
-                onTap: () {},
+                onTap: () {
+                  // TODO: 더보기 화면으로 이동
+                },
                 child: Row(
                   children: [
                     Text(
@@ -612,14 +552,14 @@ class _CommunityScreenState extends State<CommunityScreen> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(
-            children: _popularQnaItems.map((item) {
+            children: viewModel.popularQuestions.map((item) {
               return Column(
                 children: [
                   QnaPopularCard(
                     data: item,
-                    onTap: () {},
+                    onTap: () => _navigateToQuestionDetail(item.id),
                   ),
-                  if (item != _popularQnaItems.last)
+                  if (item != viewModel.popularQuestions.last)
                     const Divider(height: 1, color: AppColors.borderLight),
                 ],
               );
@@ -631,21 +571,24 @@ class _CommunityScreenState extends State<CommunityScreen> {
     );
   }
 
-  Widget _buildFeaturedQuestionCard() {
+  Widget _buildFeaturedQuestionCard(CommunityViewModel viewModel) {
     return Column(
       children: [
         QnaAskCard(
           userName: '미니모',
-          question: _featuredQuestion,
-          onCuriousTap: () {},
-          onAnswerTap: () {},
+          question: viewModel.featuredQuestion!,
+          onCuriousTap: () {
+            // TODO: 궁금해요 기능
+          },
+          onAnswerTap: () =>
+              _navigateToQuestionDetail(viewModel.featuredQuestion!.id),
         ),
         const SizedBox(height: 24),
       ],
     );
   }
 
-  Widget _buildWaitingAnswerSection() {
+  Widget _buildWaitingAnswerSection(CommunityViewModel viewModel) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -669,14 +612,16 @@ class _CommunityScreenState extends State<CommunityScreen> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(
-            children: _waitingAnswerItems.map((item) {
+            children: viewModel.waitingQuestions.map((item) {
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: QnaWaitingCard(
                   data: item,
-                  onTap: () {},
-                  onCuriousTap: () {},
-                  onAnswerTap: () {},
+                  onTap: () => _navigateToQuestionDetail(item.id),
+                  onCuriousTap: () {
+                    // TODO: 궁금해요 기능
+                  },
+                  onAnswerTap: () => _navigateToQuestionDetail(item.id),
                 ),
               );
             }).toList(),
@@ -717,15 +662,21 @@ class _CommunityScreenState extends State<CommunityScreen> {
                     children: [
                       _buildIconButton(
                         icon: Icons.search,
-                        onTap: () {},
+                        onTap: () {
+                          // TODO: 검색 화면
+                        },
                       ),
                       _buildIconButton(
                         icon: Icons.notifications_outlined,
-                        onTap: () {},
+                        onTap: () {
+                          // TODO: 알림 화면
+                        },
                       ),
                       _buildIconButton(
                         icon: Icons.add_box_outlined,
-                        onTap: () {},
+                        onTap: () {
+                          Navigator.pushNamed(context, '/post-create');
+                        },
                       ),
                     ],
                   ),
@@ -744,11 +695,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                     children: CommunityTab.values.map((tab) {
                       final isSelected = _currentTab == tab;
                       return GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _currentTab = tab;
-                          });
-                        },
+                        onTap: () => _onTabChanged(tab),
                         child: Container(
                           padding: const EdgeInsets.all(8),
                           child: Column(
@@ -791,8 +738,8 @@ class _CommunityScreenState extends State<CommunityScreen> {
                       color: Color(0xFFE8EBF0),
                     ),
                     child: const Center(
-                      child:
-                          Icon(Icons.person, size: 18, color: AppColors.textHint),
+                      child: Icon(Icons.person,
+                          size: 18, color: AppColors.textHint),
                     ),
                   ),
                 ],
@@ -824,7 +771,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
     );
   }
 
-  Widget _buildPopularRankingSection() {
+  Widget _buildPopularRankingSection(CommunityViewModel viewModel) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -845,7 +792,9 @@ class _CommunityScreenState extends State<CommunityScreen> {
                 ),
               ),
               GestureDetector(
-                onTap: () {},
+                onTap: () {
+                  // TODO: 더보기 화면으로 이동
+                },
                 child: Container(
                   width: 24,
                   height: 24,
@@ -876,8 +825,8 @@ class _CommunityScreenState extends State<CommunityScreen> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: PopularRankingCard(
-            data: _popularRanking,
-            onTap: () {},
+            data: viewModel.popularRanking!,
+            onTap: () => _navigateToPostDetail(viewModel.popularRanking!.id),
           ),
         ),
         const SizedBox(height: 32),
@@ -885,7 +834,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
     );
   }
 
-  Widget _buildRecommendationSection() {
+  Widget _buildRecommendationSection(CommunityViewModel viewModel) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -911,19 +860,20 @@ class _CommunityScreenState extends State<CommunityScreen> {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: _tags.length,
+            itemCount: viewModel.tags.length,
             separatorBuilder: (_, __) => const SizedBox(width: 8),
             itemBuilder: (context, index) {
               return Container(
                 height: 40,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
                   color: AppColors.chipPrimaryBg,
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Center(
                   child: Text(
-                    _tags[index],
+                    viewModel.tags[index],
                     style: AppTextStyles.bodySmall.copyWith(
                       color: AppColors.brand,
                       fontSize: 14,
@@ -941,8 +891,8 @@ class _CommunityScreenState extends State<CommunityScreen> {
 
         // Recommendation Cards
         RecommendationCardList(
-          items: _recommendationItems,
-          onItemTap: (item) {},
+          items: viewModel.recommendationItems,
+          onItemTap: (item) => _navigateToPostDetail(item.id),
         ),
         const SizedBox(height: 32),
       ],
@@ -968,7 +918,9 @@ class _CommunityScreenState extends State<CommunityScreen> {
                 ),
               ),
               GestureDetector(
-                onTap: () {},
+                onTap: () {
+                  // TODO: 더보기 화면으로 이동
+                },
                 child: Row(
                   children: [
                     Text(
@@ -1030,6 +982,48 @@ class _CommunityScreenState extends State<CommunityScreen> {
               color: AppColors.textHint,
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================
+  // Navigation Helpers
+  // ============================================
+  void _navigateToPostDetail(String postId) {
+    Navigator.pushNamed(context, '/post-detail', arguments: postId);
+  }
+
+  void _navigateToQuestionDetail(String questionId) {
+    final viewModel = context.read<CommunityViewModel>();
+    viewModel.incrementViewCount(questionId);
+    Navigator.pushNamed(context, '/question-detail', arguments: questionId);
+  }
+
+  void _showPostOptions(String postId) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.flag_outlined),
+              title: const Text('신고하기'),
+              onTap: () {
+                Navigator.pop(context);
+                // TODO: 신고 기능
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.share_outlined),
+              title: const Text('공유하기'),
+              onTap: () {
+                Navigator.pop(context);
+                // TODO: 공유 기능
+              },
+            ),
+          ],
         ),
       ),
     );

@@ -4,7 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../data/repositories/aquarium_repository.dart';
 import '../../domain/models/aquarium_data.dart';
 
-/// 어항 등록 ViewModel
+/// 어항 등록/수정 ViewModel
 ///
 /// 4단계 어항 등록 플로우의 상태를 관리합니다.
 /// - Step 1: 기본 정보 (이름, 유형, 세팅일자, 치수)
@@ -13,6 +13,10 @@ import '../../domain/models/aquarium_data.dart';
 /// - Step 4: 대표 사진 등록
 class AquariumRegisterViewModel extends ChangeNotifier {
   AquariumRegisterViewModel();
+
+  /// 편집 모드 여부
+  bool _isEditMode = false;
+  bool get isEditMode => _isEditMode;
 
   /// 현재 단계 (1-4)
   int _currentStep = 1;
@@ -90,6 +94,15 @@ class AquariumRegisterViewModel extends ChangeNotifier {
 
   /// 첫 번째 단계인지 확인
   bool get isFirstStep => _currentStep == 1;
+
+  // ==================== 편집 모드 ====================
+
+  /// 기존 어항 데이터 로드 (편집 모드)
+  void loadAquariumData(AquariumData aquarium) {
+    _isEditMode = true;
+    _data = aquarium;
+    notifyListeners();
+  }
 
   // ==================== Step 1: 기본 정보 ====================
 
@@ -246,7 +259,7 @@ class AquariumRegisterViewModel extends ChangeNotifier {
 
   // ==================== 최종 제출 ====================
 
-  /// 어항 등록 제출
+  /// 어항 등록/수정 제출
   Future<bool> submitRegistration() async {
     if (!_data.isAllValid) return false;
 
@@ -255,15 +268,24 @@ class AquariumRegisterViewModel extends ChangeNotifier {
       _errorMessage = null;
       notifyListeners();
 
-      // Mock Repository에 저장
-      final result = await _repository.createAquarium(_data);
+      AquariumData result;
+      if (_isEditMode && _data.id != null) {
+        // 수정 모드
+        result = await _repository.updateAquarium(_data.id!, _data);
+        debugPrint('Aquarium updated with ID: ${result.id}');
+      } else {
+        // 등록 모드
+        result = await _repository.createAquarium(_data);
+        debugPrint('Aquarium created with ID: ${result.id}');
+      }
       _data = result;
 
-      debugPrint('Aquarium created with ID: ${result.id}');
       return true;
     } catch (e) {
       debugPrint('Error submitting registration: $e');
-      _errorMessage = '어항 등록에 실패했습니다. 다시 시도해 주세요.';
+      _errorMessage = _isEditMode
+          ? '어항 수정에 실패했습니다. 다시 시도해 주세요.'
+          : '어항 등록에 실패했습니다. 다시 시도해 주세요.';
       return false;
     } finally {
       _isLoading = false;
@@ -284,6 +306,7 @@ class AquariumRegisterViewModel extends ChangeNotifier {
     _isLoading = false;
     _errorMessage = null;
     _photoBytes = null;
+    _isEditMode = false;
     notifyListeners();
   }
 }

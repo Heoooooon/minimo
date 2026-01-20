@@ -32,7 +32,7 @@ class CommunityService {
       final result = await _pb.collection(_questionsCollection).getList(
         page: page,
         perPage: perPage,
-        filter: filter,
+        filter: filter ?? '',
         sort: sort ?? '',
         expand: 'attached_records',
       );
@@ -125,7 +125,7 @@ class CommunityService {
       final result = await _pb.collection(_postsCollection).getList(
         page: page,
         perPage: perPage,
-        filter: filter,
+        filter: filter ?? '',
         sort: sort ?? '',
       );
 

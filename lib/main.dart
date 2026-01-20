@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:provider/provider.dart';
 import 'theme/app_theme.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_text_styles.dart';
@@ -22,6 +23,11 @@ import 'presentation/screens/auth/social_login_screen.dart';
 import 'presentation/screens/auth/email_login_screen.dart';
 import 'presentation/screens/auth/sign_up_screen.dart';
 import 'presentation/screens/onboarding/onboarding_survey_screen.dart';
+import 'presentation/screens/gallery/photo_detail_screen.dart';
+import 'presentation/screens/community/question_detail_screen.dart';
+import 'presentation/screens/community/post_detail_screen.dart';
+import 'presentation/screens/community/post_create_screen.dart';
+import 'presentation/viewmodels/community_viewmodel.dart';
 import 'domain/models/creature_data.dart';
 import 'presentation/widgets/common/app_button.dart';
 import 'presentation/widgets/common/app_chip.dart';
@@ -72,28 +78,37 @@ class OomoolApp extends StatelessWidget {
       homeScreen = const MainShell();
     }
 
-    return MaterialApp(
-      title: '우물 - 반려어 관리',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      home: homeScreen,
-      routes: {
-        '/login': (context) => const SocialLoginScreen(),
-        '/login/email': (context) => const EmailLoginScreen(),
-        '/signup': (context) => const SignUpScreen(),
-        '/onboarding': (context) => const OnboardingSurveyScreen(),
-        '/tank-register': (context) => const TankRegisterScreen(),
-        '/record': (context) => const RecordAddScreen(),
-        '/community-question': (context) => const CommunityQuestionScreen(),
-        '/aquarium': (context) => const AquariumListScreen(),
-        '/aquarium/register': (context) => const AquariumRegisterScreen(),
-        '/aquarium/detail': (context) => const AquariumDetailScreen(),
-        '/creature/search': (context) => const CreatureSearchScreen(),
-        '/creature/detail': (context) => const _CreatureDetailWrapper(),
-        '/schedule/add': (context) => const ScheduleAddScreen(),
-        '/design-system': (context) => const DesignSystemScreen(),
-        '/demo': (context) => const DemoHomeScreen(),
-      },
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => CommunityViewModel()),
+      ],
+      child: MaterialApp(
+        title: '우물 - 반려어 관리',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        home: homeScreen,
+        routes: {
+          '/login': (context) => const SocialLoginScreen(),
+          '/login/email': (context) => const EmailLoginScreen(),
+          '/signup': (context) => const SignUpScreen(),
+          '/onboarding': (context) => const OnboardingSurveyScreen(),
+          '/tank-register': (context) => const TankRegisterScreen(),
+          '/record': (context) => const RecordAddScreen(),
+          '/community-question': (context) => const CommunityQuestionScreen(),
+          '/aquarium': (context) => const AquariumListScreen(),
+          '/aquarium/register': (context) => const AquariumRegisterScreen(),
+          '/aquarium/detail': (context) => const AquariumDetailScreen(),
+          '/creature/search': (context) => const CreatureSearchScreen(),
+          '/creature/detail': (context) => const _CreatureDetailWrapper(),
+          '/schedule/add': (context) => const ScheduleAddScreen(),
+          '/gallery/photo-detail': (context) => const PhotoDetailScreen(),
+          '/question-detail': (context) => const QuestionDetailScreen(),
+          '/post-detail': (context) => const PostDetailScreen(),
+          '/post-create': (context) => const PostCreateScreen(),
+          '/design-system': (context) => const DesignSystemScreen(),
+          '/demo': (context) => const DemoHomeScreen(),
+        },
+      ),
     );
   }
 }

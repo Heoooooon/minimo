@@ -12,11 +12,13 @@ class AquariumCard extends StatelessWidget {
     required this.aquarium,
     required this.onTap,
     this.onLongPress,
+    this.creatureCount = 0,
   });
 
   final AquariumData aquarium;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
+  final int creatureCount;
 
   @override
   Widget build(BuildContext context) {
@@ -44,25 +46,54 @@ class AquariumCard extends StatelessWidget {
           onLongPress: onLongPress,
           child: Stack(
             children: [
-              // 배경 장식 (어항 이미지)
-              Positioned(
-                right: 0,
-                top: -10,
-                child: Opacity(
-                  opacity: 0.3,
-                  child: SvgPicture.asset(
-                    'assets/icons/icon_aquarium.svg',
-                    width: 124,
-                    height: 124,
-                    colorFilter: ColorFilter.mode(
-                      isTreatment
-                          ? AppColors.orange500.withValues(alpha: 0.5)
-                          : AppColors.brand.withValues(alpha: 0.5),
-                      BlendMode.srcIn,
+              // 배경 이미지 또는 어항 아이콘
+              if (aquarium.photoUrl != null && aquarium.photoUrl!.isNotEmpty)
+                // 사진이 있는 경우 - 배경 이미지 표시
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: 180,
+                  child: Opacity(
+                    opacity: 0.3,
+                    child: ShaderMask(
+                      shaderCallback: (Rect bounds) {
+                        return const LinearGradient(
+                          begin: Alignment.centerRight,
+                          end: Alignment.centerLeft,
+                          colors: [Colors.white, Colors.transparent],
+                          stops: [0.3, 1.0],
+                        ).createShader(bounds);
+                      },
+                      blendMode: BlendMode.dstIn,
+                      child: Image.network(
+                        aquarium.photoUrl!,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                      ),
+                    ),
+                  ),
+                )
+              else
+                // 사진이 없는 경우 - 어항 아이콘 표시
+                Positioned(
+                  right: 0,
+                  top: -10,
+                  child: Opacity(
+                    opacity: 0.3,
+                    child: SvgPicture.asset(
+                      'assets/icons/icon_aquarium.svg',
+                      width: 124,
+                      height: 124,
+                      colorFilter: ColorFilter.mode(
+                        isTreatment
+                            ? AppColors.orange500.withValues(alpha: 0.5)
+                            : AppColors.brand.withValues(alpha: 0.5),
+                        BlendMode.srcIn,
+                      ),
                     ),
                   ),
                 ),
-              ),
 
               // 콘텐츠
               Padding(
@@ -102,8 +133,8 @@ class AquariumCard extends StatelessWidget {
                           children: [
                             SvgPicture.asset(
                               'assets/icons/icon_fish.svg',
-                              width: 24,
-                              height: 24,
+                              width: 20,
+                              height: 20,
                               colorFilter: const ColorFilter.mode(
                                 Color(0xFF666E78),
                                 BlendMode.srcIn,
@@ -111,7 +142,7 @@ class AquariumCard extends StatelessWidget {
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              '0', // TODO: 실제 생물 수로 변경
+                              '$creatureCount',
                               style: const TextStyle(
                                 fontFamily: 'WantedSans',
                                 fontSize: 14,

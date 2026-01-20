@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../domain/models/aquarium_data.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../viewmodels/aquarium_register_viewmodel.dart';
@@ -36,6 +37,9 @@ class _AquariumRegisterScreenState extends State<AquariumRegisterScreen> {
   // ViewModel
   late AquariumRegisterViewModel _viewModel;
 
+  // 편집 모드 초기화 여부
+  bool _isInitialized = false;
+
   @override
   void initState() {
     super.initState();
@@ -49,6 +53,25 @@ class _AquariumRegisterScreenState extends State<AquariumRegisterScreen> {
     _notesController = TextEditingController();
     // ViewModel
     _viewModel = AquariumRegisterViewModel();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_isInitialized) {
+      _isInitialized = true;
+      // arguments로 AquariumData가 전달되면 편집 모드
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is AquariumData) {
+        _viewModel.loadAquariumData(args);
+        // 컨트롤러에 기존 값 설정
+        _nameController.text = args.name ?? '';
+        _dimensionController.text = args.dimensions ?? '';
+        _substrateController.text = args.substrate ?? '';
+        _productNameController.text = args.productName ?? '';
+        _notesController.text = args.notes ?? '';
+      }
+    }
   }
 
   @override
@@ -86,14 +109,15 @@ class _AquariumRegisterScreenState extends State<AquariumRegisterScreen> {
     }
   }
 
-  /// 어항 등록 제출
+  /// 어항 등록/수정 제출
   Future<void> _handleSubmit() async {
     final success = await _viewModel.submitRegistration();
     if (success && mounted) {
+      final message = _viewModel.isEditMode ? '어항이 수정되었습니다!' : '어항이 등록되었습니다!';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '어항이 등록되었습니다!',
+            message,
             style: AppTextStyles.bodySmall.copyWith(
               color: AppColors.textInverse,
             ),
@@ -142,6 +166,7 @@ class _AquariumRegisterScreenState extends State<AquariumRegisterScreen> {
   }
 
   PreferredSizeWidget _buildAppBar(AquariumRegisterViewModel viewModel) {
+    final title = viewModel.isEditMode ? '어항 수정' : '새 어항 등록';
     return AppBar(
       backgroundColor: AppColors.backgroundSurface,
       elevation: 0,
@@ -154,7 +179,7 @@ class _AquariumRegisterScreenState extends State<AquariumRegisterScreen> {
           size: 20,
         ),
       ),
-      title: Text('새 어항 등록', style: AppTextStyles.bodyMediumMedium),
+      title: Text(title, style: AppTextStyles.bodyMediumMedium),
       actions: [
         Padding(
           padding: const EdgeInsets.only(right: 16),
@@ -219,7 +244,12 @@ class _AquariumRegisterScreenState extends State<AquariumRegisterScreen> {
   }
 
   Widget _buildBottomButton(AquariumRegisterViewModel viewModel) {
-    final buttonText = viewModel.isLastStep ? '등록 완료' : '다음으로';
+    String buttonText;
+    if (viewModel.isLastStep) {
+      buttonText = viewModel.isEditMode ? '수정 완료' : '등록 완료';
+    } else {
+      buttonText = '다음으로';
+    }
     final isEnabled = viewModel.canProceed && !viewModel.isLoading;
 
     return Container(
