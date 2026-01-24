@@ -3,23 +3,19 @@ import 'package:provider/provider.dart';
 import '../../core/utils/app_logger.dart';
 import '../../domain/models/record_data.dart';
 import '../../domain/models/aquarium_data.dart';
-import '../../domain/models/schedule_data.dart';
 import '../../data/services/aquarium_service.dart';
-import '../../data/services/schedule_service.dart';
-import '../../data/services/notification_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../viewmodels/record_viewmodel.dart';
 import '../widgets/common/app_button.dart';
-import '../widgets/common/app_chip.dart';
-import '../widgets/schedule/repeat_cycle_selector.dart';
+import '../widgets/record/activity_add_bottom_sheet.dart';
 
 /// 기록 추가 화면
 ///
-/// 주요 기능:
-/// - Chips를 사용하여 태그 선택 기능
-/// - Switch를 사용하여 '공개 여부' 설정
-/// - Medium Round Button으로 저장 액션
+/// 새로운 구조:
+/// - 전체 어항 목록이 섹션으로 표시
+/// - 각 어항 아래 체크리스트 형태로 할 일 표시
+/// - + 할 일 추가 버튼으로 태그 추가
 class RecordAddScreen extends StatefulWidget {
   final DateTime? initialDate;
 
@@ -30,20 +26,15 @@ class RecordAddScreen extends StatefulWidget {
 }
 
 class _RecordAddScreenState extends State<RecordAddScreen> {
-  final TextEditingController _contentController = TextEditingController();
-  final Set<RecordTag> _selectedTags = {};
-  bool _isPublic = true;
   DateTime _selectedDate = DateTime.now();
 
-  // 어항 선택 관련
+  // 어항 목록
   List<AquariumData> _aquariums = [];
-  AquariumData? _selectedAquarium;
   bool _isLoadingAquariums = true;
 
-  // 스케줄 연동 관련
-  bool _registerSchedule = false;
-  RepeatCycle _selectedRepeatCycle = RepeatCycle.daily;
-  TimeOfDay _scheduleTime = TimeOfDay.now();
+  // 어항별 선택된 태그 (체크된 항목)
+  // Key: aquariumId, Value: Set of checked RecordTags
+  final Map<String, Set<RecordTag>> _checkedTagsByAquarium = {};
 
   late RecordViewModel _viewModel;
 
@@ -63,6 +54,10 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
       if (mounted) {
         setState(() {
           _aquariums = aquariums;
+          // 각 어항에 대해 빈 Set 초기화
+          for (final aquarium in aquariums) {
+            _checkedTagsByAquarium[aquarium.id ?? ''] = {};
+          }
           _isLoadingAquariums = false;
         });
       }
@@ -78,154 +73,100 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
 
   @override
   void dispose() {
-    _contentController.dispose();
     _viewModel.dispose();
     super.dispose();
   }
 
+  /// 저장 가능 여부: 최소 하나의 어항에서 하나 이상의 태그가 체크됨
   bool get _isFormValid {
-    return _selectedAquarium != null &&
-        _selectedTags.isNotEmpty &&
-        _contentController.text.isNotEmpty;
+    return _checkedTagsByAquarium.values.any((tags) => tags.isNotEmpty);
   }
 
+  /// 태그 토글 (체크/언체크)
+  void _toggleTag(String aquariumId, RecordTag tag) {
+    setState(() {
+      final tags = _checkedTagsByAquarium[aquariumId] ?? {};
+      if (tags.contains(tag)) {
+        tags.remove(tag);
+      } else {
+        tags.add(tag);
+      }
+      _checkedTagsByAquarium[aquariumId] = tags;
+    });
+  }
+
+  /// 할 일 추가 (바텀시트)
+  Future<void> _showAddActivitySheet(String aquariumId) async {
+    final selectedTags = await ActivityAddBottomSheet.show(
+      context,
+      selectedDate: _selectedDate,
+    );
+
+    if (selectedTags != null && selectedTags.isNotEmpty && mounted) {
+      setState(() {
+        final currentTags = _checkedTagsByAquarium[aquariumId] ?? {};
+        currentTags.addAll(selectedTags);
+        _checkedTagsByAquarium[aquariumId] = currentTags;
+      });
+    }
+  }
+
+  /// 저장 처리
   Future<void> _handleSave() async {
     if (!_isFormValid) return;
 
-    final success = await _viewModel.saveRecord(
-      date: _selectedDate,
-      tags: _selectedTags.toList(),
-      content: _contentController.text,
-      isPublic: _isPublic,
-      aquariumId: _selectedAquarium?.id,
-    );
+    bool allSuccess = true;
+    int savedCount = 0;
 
-    if (success && mounted) {
-      // 스케줄 연동 처리
-      if (_registerSchedule && _selectedTags.isNotEmpty) {
-        await _createScheduleFromRecord();
+    // 각 어항별로 체크된 태그가 있으면 기록 저장
+    for (final aquarium in _aquariums) {
+      final aquariumId = aquarium.id ?? '';
+      final tags = _checkedTagsByAquarium[aquariumId] ?? {};
+
+      if (tags.isNotEmpty) {
+        final success = await _viewModel.saveRecord(
+          date: _selectedDate,
+          tags: tags.toList(),
+          content: '', // 체크리스트 방식에서는 내용 생략
+          isPublic: false,
+          aquariumId: aquariumId,
+        );
+
+        if (success) {
+          savedCount++;
+        } else {
+          allSuccess = false;
+        }
       }
+    }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _registerSchedule ? '기록과 다음 일정이 저장되었습니다.' : '기록이 저장되었습니다.',
-            style: AppTextStyles.bodySmall.copyWith(
-              color: AppColors.textInverse,
+    if (mounted) {
+      if (savedCount > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '$savedCount개의 기록이 저장되었습니다.',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textInverse,
+              ),
+            ),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
             ),
           ),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-      );
-
-      Navigator.of(context).pop(true);
-    } else if (_viewModel.errorMessage != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_viewModel.errorMessage!),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
-
-  /// 기록에서 스케줄 생성
-  Future<void> _createScheduleFromRecord() async {
-    try {
-      // 첫 번째 태그를 알림 종류로 매핑
-      final firstTag = _selectedTags.first;
-      final alarmType = _mapTagToAlarmType(firstTag);
-
-      // 다음 일정 날짜 계산
-      final nextDate = _calculateNextScheduleDate();
-
-      // 시간 문자열 생성 (HH:mm 형식)
-      final timeString =
-          '${_scheduleTime.hour.toString().padLeft(2, '0')}:${_scheduleTime.minute.toString().padLeft(2, '0')}';
-
-      final scheduleData = ScheduleData(
-        id: '',
-        aquariumId: _selectedAquarium?.id,
-        date: DateTime(
-          nextDate.year,
-          nextDate.month,
-          nextDate.day,
-          _scheduleTime.hour,
-          _scheduleTime.minute,
-        ),
-        time: timeString,
-        title: firstTag.label,
-        aquariumName: _selectedAquarium?.name ?? '',
-        isCompleted: false,
-        alarmType: alarmType,
-        repeatCycle: _selectedRepeatCycle,
-        isNotificationEnabled: true,
-      );
-
-      final created = await ScheduleService.instance.createSchedule(
-        scheduleData,
-      );
-
-      // 푸시 알림 예약
-      try {
-        await NotificationService.instance.scheduleNotification(
-          id: NotificationService.instance.scheduleIdToNotificationId(
-            created.id,
-          ),
-          title: firstTag.label,
-          body: '${_selectedAquarium?.name ?? '어항'} - ${alarmType.label}',
-          scheduledTime: scheduleData.date,
-          repeatCycle: _selectedRepeatCycle,
-          payload: created.id,
         );
-      } catch (e) {
-        AppLogger.data('Notification scheduling failed: $e', isError: true);
+        Navigator.of(context).pop(true);
+      } else if (!allSuccess && _viewModel.errorMessage != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_viewModel.errorMessage!),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
-    } catch (e) {
-      AppLogger.data(
-        'Failed to create schedule from record: $e',
-        isError: true,
-      );
-    }
-  }
-
-  /// RecordTag를 AlarmType으로 매핑
-  AlarmType _mapTagToAlarmType(RecordTag tag) {
-    switch (tag) {
-      case RecordTag.waterChange:
-        return AlarmType.waterChange;
-      case RecordTag.feeding:
-        return AlarmType.feeding;
-      case RecordTag.cleaning:
-        return AlarmType.cleaning;
-      case RecordTag.waterTest:
-        return AlarmType.waterTest;
-      case RecordTag.medication:
-        return AlarmType.medication;
-      default:
-        return AlarmType.other;
-    }
-  }
-
-  /// 반복 주기에 따른 다음 일정 날짜 계산
-  DateTime _calculateNextScheduleDate() {
-    final now = DateTime.now();
-    switch (_selectedRepeatCycle) {
-      case RepeatCycle.daily:
-        return now.add(const Duration(days: 1));
-      case RepeatCycle.everyOtherDay:
-        return now.add(const Duration(days: 2));
-      case RepeatCycle.weekly:
-        return now.add(const Duration(days: 7));
-      case RepeatCycle.biweekly:
-        return now.add(const Duration(days: 14));
-      case RepeatCycle.monthly:
-        return DateTime(now.year, now.month + 1, now.day);
-      case RepeatCycle.none:
-        return now.add(const Duration(days: 1));
     }
   }
 
@@ -257,16 +198,6 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
     }
   }
 
-  void _toggleTag(RecordTag tag) {
-    setState(() {
-      if (_selectedTags.contains(tag)) {
-        _selectedTags.remove(tag);
-      } else {
-        _selectedTags.add(tag);
-      }
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider.value(
@@ -274,6 +205,7 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
       child: Consumer<RecordViewModel>(
         builder: (context, viewModel, _) {
           return Scaffold(
+            backgroundColor: AppColors.backgroundApp,
             appBar: AppBar(
               title: const Text('기록하기'),
               leading: IconButton(
@@ -286,51 +218,22 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
                 children: [
                   Expanded(
                     child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(20),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // 날짜 선택
-                          _buildDateSelector(),
-                          const SizedBox(height: 16),
-
-                          // 어항 선택
-                          _buildAquariumSelector(),
-                          const SizedBox(height: 24),
-
-                          // 태그 선택
-                          _buildSectionTitle('태그 선택'),
-                          const SizedBox(height: 4),
-                          Text(
-                            '어떤 활동을 했나요?',
-                            style: AppTextStyles.captionRegular.copyWith(
-                              color: AppColors.textSubtle,
-                            ),
+                          Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: _buildDateSelector(),
                           ),
-                          const SizedBox(height: 12),
-                          _buildTagSelector(),
-                          const SizedBox(height: 24),
 
-                          // 내용 입력
-                          _buildSectionTitle('기록 내용'),
-                          const SizedBox(height: 12),
-                          TextField(
-                            controller: _contentController,
-                            onChanged: (_) => setState(() {}),
-                            maxLines: 5,
-                            decoration: const InputDecoration(
-                              hintText: '오늘의 관리 기록을 남겨보세요',
-                              alignLabelWithHint: true,
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-
-                          // 공개 여부 설정
-                          _buildVisibilityToggle(),
-                          const SizedBox(height: 16),
-
-                          // 다음 일정 등록 옵션
-                          _buildScheduleToggle(),
+                          // 어항별 체크리스트
+                          if (_isLoadingAquariums)
+                            _buildLoadingState()
+                          else if (_aquariums.isEmpty)
+                            _buildEmptyState()
+                          else
+                            _buildAquariumSections(),
                         ],
                       ),
                     ),
@@ -347,11 +250,10 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Text(title, style: AppTextStyles.titleMedium);
-  }
-
   Widget _buildDateSelector() {
+    final weekdays = ['월', '화', '수', '목', '금', '토', '일'];
+    final weekday = weekdays[_selectedDate.weekday - 1];
+
     return InkWell(
       onTap: _selectDate,
       borderRadius: BorderRadius.circular(12),
@@ -389,7 +291,7 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${_selectedDate.year}년 ${_selectedDate.month}월 ${_selectedDate.day}일',
+                    '${_selectedDate.month}월 ${_selectedDate.day}일 ($weekday)',
                     style: AppTextStyles.bodyMediumMedium,
                   ),
                 ],
@@ -402,310 +304,221 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
     );
   }
 
-  Widget _buildTagSelector() {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: RecordTag.values.map((tag) {
-        final isSelected = _selectedTags.contains(tag);
-        // RecordTag.chipType이 없으므로 직접 매핑하거나 모델에 추가해야 함.
-        // 여기서는 임시로 매핑 로직 추가 또는 RecordTag 수정 필요.
-        // RecordTag enum을 model로 옮기면서 chipType 속성을 제거했었음 (domain layer dependency issue 방지).
-        // UI layer에서 매핑하는 것이 좋음.
+  Widget _buildLoadingState() {
+    return const Padding(
+      padding: EdgeInsets.all(40),
+      child: Center(child: CircularProgressIndicator()),
+    );
+  }
 
-        AppChipType chipType;
-        switch (tag) {
-          case RecordTag.waterChange:
-          case RecordTag.waterTest:
-          case RecordTag.temperatureCheck:
-            chipType = AppChipType.primary;
-            break;
-          case RecordTag.cleaning:
-          case RecordTag.fishAdded:
-          case RecordTag.plantCare:
-            chipType = AppChipType.secondary;
-            break;
-          case RecordTag.feeding:
-            chipType = AppChipType.success;
-            break;
-          case RecordTag.medication:
-            chipType = AppChipType.error;
-            break;
-          case RecordTag.maintenance:
-            chipType = AppChipType.neutral;
-            break;
-        }
+  Widget _buildEmptyState() {
+    return Padding(
+      padding: const EdgeInsets.all(40),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(
+              Icons.water_drop_outlined,
+              size: 48,
+              color: AppColors.textHint,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '등록된 어항이 없어요',
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textSubtle,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () {
+                Navigator.pushNamed(context, '/aquarium/register');
+              },
+              child: Text(
+                '어항 등록하기',
+                style: AppTextStyles.bodyMediumMedium.copyWith(
+                  color: AppColors.brand,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-        return AppChip(
-          label: tag.label,
-          type: chipType,
-          isSelected: isSelected,
-          onTap: () => _toggleTag(tag),
-        );
+  Widget _buildAquariumSections() {
+    return Column(
+      children: _aquariums.map((aquarium) {
+        return _buildAquariumSection(aquarium);
       }).toList(),
     );
   }
 
-  Widget _buildVisibilityToggle() {
+  Widget _buildAquariumSection(AquariumData aquarium) {
+    final aquariumId = aquarium.id ?? '';
+    final checkedTags = _checkedTagsByAquarium[aquariumId] ?? {};
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       decoration: BoxDecoration(
         color: AppColors.backgroundSurface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.borderLight),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          // 어항 이름 헤더
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
               children: [
-                Text('공개 여부', style: AppTextStyles.bodyMediumMedium),
-                const SizedBox(height: 4),
-                Text(
-                  _isPublic ? '다른 사용자들이 이 기록을 볼 수 있어요' : '나만 볼 수 있는 비공개 기록이에요',
-                  style: AppTextStyles.captionRegular.copyWith(
-                    color: AppColors.textSubtle,
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: AppColors.chipPrimaryBg,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.water_drop,
+                    color: AppColors.brand,
+                    size: 18,
                   ),
                 ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    aquarium.name ?? '이름 없음',
+                    style: AppTextStyles.titleSmall.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                // 체크된 항목 수 표시
+                if (checkedTags.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.brand.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${checkedTags.length}개 선택',
+                      style: AppTextStyles.captionMedium.copyWith(
+                        color: AppColors.brand,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
-          Switch(
-            value: _isPublic,
-            onChanged: (value) => setState(() => _isPublic = value),
-          ),
+
+          const Divider(height: 1, color: AppColors.borderLight),
+
+          // 체크리스트 아이템들
+          if (checkedTags.isEmpty)
+            _buildEmptyChecklist(aquariumId)
+          else
+            ...checkedTags.map((tag) => _buildChecklistItem(aquariumId, tag)),
+
+          // + 할 일 추가 버튼
+          _buildAddButton(aquariumId),
         ],
       ),
     );
   }
 
-  Widget _buildAquariumSelector() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+  Widget _buildEmptyChecklist(String aquariumId) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+      child: Center(
+        child: Text(
+          '할 일을 추가해주세요',
+          style: AppTextStyles.bodySmall.copyWith(color: AppColors.textHint),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChecklistItem(String aquariumId, RecordTag tag) {
+    return InkWell(
+      onTap: () => _toggleTag(aquariumId, tag),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
           children: [
-            Text(
-              '어항 선택',
-              style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.textSubtle,
-                fontWeight: FontWeight.w500,
+            // 체크박스
+            _buildCheckbox(true),
+            const SizedBox(width: 12),
+            // 태그 라벨
+            Expanded(
+              child: Text(
+                tag.label,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.textMain,
+                ),
               ),
             ),
-            const SizedBox(width: 4),
-            Text(
-              '*',
-              style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.error,
-                fontWeight: FontWeight.w500,
+            // 삭제 버튼 (X)
+            GestureDetector(
+              onTap: () => _toggleTag(aquariumId, tag),
+              child: const Icon(
+                Icons.close,
+                size: 18,
+                color: AppColors.textHint,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.backgroundSurface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.borderLight),
-          ),
-          child: _isLoadingAquariums
-              ? const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                      SizedBox(width: 12),
-                      Text('어항 목록 로딩 중...'),
-                    ],
-                  ),
-                )
-              : DropdownButtonHideUnderline(
-                  child: DropdownButton<AquariumData?>(
-                    value: _selectedAquarium,
-                    isExpanded: true,
-                    hint: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
-                      child: Text('어항을 선택하세요'),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    borderRadius: BorderRadius.circular(12),
-                    icon: const Icon(
-                      Icons.keyboard_arrow_down,
-                      color: AppColors.textSubtle,
-                    ),
-                    items: [
-                      ..._aquariums.map((aquarium) {
-                        return DropdownMenuItem<AquariumData?>(
-                          value: aquarium,
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.water_drop,
-                                size: 20,
-                                color: AppColors.brand,
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  aquarium.name ?? '이름 없음',
-                                  style: AppTextStyles.bodyMedium,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedAquarium = value;
-                      });
-                    },
-                  ),
-                ),
-        ),
-      ],
+      ),
     );
   }
 
-  Widget _buildScheduleToggle() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.backgroundSurface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.borderLight),
-          ),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '다음 일정도 등록하기',
-                          style: AppTextStyles.bodyMediumMedium,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '이 활동에 대한 정기 알림을 설정해요',
-                          style: AppTextStyles.captionRegular.copyWith(
-                            color: AppColors.textSubtle,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Switch(
-                    value: _registerSchedule,
-                    onChanged: (value) =>
-                        setState(() => _registerSchedule = value),
-                    activeTrackColor: AppColors.switchActiveTrack,
-                    thumbColor: WidgetStateProperty.resolveWith((states) {
-                      if (states.contains(WidgetState.selected)) {
-                        return AppColors.brand;
-                      }
-                      return AppColors.textHint;
-                    }),
-                  ),
-                ],
+  Widget _buildCheckbox(bool isChecked) {
+    return Container(
+      width: 20,
+      height: 20,
+      decoration: BoxDecoration(
+        color: isChecked ? AppColors.brand : Colors.transparent,
+        border: isChecked
+            ? null
+            : Border.all(color: AppColors.border, width: 1.5),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: isChecked
+          ? const Icon(Icons.check, color: Colors.white, size: 14)
+          : null,
+    );
+  }
+
+  Widget _buildAddButton(String aquariumId) {
+    return InkWell(
+      onTap: () => _showAddActivitySheet(aquariumId),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: AppColors.borderLight)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add_circle_outline, size: 18, color: AppColors.brand),
+            const SizedBox(width: 8),
+            Text(
+              '할 일 추가',
+              style: AppTextStyles.bodyMediumMedium.copyWith(
+                color: AppColors.brand,
               ),
-              // 스케줄 옵션 (토글 활성화 시 표시)
-              if (_registerSchedule) ...[
-                const Divider(height: 24),
-                // 알림 시간 선택
-                GestureDetector(
-                  onTap: _selectScheduleTime,
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.access_time,
-                        color: AppColors.textSubtle,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        '알림 시간',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.textSubtle,
-                        ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        _formatTime(_scheduleTime),
-                        style: AppTextStyles.bodyMediumMedium.copyWith(
-                          color: AppColors.brand,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      const Icon(
-                        Icons.chevron_right,
-                        color: AppColors.textSubtle,
-                        size: 20,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // 반복 주기 선택
-                RepeatCycleSelector(
-                  selectedCycle: _selectedRepeatCycle,
-                  onChanged: (cycle) {
-                    setState(() => _selectedRepeatCycle = cycle);
-                  },
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Future<void> _selectScheduleTime() async {
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: _scheduleTime,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: AppColors.brand,
-              onPrimary: AppColors.textInverse,
-              surface: AppColors.backgroundSurface,
-              onSurface: AppColors.textMain,
             ),
-          ),
-          child: child!,
-        );
-      },
+          ],
+        ),
+      ),
     );
-
-    if (picked != null) {
-      setState(() {
-        _scheduleTime = picked;
-      });
-    }
-  }
-
-  String _formatTime(TimeOfDay time) {
-    final hour = time.hour;
-    final minute = time.minute.toString().padLeft(2, '0');
-    final period = hour < 12 ? '오전' : '오후';
-    final displayHour = hour <= 12 ? hour : hour - 12;
-    return '$period $displayHour:$minute';
   }
 
   Widget _buildBottomButton(RecordViewModel viewModel) {
@@ -721,48 +534,14 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: AppButton(
-              text: '임시저장',
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      '임시저장 되었습니다.',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.textMain,
-                      ),
-                    ),
-                    backgroundColor: AppColors.backgroundSurface,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      side: const BorderSide(color: AppColors.borderLight),
-                    ),
-                  ),
-                );
-              },
-              size: AppButtonSize.medium,
-              shape: AppButtonShape.round,
-              variant: AppButtonVariant.outlined,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            flex: 2,
-            child: AppButton(
-              text: '저장하기',
-              onPressed: _isFormValid ? _handleSave : null,
-              size: AppButtonSize.medium,
-              shape: AppButtonShape.round,
-              variant: AppButtonVariant.contained,
-              isEnabled: _isFormValid,
-              isLoading: viewModel.isLoading,
-            ),
-          ),
-        ],
+      child: AppButton(
+        text: '저장하기',
+        onPressed: _isFormValid ? _handleSave : null,
+        size: AppButtonSize.large,
+        shape: AppButtonShape.round,
+        variant: AppButtonVariant.contained,
+        isEnabled: _isFormValid,
+        isLoading: viewModel.isLoading,
       ),
     );
   }
