@@ -1,6 +1,7 @@
 import 'package:pocketbase/pocketbase.dart';
 import 'package:http/http.dart' as http;
 import 'pocketbase_service.dart';
+import 'auth_service.dart';
 import '../../domain/models/question_data.dart';
 import '../../presentation/widgets/home/community_card.dart';
 import '../../core/utils/app_logger.dart';
@@ -61,10 +62,15 @@ class CommunityService {
     }
   }
 
-  /// 질문 생성
   Future<QuestionData> createQuestion(QuestionData data) async {
+    final userId = AuthService.instance.currentUser?.id;
+    if (userId == null) {
+      throw Exception('로그인이 필요합니다.');
+    }
+
     try {
       final body = data.toJson();
+      body['owner'] = userId;
 
       final record = await _pb
           .collection(_questionsCollection)
@@ -147,7 +153,6 @@ class CommunityService {
     }
   }
 
-  /// 커뮤니티 포스트 생성
   Future<CommunityData> createPost({
     required String authorId,
     required String authorName,
@@ -156,8 +161,14 @@ class CommunityService {
     String? imagePath,
     List<String>? tags,
   }) async {
+    final userId = AuthService.instance.currentUser?.id;
+    if (userId == null) {
+      throw Exception('로그인이 필요합니다.');
+    }
+
     try {
       final body = <String, dynamic>{
+        'owner': userId,
         'author_id': authorId,
         'author_name': authorName,
         'content': content,
@@ -166,7 +177,6 @@ class CommunityService {
         'bookmark_count': 0,
       };
 
-      // 태그 추가 (JSON 배열로 저장)
       if (tags != null && tags.isNotEmpty) {
         body['tags'] = tags;
       }
@@ -305,10 +315,10 @@ class CommunityService {
 
   // ==================== Helpers ====================
 
-  /// RecordModel을 QuestionData로 변환
   QuestionData _recordToQuestionData(RecordModel record) {
     return QuestionData.fromJson({
       'id': record.id,
+      'owner': record.getStringValue('owner'),
       'title': record.getStringValue('title'),
       'content': record.getStringValue('content'),
       'category': record.getStringValue('category'),

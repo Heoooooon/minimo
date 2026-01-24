@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import '../../core/utils/app_logger.dart';
 import '../../domain/models/gallery_photo_data.dart';
 import 'pocketbase_service.dart';
+import 'auth_service.dart';
 
 /// 갤러리 사진 관리 서비스
 ///
@@ -96,10 +97,14 @@ class GalleryPhotoService {
     }
   }
 
-  /// 사진 업로드
   Future<GalleryPhotoData> uploadPhoto(GalleryPhotoData photo) async {
     if (photo.imageFile == null) {
       throw ArgumentError('Image file is required');
+    }
+
+    final userId = AuthService.instance.currentUser?.id;
+    if (userId == null) {
+      throw Exception('로그인이 필요합니다.');
     }
 
     try {
@@ -113,9 +118,12 @@ class GalleryPhotoService {
         photo.imageFile!,
       );
 
+      final body = photo.toJson();
+      body['owner'] = userId;
+
       final record = await _client
           .collection(_collection)
-          .create(body: photo.toJson(), files: [multipartFile]);
+          .create(body: body, files: [multipartFile]);
 
       return GalleryPhotoData.fromJson(record.toJson(), baseUrl: _baseUrl);
     } catch (e) {

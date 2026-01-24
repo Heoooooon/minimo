@@ -3,6 +3,7 @@ import 'package:pocketbase/pocketbase.dart';
 import 'package:http/http.dart' as http;
 import '../../domain/models/creature_data.dart';
 import 'pocketbase_service.dart';
+import 'auth_service.dart';
 import '../../core/utils/app_logger.dart';
 
 /// 생물 관리 서비스
@@ -71,10 +72,13 @@ class CreatureService {
     }
   }
 
-  /// 생물 등록
   Future<CreatureData> createCreature(CreatureData creature) async {
+    final userId = AuthService.instance.currentUser?.id;
+    if (userId == null) {
+      throw Exception('로그인이 필요합니다.');
+    }
+
     try {
-      // 파일 업로드 준비
       final files = <http.MultipartFile>[];
       for (final filePath in creature.photoFiles) {
         final file = File(filePath);
@@ -83,9 +87,12 @@ class CreatureService {
         }
       }
 
+      final body = creature.toJson();
+      body['owner'] = userId;
+
       final record = await _client
           .collection(_collection)
-          .create(body: creature.toJson(), files: files);
+          .create(body: body, files: files);
 
       return CreatureData.fromJson(record.toJson(), baseUrl: _baseUrl);
     } catch (e) {

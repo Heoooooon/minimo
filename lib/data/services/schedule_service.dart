@@ -1,5 +1,6 @@
 import 'package:pocketbase/pocketbase.dart';
 import 'pocketbase_service.dart';
+import 'auth_service.dart';
 import '../../domain/models/schedule_data.dart';
 import '../../core/utils/app_logger.dart';
 
@@ -72,10 +73,15 @@ class ScheduleService {
     );
   }
 
-  /// 일정 생성
   Future<ScheduleData> createSchedule(ScheduleData data) async {
+    final userId = AuthService.instance.currentUser?.id;
+    if (userId == null) {
+      throw Exception('로그인이 필요합니다.');
+    }
+
     try {
       final body = {
+        'owner': userId,
         'aquarium': data.aquariumId,
         'date': data.date.toIso8601String(),
         'time': data.time,
@@ -147,10 +153,10 @@ class ScheduleService {
     }
   }
 
-  /// RecordModel을 ScheduleData로 변환
   ScheduleData _recordToScheduleData(RecordModel record) {
     return ScheduleData(
       id: record.id,
+      ownerId: record.getStringValue('owner'),
       aquariumId: record.getStringValue('aquarium'),
       date: DateTime.tryParse(record.getStringValue('date')) ?? DateTime.now(),
       time: record.getStringValue('time'),
