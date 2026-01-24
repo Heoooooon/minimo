@@ -1,6 +1,7 @@
 import 'package:pocketbase/pocketbase.dart';
 import 'package:http/http.dart' as http;
 import 'pocketbase_service.dart';
+import 'auth_service.dart';
 import '../../core/exceptions/app_exceptions.dart';
 import '../../core/utils/app_logger.dart';
 import '../../domain/models/aquarium_data.dart';
@@ -112,15 +113,19 @@ class AquariumService {
     }
   }
 
-  /// 어항 생성
   Future<AquariumData> createAquarium(AquariumData aquarium) async {
-    // 필수 필드 검증
     if (aquarium.name == null || aquarium.name!.isEmpty) {
       throw ValidationException.required('어항 이름');
     }
 
+    final userId = AuthService.instance.currentUser?.id;
+    if (userId == null) {
+      throw AuthException(message: '로그인이 필요합니다.');
+    }
+
     try {
       final body = aquarium.toJson();
+      body['owner'] = userId;
 
       RecordModel record;
 

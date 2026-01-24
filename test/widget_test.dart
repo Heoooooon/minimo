@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:oomool/data/services/pocketbase_service.dart';
 import 'package:oomool/data/services/onboarding_service.dart';
 import 'package:oomool/main.dart';
+import 'package:oomool/dev/demo_screens.dart';
 
 // Mock 클래스 정의
 class MockPocketBase extends Mock implements PocketBase {}
@@ -56,11 +57,7 @@ void main() {
 
   testWidgets('DemoHomeScreen 위젯 테스트', (WidgetTester tester) async {
     // DemoHomeScreen 직접 테스트
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: DemoHomeScreen(),
-      ),
-    );
+    await tester.pumpWidget(const MaterialApp(home: DemoHomeScreen()));
     await tester.pumpAndSettle();
 
     // 홈 화면 요소 확인
@@ -78,9 +75,7 @@ void main() {
     when(() => mockAuthStore.isValid).thenReturn(true);
 
     // 온보딩 완료 상태로 설정
-    SharedPreferences.setMockInitialValues({
-      'onboarding_completed': true,
-    });
+    SharedPreferences.setMockInitialValues({'onboarding_completed': true});
     await OnboardingService.instance.initialize();
 
     await tester.pumpWidget(const OomoolApp());
