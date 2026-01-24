@@ -52,13 +52,13 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
       duration: const Duration(milliseconds: 300),
     );
 
-    _heightAnimation = Tween<double>(
-      begin: _weeklyHeight,
-      end: _weeklyHeight,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutCubic,
-    ));
+    _heightAnimation = Tween<double>(begin: _weeklyHeight, end: _weeklyHeight)
+        .animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
 
     _loadData();
   }
@@ -103,13 +103,13 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
         ? _monthlyHeight
         : _weeklyHeight;
 
-    _heightAnimation = Tween<double>(
-      begin: _heightAnimation.value,
-      end: targetHeight,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutCubic,
-    ));
+    _heightAnimation =
+        Tween<double>(begin: _heightAnimation.value, end: targetHeight).animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
 
     _animationController.forward(from: 0).then((_) {
       setState(() {
@@ -157,13 +157,13 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
         ? _monthlyHeight
         : _weeklyHeight;
 
-    _heightAnimation = Tween<double>(
-      begin: currentHeight,
-      end: targetHeight,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOutCubic,
-    ));
+    _heightAnimation = Tween<double>(begin: currentHeight, end: targetHeight)
+        .animate(
+          CurvedAnimation(
+            parent: _animationController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
 
     _animationController.forward(from: 0).then((_) {
       setState(() {
@@ -251,9 +251,7 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
                 _buildCalendarCard(viewModel),
 
                 // 하단 기록 목록 영역
-                Expanded(
-                  child: _buildRecordContent(viewModel),
-                ),
+                Expanded(child: _buildRecordContent(viewModel)),
               ],
             ),
           );
@@ -321,8 +319,12 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
 
   Widget _buildMonthHeader() {
     // 높이가 중간 이상이면 월 탐색 버튼 표시
-    final showNavButtons = _heightAnimation.value > (_weeklyHeight + _monthlyHeight) / 2;
-    final navButtonOpacity = ((_heightAnimation.value - _weeklyHeight) / (_monthlyHeight - _weeklyHeight)).clamp(0.0, 1.0);
+    final showNavButtons =
+        _heightAnimation.value > (_weeklyHeight + _monthlyHeight) / 2;
+    final navButtonOpacity =
+        ((_heightAnimation.value - _weeklyHeight) /
+                (_monthlyHeight - _weeklyHeight))
+            .clamp(0.0, 1.0);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -437,11 +439,13 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
     // 선택된 날짜가 포함된 주의 인덱스 찾기
     int selectedWeekIndex = 0;
     for (int i = 0; i < weeks.length; i++) {
-      if (weeks[i].any((date) =>
-          date != null &&
-          date.year == _selectedDate.year &&
-          date.month == _selectedDate.month &&
-          date.day == _selectedDate.day)) {
+      if (weeks[i].any(
+        (date) =>
+            date != null &&
+            date.year == _selectedDate.year &&
+            date.month == _selectedDate.month &&
+            date.day == _selectedDate.day,
+      )) {
         selectedWeekIndex = i;
         break;
       }
@@ -455,7 +459,8 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
     }
 
     // 현재 높이에 따라 월간/주간 달력 표시
-    final isMonthlyExpanded = _heightAnimation.value > (_weeklyHeight + _monthlyHeight) / 2;
+    final isMonthlyExpanded =
+        _heightAnimation.value > (_weeklyHeight + _monthlyHeight) / 2;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32),
@@ -585,8 +590,8 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
             child: viewModel.isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : viewModel.selectedDateRecords.isEmpty
-                    ? _buildEmptyState()
-                    : _buildRecordList(viewModel.selectedDateRecords),
+                ? _buildEmptyState()
+                : _buildRecordList(viewModel.selectedDateRecords),
           ),
         ],
       ),
@@ -720,15 +725,16 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
     return weeks;
   }
 
-  List<DateTime?> _getCurrentWeekDates() {
-    final now = _selectedDate;
-    final weekday = now.weekday % 7; // 일요일 = 0
-
-    final List<DateTime?> weekDates = [];
-    for (int i = 0; i < 7; i++) {
-      weekDates.add(now.subtract(Duration(days: weekday - i)));
-    }
-
-    return weekDates;
-  }
+  // TODO: 주간 뷰 기능 추가 시 활용 예정
+  // List<DateTime?> _getCurrentWeekDates() {
+  //   final now = _selectedDate;
+  //   final weekday = now.weekday % 7; // 일요일 = 0
+  //
+  //   final List<DateTime?> weekDates = [];
+  //   for (int i = 0; i < 7; i++) {
+  //     weekDates.add(now.subtract(Duration(days: weekday - i)));
+  //   }
+  //
+  //   return weekDates;
+  // }
 }

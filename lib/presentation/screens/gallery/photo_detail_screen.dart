@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../../domain/models/gallery_photo_data.dart';
 import '../../../data/services/gallery_photo_service.dart';
 import '../../../theme/app_colors.dart';
@@ -96,7 +97,7 @@ class _PhotoDetailScreenState extends State<PhotoDetailScreen> {
         Navigator.pop(context, true); // true = 삭제됨
       }
     } catch (e) {
-      debugPrint('Failed to delete photo: $e');
+      AppLogger.data('Failed to delete photo: $e', isError: true);
       if (mounted) {
         setState(() {
           _isDeleting = false;
@@ -121,10 +122,7 @@ class _PhotoDetailScreenState extends State<PhotoDetailScreen> {
           iconTheme: const IconThemeData(color: Colors.white),
         ),
         body: const Center(
-          child: Text(
-            '사진을 불러올 수 없습니다',
-            style: TextStyle(color: Colors.white),
-          ),
+          child: Text('사진을 불러올 수 없습니다', style: TextStyle(color: Colors.white)),
         ),
       );
     }
@@ -156,7 +154,7 @@ class _PhotoDetailScreenState extends State<PhotoDetailScreen> {
                             child: CircularProgressIndicator(
                               value: loadingProgress.expectedTotalBytes != null
                                   ? loadingProgress.cumulativeBytesLoaded /
-                                      loadingProgress.expectedTotalBytes!
+                                        loadingProgress.expectedTotalBytes!
                                   : null,
                               color: Colors.white,
                             ),
@@ -189,12 +187,7 @@ class _PhotoDetailScreenState extends State<PhotoDetailScreen> {
 
           // 하단 정보 패널
           if (_showInfo)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: _buildInfoPanel(),
-            ),
+            Positioned(left: 0, right: 0, bottom: 0, child: _buildInfoPanel()),
 
           // 삭제 중 로딩 오버레이
           if (_isDeleting)
@@ -239,10 +232,7 @@ class _PhotoDetailScreenState extends State<PhotoDetailScreen> {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Colors.transparent,
-            Colors.black87,
-          ],
+          colors: [Colors.transparent, Colors.black87],
         ),
       ),
       child: Column(

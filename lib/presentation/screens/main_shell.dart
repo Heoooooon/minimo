@@ -19,12 +19,15 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _currentTabIndex = 0;
+  // ignore: unused_field - 탭 전환 애니메이션 방향 결정용 (추후 활용)
   int _previousTabIndex = 0;
 
   // 각 화면의 GlobalKey
   final GlobalKey<HomeContentState> _homeKey = GlobalKey<HomeContentState>();
-  final GlobalKey<AquariumListScreenState> _aquariumListKey = GlobalKey<AquariumListScreenState>();
-  final GlobalKey<RecordHomeScreenState> _recordHomeKey = GlobalKey<RecordHomeScreenState>();
+  final GlobalKey<AquariumListScreenState> _aquariumListKey =
+      GlobalKey<AquariumListScreenState>();
+  final GlobalKey<RecordHomeScreenState> _recordHomeKey =
+      GlobalKey<RecordHomeScreenState>();
 
   late final List<Widget> _screens;
 
@@ -75,10 +78,7 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentTabIndex,
-        children: _screens,
-      ),
+      body: IndexedStack(index: _currentTabIndex, children: _screens),
       bottomNavigationBar: AppBottomNavBar(
         currentTab: NavTab.values[_currentTabIndex],
         onTabSelected: _onTabSelected,

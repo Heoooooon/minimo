@@ -1,4 +1,3 @@
-/// 알림 종류
 enum AlarmType {
   waterChange('water_change', '물갈이'),
   feeding('feeding', '먹이주기'),
@@ -20,7 +19,6 @@ enum AlarmType {
   }
 }
 
-/// 반복 주기
 enum RepeatCycle {
   none('none', '반복 안함'),
   daily('daily', '매일'),
@@ -42,10 +40,10 @@ enum RepeatCycle {
   }
 }
 
-/// 일정 데이터 모델
 class ScheduleData {
   ScheduleData({
     required this.id,
+    this.ownerId,
     required this.time,
     required this.title,
     required this.aquariumName,
@@ -58,7 +56,8 @@ class ScheduleData {
   });
 
   final String id;
-  final String time; // "08:00" 형식
+  final String? ownerId;
+  final String time;
   final String title;
   final String aquariumName;
   final String? aquariumId;
@@ -70,6 +69,7 @@ class ScheduleData {
 
   ScheduleData copyWith({
     String? id,
+    String? ownerId,
     String? time,
     String? title,
     String? aquariumName,
@@ -82,6 +82,7 @@ class ScheduleData {
   }) {
     return ScheduleData(
       id: id ?? this.id,
+      ownerId: ownerId ?? this.ownerId,
       time: time ?? this.time,
       title: title ?? this.title,
       aquariumName: aquariumName ?? this.aquariumName,
@@ -90,19 +91,23 @@ class ScheduleData {
       date: date ?? this.date,
       alarmType: alarmType ?? this.alarmType,
       repeatCycle: repeatCycle ?? this.repeatCycle,
-      isNotificationEnabled: isNotificationEnabled ?? this.isNotificationEnabled,
+      isNotificationEnabled:
+          isNotificationEnabled ?? this.isNotificationEnabled,
     );
   }
 
   factory ScheduleData.fromJson(Map<String, dynamic> json) {
     return ScheduleData(
       id: json['id'] ?? '',
+      ownerId: json['owner'],
       time: json['time'] ?? '',
       title: json['title'] ?? '',
       aquariumName: json['aquarium_name'] ?? '',
       aquariumId: json['aquarium'],
       isCompleted: json['is_completed'] ?? false,
-      date: json['date'] != null ? DateTime.parse(json['date']) : DateTime.now(),
+      date: json['date'] != null
+          ? DateTime.parse(json['date'])
+          : DateTime.now(),
       alarmType: AlarmType.fromValue(json['alarm_type']),
       repeatCycle: RepeatCycle.fromValue(json['repeat_cycle']),
       isNotificationEnabled: json['is_notification_enabled'] ?? false,

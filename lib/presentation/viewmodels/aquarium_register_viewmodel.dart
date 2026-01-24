@@ -1,8 +1,9 @@
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../core/utils/app_logger.dart';
 import '../../data/repositories/aquarium_repository.dart';
 import '../../domain/models/aquarium_data.dart';
+import 'base_viewmodel.dart';
 
 /// 어항 등록/수정 ViewModel
 ///
@@ -11,7 +12,7 @@ import '../../domain/models/aquarium_data.dart';
 /// - Step 2: 장비 등록 (여과기, 바닥재, 제품명, 조명, 히터)
 /// - Step 3: 추가 정보 (목적, 비고)
 /// - Step 4: 대표 사진 등록
-class AquariumRegisterViewModel extends ChangeNotifier {
+class AquariumRegisterViewModel extends BaseViewModel {
   AquariumRegisterViewModel();
 
   /// 편집 모드 여부
@@ -28,14 +29,6 @@ class AquariumRegisterViewModel extends ChangeNotifier {
   /// 어항 데이터
   AquariumData _data = AquariumData();
   AquariumData get data => _data;
-
-  /// 로딩 상태
-  bool _isLoading = false;
-  bool get isLoading => _isLoading;
-
-  /// 에러 메시지
-  String? _errorMessage;
-  String? get errorMessage => _errorMessage;
 
   /// 사진 bytes (웹 지원용)
   Uint8List? _photoBytes;
@@ -180,10 +173,7 @@ class AquariumRegisterViewModel extends ChangeNotifier {
 
   /// 갤러리에서 사진 선택
   Future<void> pickPhotoFromGallery() async {
-    try {
-      _isLoading = true;
-      notifyListeners();
-
+    await runAsync(() async {
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
         maxWidth: 1080,
@@ -196,21 +186,13 @@ class AquariumRegisterViewModel extends ChangeNotifier {
         // 웹 지원을 위해 bytes도 저장
         _photoBytes = await image.readAsBytes();
       }
-    } catch (e) {
-      debugPrint('Error picking image from gallery: $e');
-      _errorMessage = '이미지를 선택하는 중 오류가 발생했습니다.';
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
+      return image;
+    }, errorPrefix: '이미지를 선택하는 중 오류가 발생했습니다');
   }
 
   /// 카메라로 사진 촬영
   Future<void> takePhoto() async {
-    try {
-      _isLoading = true;
-      notifyListeners();
-
+    await runAsync(() async {
       final XFile? image = await _picker.pickImage(
         source: ImageSource.camera,
         maxWidth: 1080,
@@ -223,13 +205,8 @@ class AquariumRegisterViewModel extends ChangeNotifier {
         // 웹 지원을 위해 bytes도 저장
         _photoBytes = await image.readAsBytes();
       }
-    } catch (e) {
-      debugPrint('Error taking photo: $e');
-      _errorMessage = '카메라를 사용하는 중 오류가 발생했습니다.';
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
+      return image;
+    }, errorPrefix: '카메라를 사용하는 중 오류가 발생했습니다');
   }
 
   /// 사진 제거
@@ -263,48 +240,32 @@ class AquariumRegisterViewModel extends ChangeNotifier {
   Future<bool> submitRegistration() async {
     if (!_data.isAllValid) return false;
 
-    try {
-      _isLoading = true;
-      _errorMessage = null;
-      notifyListeners();
-
-      AquariumData result;
-      if (_isEditMode && _data.id != null) {
-        // 수정 모드
-        result = await _repository.updateAquarium(_data.id!, _data);
-        debugPrint('Aquarium updated with ID: ${result.id}');
-      } else {
-        // 등록 모드
-        result = await _repository.createAquarium(_data);
-        debugPrint('Aquarium created with ID: ${result.id}');
-      }
-      _data = result;
-
-      return true;
-    } catch (e) {
-      debugPrint('Error submitting registration: $e');
-      _errorMessage = _isEditMode
-          ? '어항 수정에 실패했습니다. 다시 시도해 주세요.'
-          : '어항 등록에 실패했습니다. 다시 시도해 주세요.';
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  /// 에러 메시지 초기화
-  void clearError() {
-    _errorMessage = null;
-    notifyListeners();
+    return await runAsyncBool(
+      () async {
+        AquariumData result;
+        if (_isEditMode && _data.id != null) {
+          // 수정 모드
+          result = await _repository.updateAquarium(_data.id!, _data);
+          AppLogger.data('Aquarium updated with ID: ${result.id}');
+        } else {
+          // 등록 모드
+          result = await _repository.createAquarium(_data);
+          AppLogger.data('Aquarium created with ID: ${result.id}');
+        }
+        _data = result;
+      },
+      errorPrefix: _isEditMode
+          ? '어항 수정에 실패했습니다. 다시 시도해 주세요'
+          : '어항 등록에 실패했습니다. 다시 시도해 주세요',
+    );
   }
 
   /// 상태 초기화
   void reset() {
     _currentStep = 1;
     _data = AquariumData();
-    _isLoading = false;
-    _errorMessage = null;
+    setLoading(false);
+    clearError();
     _photoBytes = null;
     _isEditMode = false;
     notifyListeners();

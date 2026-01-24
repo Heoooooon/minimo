@@ -1,4 +1,3 @@
-/// 어항 유형 열거형
 enum AquariumType {
   freshwater('담수'),
   saltwater('해수');
@@ -14,7 +13,6 @@ enum AquariumType {
   }
 }
 
-/// 여과기 종류
 enum FilterType {
   hangOn('걸이식'),
   canister('외부 여과기'),
@@ -49,7 +47,6 @@ enum FilterType {
   }
 }
 
-/// 조명 종류
 enum LightingType {
   led('LED'),
   fluorescent('형광등'),
@@ -78,7 +75,6 @@ enum LightingType {
   }
 }
 
-/// 사육 목적
 enum AquariumPurpose {
   general('일반 사육'),
   breeding('브리딩'),
@@ -97,77 +93,41 @@ enum AquariumPurpose {
   }
 }
 
-/// 어항 등록 데이터 모델
 class AquariumData {
   AquariumData({
     this.id,
+    this.ownerId,
     this.name,
     this.type,
     this.settingDate,
     this.dimensions,
-    // Step 2: 장비
     this.filterType,
     this.substrate,
     this.productName,
     this.lighting,
     this.hasHeater,
-    // Step 3: 추가 정보
     this.purpose,
     this.notes,
-    // Step 4: 사진
     this.photoPath,
     this.photoUrl,
   });
 
-  /// PocketBase record ID
   String? id;
-
-  /// 어항 이름
+  String? ownerId;
   String? name;
-
-  /// 어항 유형 (담수/해수)
   AquariumType? type;
-
-  /// 어항 세팅 일자
   DateTime? settingDate;
-
-  /// 어항 치수
   String? dimensions;
-
-  // ==================== Step 2: 장비 ====================
-
-  /// 여과기 종류
   FilterType? filterType;
-
-  /// 바닥재
   String? substrate;
-
-  /// 제품명
   String? productName;
-
-  /// 조명 종류
   LightingType? lighting;
-
-  /// 히터 유무
   bool? hasHeater;
-
-  // ==================== Step 3: 추가 정보 ====================
-
-  /// 사육 목적
   AquariumPurpose? purpose;
-
-  /// 비고 (300자)
   String? notes;
-
-  // ==================== Step 4: 사진 ====================
-
-  /// 로컬 사진 경로 (업로드 전)
   String? photoPath;
-
-  /// 서버 사진 URL (업로드 후)
   String? photoUrl;
 
-  /// Step 1 유효성 검사
   bool get isStep1Valid =>
       name != null &&
       name!.isNotEmpty &&
@@ -176,20 +136,17 @@ class AquariumData {
       dimensions != null &&
       dimensions!.isNotEmpty;
 
-  /// Step 2 유효성 검사 (장비는 선택사항)
   bool get isStep2Valid => true;
 
-  /// Step 3 유효성 검사 (추가 정보는 선택사항)
   bool get isStep3Valid => true;
 
-  /// Step 4 유효성 검사 (사진은 선택사항)
   bool get isStep4Valid => true;
 
-  /// 전체 폼 유효성 검사
   bool get isAllValid => isStep1Valid;
 
   AquariumData copyWith({
     String? id,
+    String? ownerId,
     String? name,
     AquariumType? type,
     DateTime? settingDate,
@@ -206,6 +163,7 @@ class AquariumData {
   }) {
     return AquariumData(
       id: id ?? this.id,
+      ownerId: ownerId ?? this.ownerId,
       name: name ?? this.name,
       type: type ?? this.type,
       settingDate: settingDate ?? this.settingDate,
@@ -222,7 +180,6 @@ class AquariumData {
     );
   }
 
-  /// PocketBase JSON으로 변환 (파일 제외)
   Map<String, dynamic> toJson() {
     return {
       'name': name,
@@ -239,10 +196,10 @@ class AquariumData {
     };
   }
 
-  /// PocketBase JSON에서 생성
   factory AquariumData.fromJson(Map<String, dynamic> json) {
     return AquariumData(
       id: json['id'] as String?,
+      ownerId: json['owner'] as String?,
       name: json['name'] as String?,
       type: AquariumType.fromValue(json['type'] as String?),
       settingDate: json['setting_date'] != null

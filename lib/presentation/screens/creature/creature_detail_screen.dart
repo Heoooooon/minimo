@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
+import '../../../core/utils/app_logger.dart';
 import '../../../domain/models/creature_data.dart';
 import '../../../data/services/creature_service.dart';
 import '../../../data/services/creature_memo_service.dart';
@@ -10,10 +11,7 @@ import 'creature_register_screen.dart' hide CreatureGender;
 class CreatureDetailScreen extends StatefulWidget {
   final CreatureData creature;
 
-  const CreatureDetailScreen({
-    super.key,
-    required this.creature,
-  });
+  const CreatureDetailScreen({super.key, required this.creature});
 
   @override
   State<CreatureDetailScreen> createState() => _CreatureDetailScreenState();
@@ -23,6 +21,7 @@ class _CreatureDetailScreenState extends State<CreatureDetailScreen> {
   late CreatureData _creature;
   final PageController _pageController = PageController();
   int _currentImageIndex = 0;
+  // ignore: unused_field - BottomSheet 로딩 상태 표시용 (추후 활용)
   bool _isLoading = false;
 
   @override
@@ -36,14 +35,15 @@ class _CreatureDetailScreenState extends State<CreatureDetailScreen> {
     if (_creature.id == null) return;
 
     try {
-      final creatureWithMemos = await CreatureService.instance.getCreatureWithMemos(_creature.id!);
+      final creatureWithMemos = await CreatureService.instance
+          .getCreatureWithMemos(_creature.id!);
       if (mounted) {
         setState(() {
           _creature = creatureWithMemos;
         });
       }
     } catch (e) {
-      debugPrint('Failed to load creature with memos: $e');
+      AppLogger.data('Failed to load creature with memos: $e', isError: true);
     }
   }
 
@@ -98,7 +98,7 @@ class _CreatureDetailScreenState extends State<CreatureDetailScreen> {
           });
         }
       } catch (e) {
-        debugPrint('Failed to create memo: $e');
+        AppLogger.data('Failed to create memo: $e', isError: true);
         if (mounted) setState(() => _isLoading = false);
       }
     }
@@ -128,7 +128,7 @@ class _CreatureDetailScreenState extends State<CreatureDetailScreen> {
           });
         }
       } catch (e) {
-        debugPrint('Failed to update memo: $e');
+        AppLogger.data('Failed to update memo: $e', isError: true);
         if (mounted) setState(() => _isLoading = false);
       }
     }
@@ -158,13 +158,15 @@ class _CreatureDetailScreenState extends State<CreatureDetailScreen> {
         await CreatureMemoService.instance.deleteMemo(memo.id!);
         if (mounted) {
           setState(() {
-            final updatedMemos = _creature.memos.where((m) => m.id != memo.id).toList();
+            final updatedMemos = _creature.memos
+                .where((m) => m.id != memo.id)
+                .toList();
             _creature = _creature.copyWith(memos: updatedMemos);
             _isLoading = false;
           });
         }
       } catch (e) {
-        debugPrint('Failed to delete memo: $e');
+        AppLogger.data('Failed to delete memo: $e', isError: true);
         if (mounted) setState(() => _isLoading = false);
       }
     }
@@ -209,13 +211,9 @@ class _CreatureDetailScreenState extends State<CreatureDetailScreen> {
           CustomScrollView(
             slivers: [
               // 이미지 갤러리
-              SliverToBoxAdapter(
-                child: _buildImageGallery(),
-              ),
+              SliverToBoxAdapter(child: _buildImageGallery()),
               // 정보 섹션
-              SliverToBoxAdapter(
-                child: _buildInfoSection(),
-              ),
+              SliverToBoxAdapter(child: _buildInfoSection()),
             ],
           ),
           // 투명한 앱바
@@ -313,7 +311,10 @@ class _CreatureDetailScreenState extends State<CreatureDetailScreen> {
             right: 0,
             child: Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 2,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(999),
@@ -360,11 +361,7 @@ class _CreatureDetailScreenState extends State<CreatureDetailScreen> {
       height: 336,
       color: const Color(0xFF3D5A80),
       child: const Center(
-        child: Icon(
-          Icons.pets,
-          color: Colors.white,
-          size: 80,
-        ),
+        child: Icon(Icons.pets, color: Colors.white, size: 80),
       ),
     );
   }
@@ -467,11 +464,7 @@ class _CreatureDetailScreenState extends State<CreatureDetailScreen> {
 
   Widget _buildDivider() {
     return Center(
-      child: Container(
-        width: 343,
-        height: 1,
-        color: AppColors.borderLight,
-      ),
+      child: Container(width: 343, height: 1, color: AppColors.borderLight),
     );
   }
 
@@ -563,7 +556,10 @@ class _CreatureDetailScreenState extends State<CreatureDetailScreen> {
               GestureDetector(
                 onTap: _onAddMemo,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 6,
+                  ),
                   child: Text(
                     '추가',
                     style: TextStyle(
@@ -602,10 +598,12 @@ class _CreatureDetailScreenState extends State<CreatureDetailScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Column(
               children: _creature.memos
-                  .map((memo) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: _buildMemoCard(memo),
-                      ))
+                  .map(
+                    (memo) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _buildMemoCard(memo),
+                    ),
+                  )
                   .toList(),
             ),
           ),

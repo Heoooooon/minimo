@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import '../../../core/utils/app_logger.dart';
 import '../../../data/services/creature_service.dart';
 import '../../../domain/models/creature_data.dart' as domain;
 import '../../../theme/app_colors.dart';
@@ -139,9 +140,7 @@ class _CreatureRegisterScreenState extends State<CreatureRegisterScreen> {
   void _onChangeCreature() async {
     final result = await Navigator.push<CreatureSearchItem>(
       context,
-      MaterialPageRoute(
-        builder: (context) => const CreatureSearchScreen(),
-      ),
+      MaterialPageRoute(builder: (context) => const CreatureSearchScreen()),
     );
     if (result != null) {
       setState(() {
@@ -199,9 +198,9 @@ class _CreatureRegisterScreenState extends State<CreatureRegisterScreen> {
 
   Future<void> _onAddPhoto() async {
     if (_photos.length >= _maxPhotos) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('최대 5장까지 첨부 가능합니다.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('최대 5장까지 첨부 가능합니다.')));
       return;
     }
 
@@ -262,7 +261,9 @@ class _CreatureRegisterScreenState extends State<CreatureRegisterScreen> {
         unknownAdoptionDate: _unknownAdoptionDate,
         quantity: _quantity,
         gender: domainGender,
-        source: _sourceController.text.isNotEmpty ? _sourceController.text : null,
+        source: _sourceController.text.isNotEmpty
+            ? _sourceController.text
+            : null,
         price: _priceController.text.isNotEmpty ? _priceController.text : null,
         photoUrls: widget.existingCreature?.photoUrls ?? [],
         photoFiles: _photos.map((f) => f.path).toList(),
@@ -280,17 +281,19 @@ class _CreatureRegisterScreenState extends State<CreatureRegisterScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(widget.isEditMode ? '생물 정보가 수정되었습니다.' : '생물이 등록되었습니다.'),
+            content: Text(
+              widget.isEditMode ? '생물 정보가 수정되었습니다.' : '생물이 등록되었습니다.',
+            ),
           ),
         );
         Navigator.pop(context, result); // 수정된 데이터 반환
       }
     } catch (e) {
-      debugPrint('Failed to save creature: $e');
+      AppLogger.data('Failed to save creature: $e', isError: true);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('저장에 실패했습니다: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('저장에 실패했습니다: $e')));
       }
     } finally {
       if (mounted) {
@@ -358,9 +361,7 @@ class _CreatureRegisterScreenState extends State<CreatureRegisterScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: AppColors.borderLight),
-        ),
+        border: Border(bottom: BorderSide(color: AppColors.borderLight)),
       ),
       child: Row(
         children: [
@@ -372,11 +373,7 @@ class _CreatureRegisterScreenState extends State<CreatureRegisterScreen> {
               color: const Color(0xFFD6EEFF),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.pets,
-              color: AppColors.brand,
-              size: 20,
-            ),
+            child: const Icon(Icons.pets, color: AppColors.brand, size: 20),
           ),
           const SizedBox(width: 8),
           // 생물 이름
@@ -602,7 +599,9 @@ class _CreatureRegisterScreenState extends State<CreatureRegisterScreen> {
                 child: Icon(
                   Icons.remove,
                   size: 24,
-                  color: _quantity > 1 ? AppColors.textMain : AppColors.textHint,
+                  color: _quantity > 1
+                      ? AppColors.textMain
+                      : AppColors.textHint,
                 ),
               ),
             ),
@@ -622,7 +621,9 @@ class _CreatureRegisterScreenState extends State<CreatureRegisterScreen> {
                   fontFamily: 'WantedSans',
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
-                  color: _quantity > 0 ? AppColors.textMain : AppColors.textHint,
+                  color: _quantity > 0
+                      ? AppColors.textMain
+                      : AppColors.textHint,
                   height: 24 / 16,
                   letterSpacing: -0.5,
                 ),
@@ -667,10 +668,7 @@ class _CreatureRegisterScreenState extends State<CreatureRegisterScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        _buildTextField(
-          controller: _nameController,
-          hintText: 'Text',
-        ),
+        _buildTextField(controller: _nameController, hintText: 'Text'),
       ],
     );
   }
@@ -711,7 +709,9 @@ class _CreatureRegisterScreenState extends State<CreatureRegisterScreen> {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: isSelected ? AppColors.brand : AppColors.border,
+                            color: isSelected
+                                ? AppColors.brand
+                                : AppColors.border,
                             width: isSelected ? 6 : 1,
                           ),
                         ),
@@ -723,7 +723,9 @@ class _CreatureRegisterScreenState extends State<CreatureRegisterScreen> {
                         fontFamily: 'WantedSans',
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
-                        color: isSelected ? AppColors.textMain : AppColors.textSubtle,
+                        color: isSelected
+                            ? AppColors.textMain
+                            : AppColors.textSubtle,
                         height: 24 / 16,
                         letterSpacing: -0.5,
                       ),
@@ -754,10 +756,7 @@ class _CreatureRegisterScreenState extends State<CreatureRegisterScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        _buildTextField(
-          controller: _sourceController,
-          hintText: 'Text',
-        ),
+        _buildTextField(controller: _sourceController, hintText: 'Text'),
       ],
     );
   }
@@ -981,10 +980,17 @@ class _CreatureRegisterScreenState extends State<CreatureRegisterScreen> {
             letterSpacing: -0.25,
           ),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
           suffixIcon: controller.text.isNotEmpty
               ? IconButton(
-                  icon: const Icon(Icons.close, size: 24, color: AppColors.textHint),
+                  icon: const Icon(
+                    Icons.close,
+                    size: 24,
+                    color: AppColors.textHint,
+                  ),
                   onPressed: () {
                     controller.clear();
                     setState(() {});
@@ -1045,7 +1051,9 @@ class _CreatureRegisterScreenState extends State<CreatureRegisterScreen> {
                       fontFamily: 'WantedSans',
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
-                      color: isEnabled ? AppColors.backgroundApp : AppColors.disabledText,
+                      color: isEnabled
+                          ? AppColors.backgroundApp
+                          : AppColors.disabledText,
                       height: 24 / 16,
                       letterSpacing: -0.5,
                     ),

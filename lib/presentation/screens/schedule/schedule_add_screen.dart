@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../../domain/models/aquarium_data.dart';
 import '../../../domain/models/schedule_data.dart';
 import '../../../data/services/schedule_service.dart';
@@ -61,7 +62,7 @@ class _ScheduleAddScreenState extends State<ScheduleAddScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Error loading aquariums: $e');
+      AppLogger.data('Error loading aquariums: $e', isError: true);
       if (mounted) {
         setState(() {
           _isLoadingAquariums = false;
@@ -137,13 +138,17 @@ class _ScheduleAddScreenState extends State<ScheduleAddScreen> {
       );
 
       // 서버에 저장
-      final created = await ScheduleService.instance.createSchedule(scheduleData);
+      final created = await ScheduleService.instance.createSchedule(
+        scheduleData,
+      );
 
       // 푸시 알림 예약 (활성화된 경우) - 실패해도 일정은 저장됨
       if (_isNotificationEnabled) {
         try {
           await NotificationService.instance.scheduleNotification(
-            id: NotificationService.instance.scheduleIdToNotificationId(created.id),
+            id: NotificationService.instance.scheduleIdToNotificationId(
+              created.id,
+            ),
             title: _titleController.text.trim(),
             body: '${_aquarium?.name ?? '어항'} - ${_selectedAlarmType.label}',
             scheduledTime: scheduledDateTime,
@@ -151,7 +156,10 @@ class _ScheduleAddScreenState extends State<ScheduleAddScreen> {
             payload: created.id,
           );
         } catch (notificationError) {
-          debugPrint('Notification scheduling failed: $notificationError');
+          AppLogger.data(
+            'Notification scheduling failed: $notificationError',
+            isError: true,
+          );
           // 알림 예약 실패는 무시하고 일정은 저장 완료로 처리
         }
       }
@@ -167,7 +175,7 @@ class _ScheduleAddScreenState extends State<ScheduleAddScreen> {
         Navigator.pop(context, true);
       }
     } catch (e) {
-      debugPrint('Failed to save schedule: $e');
+      AppLogger.data('Failed to save schedule: $e', isError: true);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -193,12 +201,13 @@ class _ScheduleAddScreenState extends State<ScheduleAddScreen> {
         centerTitle: true,
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
-          icon: const Icon(Icons.arrow_back_ios, color: AppColors.textMain, size: 24),
+          icon: const Icon(
+            Icons.arrow_back_ios,
+            color: AppColors.textMain,
+            size: 24,
+          ),
         ),
-        title: Text(
-          '알림 추가',
-          style: AppTextStyles.headlineSmall,
-        ),
+        title: Text('알림 추가', style: AppTextStyles.headlineSmall),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -228,7 +237,9 @@ class _ScheduleAddScreenState extends State<ScheduleAddScreen> {
                   _selectedAlarmType = type;
                   // 알림 이름을 종류에 맞게 기본값으로 설정
                   if (_titleController.text.isEmpty ||
-                      AlarmType.values.any((t) => t.label == _titleController.text)) {
+                      AlarmType.values.any(
+                        (t) => t.label == _titleController.text,
+                      )) {
                     _titleController.text = type.label;
                   }
                 });
@@ -268,11 +279,7 @@ class _ScheduleAddScreenState extends State<ScheduleAddScreen> {
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.water_drop,
-            color: AppColors.brand,
-            size: 24,
-          ),
+          Icon(Icons.water_drop, color: AppColors.brand, size: 24),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -531,7 +538,10 @@ class _ScheduleAddScreenState extends State<ScheduleAddScreen> {
             ),
             filled: true,
             fillColor: AppColors.backgroundSurface,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: BorderSide(color: AppColors.borderLight),
@@ -570,10 +580,7 @@ class _ScheduleAddScreenState extends State<ScheduleAddScreen> {
                 size: 24,
               ),
               const SizedBox(width: 12),
-              Text(
-                '푸시 알림 받기',
-                style: AppTextStyles.bodyMediumMedium,
-              ),
+              Text('푸시 알림 받기', style: AppTextStyles.bodyMediumMedium),
             ],
           ),
           Switch(
@@ -631,13 +638,17 @@ class _ScheduleAddScreenState extends State<ScheduleAddScreen> {
                     height: 24,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(AppColors.textInverse),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        AppColors.textInverse,
+                      ),
                     ),
                   )
                 : Text(
                     '저장하기',
                     style: AppTextStyles.bodyMediumMedium.copyWith(
-                      color: _isFormValid ? AppColors.textInverse : AppColors.disabledText,
+                      color: _isFormValid
+                          ? AppColors.textInverse
+                          : AppColors.disabledText,
                     ),
                   ),
           ),

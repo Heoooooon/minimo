@@ -1,4 +1,3 @@
-/// 생물 성별 열거형
 enum CreatureGender {
   male('수'),
   female('암'),
@@ -16,7 +15,6 @@ enum CreatureGender {
   }
 }
 
-/// 생물 메모 데이터 모델
 class CreatureMemoData {
   CreatureMemoData({
     this.id,
@@ -78,10 +76,10 @@ class CreatureMemoData {
   }
 }
 
-/// 등록된 생물 데이터 모델
 class CreatureData {
   CreatureData({
     this.id,
+    this.ownerId,
     required this.aquariumId,
     this.catalogId,
     required this.name,
@@ -100,10 +98,8 @@ class CreatureData {
     this.updated,
   });
 
-  /// PocketBase record ID
   String? id;
-
-  /// 어항 ID (FK)
+  String? ownerId;
   String aquariumId;
 
   String? catalogId;
@@ -168,6 +164,7 @@ class CreatureData {
 
   CreatureData copyWith({
     String? id,
+    String? ownerId,
     String? aquariumId,
     String? catalogId,
     String? name,
@@ -187,6 +184,7 @@ class CreatureData {
   }) {
     return CreatureData(
       id: id ?? this.id,
+      ownerId: ownerId ?? this.ownerId,
       aquariumId: aquariumId ?? this.aquariumId,
       catalogId: catalogId ?? this.catalogId,
       name: name ?? this.name,
@@ -236,6 +234,7 @@ class CreatureData {
 
     return CreatureData(
       id: json['id'] as String?,
+      ownerId: json['owner'] as String?,
       aquariumId: json['aquarium_id'] as String,
       catalogId: json['catalog_id'] as String?,
       name: json['name'] as String,

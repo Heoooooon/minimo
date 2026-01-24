@@ -4,7 +4,6 @@ import '../../../data/services/auth_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../widgets/common/app_button.dart';
-import '../main_shell.dart';
 import '../onboarding/onboarding_survey_screen.dart';
 
 /// 회원가입 화면 (연속 플로우 애니메이션)
@@ -97,15 +96,22 @@ class _SignUpScreenState extends State<SignUpScreen>
 
     _verificationSlideAnim = Tween<double>(begin: 30, end: 0).animate(
       CurvedAnimation(
-          parent: _verificationAnimController, curve: Curves.easeOutCubic),
+        parent: _verificationAnimController,
+        curve: Curves.easeOutCubic,
+      ),
     );
     _verificationFadeAnim = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _verificationAnimController, curve: Curves.easeOut),
+      CurvedAnimation(
+        parent: _verificationAnimController,
+        curve: Curves.easeOut,
+      ),
     );
 
     _passwordSlideAnim = Tween<double>(begin: 30, end: 0).animate(
       CurvedAnimation(
-          parent: _passwordAnimController, curve: Curves.easeOutCubic),
+        parent: _passwordAnimController,
+        curve: Curves.easeOutCubic,
+      ),
     );
     _passwordFadeAnim = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _passwordAnimController, curve: Curves.easeOut),
@@ -189,8 +195,7 @@ class _SignUpScreenState extends State<SignUpScreen>
     final password = _passwordController.text;
     final hasUpperCase = password.contains(RegExp(r'[A-Z]'));
     final hasLowerCase = password.contains(RegExp(r'[a-z]'));
-    final hasSpecialChar =
-        password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
+    final hasSpecialChar = password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
     final isValidLength = password.length >= 8 && password.length <= 16;
     return hasUpperCase && hasLowerCase && hasSpecialChar && isValidLength;
   }
@@ -236,9 +241,9 @@ class _SignUpScreenState extends State<SignUpScreen>
       });
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('인증 코드 발송 실패: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('인증 코드 발송 실패: $e')));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -271,9 +276,9 @@ class _SignUpScreenState extends State<SignUpScreen>
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('인증 실패: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('인증 실패: $e')));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -296,9 +301,9 @@ class _SignUpScreenState extends State<SignUpScreen>
       setState(() => _isCompleted = true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('회원가입 실패: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('회원가입 실패: $e')));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -383,10 +388,7 @@ class _SignUpScreenState extends State<SignUpScreen>
         if (animation.value == 0) return const SizedBox.shrink();
         return Transform.translate(
           offset: Offset(0, slideAnim.value),
-          child: Opacity(
-            opacity: fadeAnim.value,
-            child: child,
-          ),
+          child: Opacity(opacity: fadeAnim.value, child: child),
         );
       },
     );
@@ -459,10 +461,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                 ),
               ),
             ),
-            Expanded(
-              flex: 3,
-              child: _buildDomainDropdown(enabled: !_codeSent),
-            ),
+            Expanded(flex: 3, child: _buildDomainDropdown(enabled: !_codeSent)),
           ],
         ),
         if (!_codeSent) ...[
@@ -527,14 +526,16 @@ class _SignUpScreenState extends State<SignUpScreen>
                   onPressed: () async {
                     setState(() => _isLoading = true);
                     try {
-                      await AuthService.instance.sendVerificationCode(_fullEmail);
+                      await AuthService.instance.sendVerificationCode(
+                        _fullEmail,
+                      );
                       _startVerificationTimer();
                       _verificationCodeController.clear();
                     } catch (e) {
                       if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('재요청 실패: $e')),
-                      );
+                      ScaffoldMessenger.of(
+                        context,
+                      ).showSnackBar(SnackBar(content: Text('재요청 실패: $e')));
                     } finally {
                       if (mounted) setState(() => _isLoading = false);
                     }
@@ -549,7 +550,9 @@ class _SignUpScreenState extends State<SignUpScreen>
             decoration: BoxDecoration(
               color: AppColors.success.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+              border: Border.all(
+                color: AppColors.success.withValues(alpha: 0.3),
+              ),
             ),
             child: Row(
               children: [
@@ -588,7 +591,8 @@ class _SignUpScreenState extends State<SignUpScreen>
               _obscurePassword ? Icons.visibility_off : Icons.visibility,
               color: AppColors.textHint,
             ),
-            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+            onPressed: () =>
+                setState(() => _obscurePassword = !_obscurePassword),
           ),
         ),
         const SizedBox(height: 8),
@@ -606,8 +610,9 @@ class _SignUpScreenState extends State<SignUpScreen>
               _obscurePasswordConfirm ? Icons.visibility_off : Icons.visibility,
               color: AppColors.textHint,
             ),
-            onPressed: () =>
-                setState(() => _obscurePasswordConfirm = !_obscurePasswordConfirm),
+            onPressed: () => setState(
+              () => _obscurePasswordConfirm = !_obscurePasswordConfirm,
+            ),
           ),
         ),
         if (_passwordConfirmController.text.isNotEmpty)
@@ -620,7 +625,9 @@ class _SignUpScreenState extends State<SignUpScreen>
                       ? Icons.check_circle
                       : Icons.error_outline,
                   size: 16,
-                  color: _passwordController.text == _passwordConfirmController.text
+                  color:
+                      _passwordController.text ==
+                          _passwordConfirmController.text
                       ? AppColors.success
                       : AppColors.error,
                 ),
@@ -630,7 +637,9 @@ class _SignUpScreenState extends State<SignUpScreen>
                       ? '비밀번호가 일치합니다'
                       : '비밀번호가 일치하지 않습니다',
                   style: AppTextStyles.captionRegular.copyWith(
-                    color: _passwordController.text == _passwordConfirmController.text
+                    color:
+                        _passwordController.text ==
+                            _passwordConfirmController.text
                         ? AppColors.success
                         : AppColors.error,
                   ),
@@ -648,7 +657,8 @@ class _SignUpScreenState extends State<SignUpScreen>
         _buildCheckbox(
           value: _agreeToMarketing,
           label: '마케팅 수신 정보에 동의합니다.',
-          onChanged: (value) => setState(() => _agreeToMarketing = value ?? false),
+          onChanged: (value) =>
+              setState(() => _agreeToMarketing = value ?? false),
         ),
       ],
     );
@@ -693,10 +703,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                 duration: const Duration(milliseconds: 600),
                 curve: Curves.elasticOut,
                 builder: (context, value, child) {
-                  return Transform.scale(
-                    scale: value,
-                    child: child,
-                  );
+                  return Transform.scale(scale: value, child: child);
                 },
                 child: Container(
                   width: 80,
@@ -705,11 +712,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                     color: AppColors.brand.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(
-                    Icons.check,
-                    size: 48,
-                    color: AppColors.brand,
-                  ),
+                  child: Icon(Icons.check, size: 48, color: AppColors.brand),
                 ),
               ),
               const SizedBox(height: 32),
@@ -742,7 +745,8 @@ class _SignUpScreenState extends State<SignUpScreen>
                 onPressed: () {
                   Navigator.of(context).pushAndRemoveUntil(
                     MaterialPageRoute(
-                        builder: (_) => const OnboardingSurveyScreen()),
+                      builder: (_) => const OnboardingSurveyScreen(),
+                    ),
                     (route) => false,
                   );
                 },
@@ -758,9 +762,7 @@ class _SignUpScreenState extends State<SignUpScreen>
   Widget _buildInputLabel(String text) {
     return Text(
       text,
-      style: AppTextStyles.labelLarge.copyWith(
-        color: AppColors.textSubtle,
-      ),
+      style: AppTextStyles.labelLarge.copyWith(color: AppColors.textSubtle),
     );
   }
 
@@ -790,12 +792,15 @@ class _SignUpScreenState extends State<SignUpScreen>
       onSubmitted: onSubmitted,
       decoration: InputDecoration(
         hintText: hintText,
-        hintStyle: AppTextStyles.bodyMedium.copyWith(
-          color: AppColors.textHint,
-        ),
+        hintStyle: AppTextStyles.bodyMedium.copyWith(color: AppColors.textHint),
         filled: true,
-        fillColor: enabled ? AppColors.backgroundSurface : AppColors.disabled.withValues(alpha: 0.3),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        fillColor: enabled
+            ? AppColors.backgroundSurface
+            : AppColors.disabled.withValues(alpha: 0.3),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         counterText: '',
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -823,7 +828,9 @@ class _SignUpScreenState extends State<SignUpScreen>
       height: 48,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: enabled ? AppColors.backgroundSurface : AppColors.disabled.withValues(alpha: 0.3),
+        color: enabled
+            ? AppColors.backgroundSurface
+            : AppColors.disabled.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.border),
       ),
@@ -832,12 +839,13 @@ class _SignUpScreenState extends State<SignUpScreen>
           value: _selectedDomain.isEmpty ? null : _selectedDomain,
           hint: Text(
             '선택',
-            style: AppTextStyles.bodyMedium.copyWith(
-              color: AppColors.textHint,
-            ),
+            style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textHint),
           ),
           isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down, color: AppColors.textSubtle),
+          icon: const Icon(
+            Icons.keyboard_arrow_down,
+            color: AppColors.textSubtle,
+          ),
           items: enabled
               ? _domains.map((domain) {
                   return DropdownMenuItem(
@@ -889,8 +897,7 @@ class _SignUpScreenState extends State<SignUpScreen>
     final password = _passwordController.text;
     final hasUpperCase = password.contains(RegExp(r'[A-Z]'));
     final hasLowerCase = password.contains(RegExp(r'[a-z]'));
-    final hasSpecialChar =
-        password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
+    final hasSpecialChar = password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'));
     final isValidLength = password.length >= 8 && password.length <= 16;
 
     return Column(

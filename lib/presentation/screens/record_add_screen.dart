@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/utils/app_logger.dart';
 import '../../domain/models/record_data.dart';
 import '../../domain/models/aquarium_data.dart';
 import '../../domain/models/schedule_data.dart';
@@ -66,7 +67,7 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Error loading aquariums: $e');
+      AppLogger.data('Error loading aquariums: $e', isError: true);
       if (mounted) {
         setState(() {
           _isLoadingAquariums = false;
@@ -162,12 +163,16 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
         isNotificationEnabled: true,
       );
 
-      final created = await ScheduleService.instance.createSchedule(scheduleData);
+      final created = await ScheduleService.instance.createSchedule(
+        scheduleData,
+      );
 
       // 푸시 알림 예약
       try {
         await NotificationService.instance.scheduleNotification(
-          id: NotificationService.instance.scheduleIdToNotificationId(created.id),
+          id: NotificationService.instance.scheduleIdToNotificationId(
+            created.id,
+          ),
           title: firstTag.label,
           body: '${_selectedAquarium?.name ?? '어항'} - ${alarmType.label}',
           scheduledTime: scheduleData.date,
@@ -175,10 +180,13 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
           payload: created.id,
         );
       } catch (e) {
-        debugPrint('Notification scheduling failed: $e');
+        AppLogger.data('Notification scheduling failed: $e', isError: true);
       }
     } catch (e) {
-      debugPrint('Failed to create schedule from record: $e');
+      AppLogger.data(
+        'Failed to create schedule from record: $e',
+        isError: true,
+      );
     }
   }
 
@@ -402,9 +410,9 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
         // 여기서는 임시로 매핑 로직 추가 또는 RecordTag 수정 필요.
         // RecordTag enum을 model로 옮기면서 chipType 속성을 제거했었음 (domain layer dependency issue 방지).
         // UI layer에서 매핑하는 것이 좋음.
-        
+
         AppChipType chipType;
-        switch(tag) {
+        switch (tag) {
           case RecordTag.waterChange:
           case RecordTag.waterTest:
           case RecordTag.temperatureCheck:
@@ -413,8 +421,8 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
           case RecordTag.cleaning:
           case RecordTag.fishAdded:
           case RecordTag.plantCare:
-             chipType = AppChipType.secondary;
-             break;
+            chipType = AppChipType.secondary;
+            break;
           case RecordTag.feeding:
             chipType = AppChipType.success;
             break;
@@ -576,7 +584,10 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('다음 일정도 등록하기', style: AppTextStyles.bodyMediumMedium),
+                        Text(
+                          '다음 일정도 등록하기',
+                          style: AppTextStyles.bodyMediumMedium,
+                        ),
                         const SizedBox(height: 4),
                         Text(
                           '이 활동에 대한 정기 알림을 설정해요',
@@ -589,7 +600,8 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
                   ),
                   Switch(
                     value: _registerSchedule,
-                    onChanged: (value) => setState(() => _registerSchedule = value),
+                    onChanged: (value) =>
+                        setState(() => _registerSchedule = value),
                     activeTrackColor: AppColors.switchActiveTrack,
                     thumbColor: WidgetStateProperty.resolveWith((states) {
                       if (states.contains(WidgetState.selected)) {
@@ -608,19 +620,31 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
                   onTap: _selectScheduleTime,
                   child: Row(
                     children: [
-                      const Icon(Icons.access_time, color: AppColors.textSubtle, size: 20),
+                      const Icon(
+                        Icons.access_time,
+                        color: AppColors.textSubtle,
+                        size: 20,
+                      ),
                       const SizedBox(width: 12),
                       Text(
                         '알림 시간',
-                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSubtle),
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textSubtle,
+                        ),
                       ),
                       const Spacer(),
                       Text(
                         _formatTime(_scheduleTime),
-                        style: AppTextStyles.bodyMediumMedium.copyWith(color: AppColors.brand),
+                        style: AppTextStyles.bodyMediumMedium.copyWith(
+                          color: AppColors.brand,
+                        ),
                       ),
                       const SizedBox(width: 4),
-                      const Icon(Icons.chevron_right, color: AppColors.textSubtle, size: 20),
+                      const Icon(
+                        Icons.chevron_right,
+                        color: AppColors.textSubtle,
+                        size: 20,
+                      ),
                     ],
                   ),
                 ),

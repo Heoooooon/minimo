@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../domain/models/aquarium_data.dart';
-import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 import 'label_text_field.dart';
 import 'type_toggle_button.dart';

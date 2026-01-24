@@ -225,7 +225,7 @@ class RegisterStepEquipment extends StatelessWidget {
           Switch(
             value: hasHeater ?? false,
             onChanged: onHeaterChanged,
-            activeColor: AppColors.brand,
+            activeTrackColor: AppColors.brand,
           ),
         ],
       ),

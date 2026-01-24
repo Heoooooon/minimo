@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import '../../../core/utils/app_logger.dart';
 import '../../../domain/models/aquarium_data.dart';
 import '../../../domain/models/creature_data.dart';
 import '../../../domain/models/gallery_photo_data.dart';
@@ -76,7 +77,7 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
         });
       }
     } catch (e) {
-      debugPrint('Failed to load creatures: $e');
+      AppLogger.data('Failed to load creatures: $e', isError: true);
       if (mounted) {
         setState(() => _isLoadingCreatures = false);
       }
@@ -96,7 +97,7 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
         });
       }
     } catch (e) {
-      debugPrint('Failed to load schedules: $e');
+      AppLogger.data('Failed to load schedules: $e', isError: true);
       if (mounted) {
         setState(() => _isLoadingSchedules = false);
       }
@@ -117,7 +118,7 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
         });
       }
     } catch (e) {
-      debugPrint('Failed to load photos: $e');
+      AppLogger.data('Failed to load photos: $e', isError: true);
       if (mounted) {
         setState(() => _isLoadingPhotos = false);
       }
@@ -170,7 +171,10 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
                     color: AppColors.chipPrimaryBg,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.camera_alt_outlined, color: AppColors.brand),
+                  child: const Icon(
+                    Icons.camera_alt_outlined,
+                    color: AppColors.brand,
+                  ),
                 ),
                 title: const Text(
                   '카메라로 촬영',
@@ -203,7 +207,10 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
                     color: AppColors.chipPrimaryBg,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.photo_library_outlined, color: AppColors.brand),
+                  child: const Icon(
+                    Icons.photo_library_outlined,
+                    color: AppColors.brand,
+                  ),
                 ),
                 title: const Text(
                   '갤러리에서 선택',
@@ -256,10 +263,9 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
           );
         }
 
-        await GalleryPhotoService.instance.uploadPhotos(
-          _aquarium!.id!,
-          [image.path],
-        );
+        await GalleryPhotoService.instance.uploadPhotos(_aquarium!.id!, [
+          image.path,
+        ]);
 
         // 사진 목록 새로고침
         if (mounted) {
@@ -273,7 +279,7 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
         }
       }
     } catch (e) {
-      debugPrint('Failed to take and upload photo: $e');
+      AppLogger.data('Failed to take and upload photo: $e', isError: true);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -324,7 +330,7 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
         }
       }
     } catch (e) {
-      debugPrint('Failed to pick and upload photos: $e');
+      AppLogger.data('Failed to pick and upload photos: $e', isError: true);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -359,7 +365,7 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
         _loadData();
       }
     } catch (e) {
-      debugPrint('Failed to load aquarium by id: $e');
+      AppLogger.data('Failed to load aquarium by id: $e', isError: true);
     }
   }
 
@@ -543,11 +549,11 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
                   fit: BoxFit.cover,
                 )
               : _aquarium?.photoPath != null
-                  ? DecorationImage(
-                      image: FileImage(File(_aquarium!.photoPath!)),
-                      fit: BoxFit.cover,
-                    )
-                  : null,
+              ? DecorationImage(
+                  image: FileImage(File(_aquarium!.photoPath!)),
+                  fit: BoxFit.cover,
+                )
+              : null,
         ),
         child: Container(
           decoration: BoxDecoration(
@@ -823,71 +829,71 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
       duration: const Duration(milliseconds: 300),
       child: Column(
         key: const ValueKey('creature_content'),
-      children: [
-        // 상단 툴바 (뷰 전환 + 생물 추가 버튼) - 생물이 있을 때만 표시
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // 그리드/리스트 뷰 전환 버튼
-              Row(
-                children: [
-                  _buildViewToggleButton(Icons.grid_view, true),
-                  _buildViewToggleButton(Icons.format_list_bulleted, false),
-                ],
-              ),
-              // 생물 추가 버튼
-              GestureDetector(
-                onTap: _onAddButtonPressed,
-                child: Container(
-                  height: 40,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: AppColors.brand, width: 1),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.add, size: 16, color: AppColors.brand),
-                      const SizedBox(width: 8),
-                      Text(
-                        '생물 추가',
-                        style: TextStyle(
-                          fontFamily: 'WantedSans',
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.brand,
-                          height: 20 / 14,
-                          letterSpacing: -0.25,
+        children: [
+          // 상단 툴바 (뷰 전환 + 생물 추가 버튼) - 생물이 있을 때만 표시
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // 그리드/리스트 뷰 전환 버튼
+                Row(
+                  children: [
+                    _buildViewToggleButton(Icons.grid_view, true),
+                    _buildViewToggleButton(Icons.format_list_bulleted, false),
+                  ],
+                ),
+                // 생물 추가 버튼
+                GestureDetector(
+                  onTap: _onAddButtonPressed,
+                  child: Container(
+                    height: 40,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: AppColors.brand, width: 1),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.add, size: 16, color: AppColors.brand),
+                        const SizedBox(width: 8),
+                        Text(
+                          '생물 추가',
+                          style: TextStyle(
+                            fontFamily: 'WantedSans',
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.brand,
+                            height: 20 / 14,
+                            letterSpacing: -0.25,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
-        ),
-        // 생물 그리드
-        Expanded(
-          child: GridView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 13,
-              mainAxisSpacing: 12,
-              childAspectRatio: 165 / 150,
+              ],
             ),
-            itemCount: _creatures.length,
-            itemBuilder: (context, index) {
-              return _buildCreatureCard(_creatures[index]);
-            },
           ),
-        ),
-      ],
+          // 생물 그리드
+          Expanded(
+            child: GridView.builder(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 13,
+                mainAxisSpacing: 12,
+                childAspectRatio: 165 / 150,
+              ),
+              itemCount: _creatures.length,
+              itemBuilder: (context, index) {
+                return _buildCreatureCard(_creatures[index]);
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1006,7 +1012,8 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
             // 토글 스위치
             Switch(
               value: schedule.isNotificationEnabled,
-              onChanged: (value) => _toggleScheduleNotification(schedule, value),
+              onChanged: (value) =>
+                  _toggleScheduleNotification(schedule, value),
               activeTrackColor: AppColors.switchActiveTrack,
               inactiveTrackColor: AppColors.switchInactiveTrack,
               thumbColor: WidgetStateProperty.resolveWith((states) {
@@ -1023,7 +1030,10 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
   }
 
   /// 알림 토글 변경
-  Future<void> _toggleScheduleNotification(ScheduleData schedule, bool enabled) async {
+  Future<void> _toggleScheduleNotification(
+    ScheduleData schedule,
+    bool enabled,
+  ) async {
     try {
       // UI 먼저 업데이트
       setState(() {
@@ -1043,7 +1053,9 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
       if (enabled) {
         // 알림 다시 예약
         await NotificationService.instance.scheduleNotification(
-          id: NotificationService.instance.scheduleIdToNotificationId(schedule.id),
+          id: NotificationService.instance.scheduleIdToNotificationId(
+            schedule.id,
+          ),
           title: schedule.title,
           body: '${_aquarium?.name ?? '어항'} - ${schedule.alarmType.label}',
           scheduledTime: schedule.date,
@@ -1057,13 +1069,15 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
         );
       }
     } catch (e) {
-      debugPrint('Failed to toggle notification: $e');
+      AppLogger.data('Failed to toggle notification: $e', isError: true);
       // 실패 시 UI 롤백
       if (mounted) {
         setState(() {
           final index = _schedules.indexWhere((s) => s.id == schedule.id);
           if (index != -1) {
-            _schedules[index] = schedule.copyWith(isNotificationEnabled: !enabled);
+            _schedules[index] = schedule.copyWith(
+              isNotificationEnabled: !enabled,
+            );
           }
         });
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1131,7 +1145,8 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
 
       // 푸시 알림 취소
       if (schedule.isNotificationEnabled) {
-        final notificationId = NotificationService.instance.scheduleIdToNotificationId(schedule.id);
+        final notificationId = NotificationService.instance
+            .scheduleIdToNotificationId(schedule.id);
         await NotificationService.instance.cancelNotification(notificationId);
       }
 
@@ -1149,7 +1164,7 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
         );
       }
     } catch (e) {
-      debugPrint('Failed to delete schedule: $e');
+      AppLogger.data('Failed to delete schedule: $e', isError: true);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1161,23 +1176,24 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
     }
   }
 
-  /// 알림 종류에 따른 아이콘
-  IconData _getIconForAlarmType(AlarmType type) {
-    switch (type) {
-      case AlarmType.waterChange:
-        return Icons.water_drop_outlined;
-      case AlarmType.feeding:
-        return Icons.restaurant_outlined;
-      case AlarmType.cleaning:
-        return Icons.cleaning_services_outlined;
-      case AlarmType.waterTest:
-        return Icons.science_outlined;
-      case AlarmType.medication:
-        return Icons.medication_outlined;
-      case AlarmType.other:
-        return Icons.more_horiz;
-    }
-  }
+  // TODO: 알림 카드 UI 개선 시 활용 예정
+  // /// 알림 종류에 따른 아이콘
+  // IconData _getIconForAlarmType(AlarmType type) {
+  //   switch (type) {
+  //     case AlarmType.waterChange:
+  //       return Icons.water_drop_outlined;
+  //     case AlarmType.feeding:
+  //       return Icons.restaurant_outlined;
+  //     case AlarmType.cleaning:
+  //       return Icons.cleaning_services_outlined;
+  //     case AlarmType.waterTest:
+  //       return Icons.science_outlined;
+  //     case AlarmType.medication:
+  //       return Icons.medication_outlined;
+  //     case AlarmType.other:
+  //       return Icons.more_horiz;
+  //   }
+  // }
 
   /// 뷰 전환 버튼
   Widget _buildViewToggleButton(IconData icon, bool isSelected) {
@@ -1715,7 +1731,10 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
                 backgroundColor: AppColors.brand,
                 foregroundColor: Colors.white,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 3),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 3,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
