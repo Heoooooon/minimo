@@ -87,11 +87,7 @@ class AquariumCard extends StatelessWidget {
             ),
 
             // Overlapping circular image
-            Positioned(
-              top: 0,
-              left: 16,
-              child: _buildImage(),
-            ),
+            Positioned(top: 0, left: 16, child: _buildImage()),
           ],
         ),
       ),
@@ -120,7 +116,8 @@ class AquariumCard extends StatelessWidget {
                 fit: BoxFit.cover,
                 width: _imageSize,
                 height: _imageSize,
-                errorBuilder: (_, __, ___) => _buildPlaceholderIcon(),
+                errorBuilder: (context, error, stackTrace) =>
+                    _buildPlaceholderIcon(),
               )
             : _buildPlaceholderIcon(),
       ),
@@ -136,11 +133,8 @@ class AquariumCard extends StatelessWidget {
           width: _imageSize,
           height: _imageSize,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => const Icon(
-            Icons.water,
-            size: 40,
-            color: AppColors.brand,
-          ),
+          errorBuilder: (context, error, stackTrace) =>
+              const Icon(Icons.water, size: 40, color: AppColors.brand),
         ),
       ),
     );
@@ -154,10 +148,7 @@ class AquariumCard extends StatelessWidget {
           'assets/icons/icon_fish.svg',
           width: 20,
           height: 20,
-          colorFilter: ColorFilter.mode(
-            AppColors.textSubtle,
-            BlendMode.srcIn,
-          ),
+          colorFilter: ColorFilter.mode(AppColors.textSubtle, BlendMode.srcIn),
         ),
         const SizedBox(width: 4),
         Text(
@@ -292,7 +283,7 @@ class AquariumCardList extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
         clipBehavior: Clip.none,
         itemCount: aquariums.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        separatorBuilder: (context, index) => const SizedBox(width: 12),
         itemBuilder: (context, index) {
           final aquarium = aquariums[index];
           return AquariumCard(

@@ -5,11 +5,13 @@ import '../../../theme/app_text_styles.dart';
 /// 커뮤니티 콘텐츠 데이터 모델
 class CommunityData {
   final String id;
+  final String? authorId;
   final String authorName;
   final String? authorImageUrl;
   final String timeAgo;
   final String content;
   final String? imageUrl;
+  final List<String> tags;
   final int likeCount;
   final int commentCount;
   final int bookmarkCount;
@@ -18,11 +20,13 @@ class CommunityData {
 
   const CommunityData({
     required this.id,
+    this.authorId,
     required this.authorName,
     this.authorImageUrl,
     this.timeAgo = '00시간 전',
     required this.content,
     this.imageUrl,
+    this.tags = const [],
     this.likeCount = 0,
     this.commentCount = 0,
     this.bookmarkCount = 0,
@@ -116,7 +120,8 @@ class CommunityCard extends StatelessWidget {
                   child: Image.network(
                     data.authorImageUrl!,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _buildPlaceholderAvatar(),
+                    errorBuilder: (context, error, stackTrace) =>
+                        _buildPlaceholderAvatar(),
                   ),
                 )
               : _buildPlaceholderAvatar(),
@@ -213,7 +218,7 @@ class CommunityCard extends StatelessWidget {
         height: 164,
         width: double.infinity,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Container(
+        errorBuilder: (context, error, stackTrace) => Container(
           height: 164,
           color: AppColors.backgroundApp,
           child: const Center(
@@ -266,11 +271,7 @@ class CommunityCard extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 16,
-              color: AppColors.textSubtle,
-            ),
+            Icon(icon, size: 16, color: AppColors.textSubtle),
             const SizedBox(width: 8),
             Text(
               count.toString(),
@@ -303,7 +304,7 @@ class CommunityCardList extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        separatorBuilder: (context, index) => const SizedBox(width: 12),
         itemBuilder: (context, index) {
           final item = items[index];
           return CommunityCard(data: item, onTap: () => onItemTap?.call(item));
