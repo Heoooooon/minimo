@@ -222,12 +222,12 @@ class AquariumService {
     return _pb.files.getUrl(record, photo).toString();
   }
 
-  /// RecordModel을 AquariumData로 변환
   AquariumData _recordToAquariumData(RecordModel record) {
     final photoUrl = getPhotoUrl(record);
 
     return AquariumData(
       id: record.id,
+      ownerId: record.getStringValue('owner'),
       name: record.getStringValue('name'),
       type: AquariumType.fromValue(record.getStringValue('type')),
       settingDate: DateTime.tryParse(record.getStringValue('setting_date')),

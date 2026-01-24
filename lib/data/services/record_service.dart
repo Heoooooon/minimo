@@ -1,5 +1,6 @@
 import 'package:pocketbase/pocketbase.dart';
 import 'pocketbase_service.dart';
+import 'auth_service.dart';
 import '../../domain/models/record_data.dart';
 import '../../core/utils/app_logger.dart';
 
@@ -112,10 +113,15 @@ class RecordService {
     }
   }
 
-  /// 기록 생성
   Future<RecordData> createRecord(RecordData data) async {
+    final userId = AuthService.instance.currentUser?.id;
+    if (userId == null) {
+      throw Exception('로그인이 필요합니다.');
+    }
+
     try {
       final body = data.toJson();
+      body['owner'] = userId;
 
       final record = await _pb.collection(_collection).create(body: body);
 
@@ -166,9 +172,7 @@ class RecordService {
     }
   }
 
-  /// RecordModel을 RecordData로 변환
   RecordData _recordToRecordData(RecordModel record) {
-    // tags 파싱
     final tagsRaw = record.data['tags'];
     List<RecordTag> tags = [];
     if (tagsRaw is List) {
@@ -180,6 +184,7 @@ class RecordService {
 
     return RecordData(
       id: record.id,
+      ownerId: record.getStringValue('owner'),
       aquariumId: record.getStringValue('aquarium'),
       date: DateTime.tryParse(record.getStringValue('date')) ?? DateTime.now(),
       tags: tags,
