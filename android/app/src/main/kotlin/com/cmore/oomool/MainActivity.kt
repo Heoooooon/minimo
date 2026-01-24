@@ -1,4 +1,4 @@
-package com.oomool.oomool
+package com.cmore.oomool
 
 import io.flutter.embedding.android.FlutterActivity
 

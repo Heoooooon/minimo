@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "192398592805",
+    "project_id": "oomool-c74b1",
+    "storage_bucket": "oomool-c74b1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:192398592805:android:18ccc8791e3e63ca2628cc",
+        "android_client_info": {
+          "package_name": "com.cmore.oomool"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB1HHllLyZmZAfHxgCZxKmV2lfxbMIqWfk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
