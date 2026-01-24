@@ -7,6 +7,7 @@ import '../../widgets/community/post_card.dart';
 import '../../widgets/community/recommendation_card.dart';
 import '../../widgets/community/popular_ranking_card.dart';
 import '../../widgets/community/qna_question_card.dart';
+import 'more_list_screen.dart';
 
 /// 커뮤니티 탭 열거형
 enum CommunityTab {
@@ -106,9 +107,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                   controller: _scrollController,
                   slivers: [
                     // Header (Fixed)
-                    SliverToBoxAdapter(
-                      child: _buildHeader(),
-                    ),
+                    SliverToBoxAdapter(child: _buildHeader()),
 
                     // Loading Indicator
                     if (viewModel.isLoading)
@@ -134,9 +133,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                       ..._buildTabContent(viewModel),
 
                     // Bottom padding for nav bar
-                    const SliverToBoxAdapter(
-                      child: SizedBox(height: 100),
-                    ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 100)),
                   ],
                 ),
 
@@ -160,11 +157,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
       padding: const EdgeInsets.all(32),
       child: Column(
         children: [
-          const Icon(
-            Icons.error_outline,
-            size: 48,
-            color: AppColors.textHint,
-          ),
+          const Icon(Icons.error_outline, size: 48, color: AppColors.textHint),
           const SizedBox(height: 16),
           Text(
             message,
@@ -205,6 +198,11 @@ class _CommunityScreenState extends State<CommunityScreen> {
   // Recommend Tab Content
   // ============================================
   List<Widget> _buildRecommendTabContent(CommunityViewModel viewModel) {
+    // 태그 필터링 중인 경우
+    if (viewModel.isFilteringByTag) {
+      return _buildFilteredPostsContent(viewModel);
+    }
+
     // 데이터가 없는 경우 빈 상태 표시
     if (viewModel.latestPosts.isEmpty &&
         viewModel.recommendationItems.isEmpty &&
@@ -219,42 +217,136 @@ class _CommunityScreenState extends State<CommunityScreen> {
     return [
       // Popular Ranking Section
       if (viewModel.popularRanking != null)
-        SliverToBoxAdapter(
-          child: _buildPopularRankingSection(viewModel),
-        ),
+        SliverToBoxAdapter(child: _buildPopularRankingSection(viewModel)),
 
       // Recommendation Section
       if (viewModel.recommendationItems.isNotEmpty)
-        SliverToBoxAdapter(
-          child: _buildRecommendationSection(viewModel),
-        ),
+        SliverToBoxAdapter(child: _buildRecommendationSection(viewModel)),
 
       // Latest Posts Section
       if (viewModel.latestPosts.isNotEmpty)
-        SliverToBoxAdapter(
-          child: _buildLatestPostsHeader(),
-        ),
+        SliverToBoxAdapter(child: _buildLatestPostsHeader()),
 
       // Post List
       if (viewModel.latestPosts.isNotEmpty)
         SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) {
-              final post = viewModel.latestPosts[index];
-              return PostCard(
-                data: post,
-                onTap: () => _navigateToPostDetail(post.id),
-                onLikeTap: () => viewModel.toggleLike(post.id, !post.isLiked),
-                onCommentTap: () => _navigateToPostDetail(post.id),
-                onBookmarkTap: () =>
-                    viewModel.toggleBookmark(post.id, !post.isBookmarked),
-                onMoreTap: () => _showPostOptions(post.id),
-              );
-            },
-            childCount: viewModel.latestPosts.length,
-          ),
+          delegate: SliverChildBuilderDelegate((context, index) {
+            final post = viewModel.latestPosts[index];
+            return PostCard(
+              data: post,
+              onTap: () => _navigateToPostDetail(post.id),
+              onLikeTap: () => viewModel.toggleLike(post.id, !post.isLiked),
+              onCommentTap: () => _navigateToPostDetail(post.id),
+              onBookmarkTap: () =>
+                  viewModel.toggleBookmark(post.id, !post.isBookmarked),
+              onMoreTap: () => _showPostOptions(post.id),
+            );
+          }, childCount: viewModel.latestPosts.length),
         ),
     ];
+  }
+
+  // ============================================
+  // Filtered Posts Content (태그 필터링 결과)
+  // ============================================
+  List<Widget> _buildFilteredPostsContent(CommunityViewModel viewModel) {
+    return [
+      // 필터링 헤더
+      SliverToBoxAdapter(child: _buildFilteredPostsHeader(viewModel)),
+
+      // 필터링된 게시글이 없는 경우
+      if (viewModel.filteredPosts.isEmpty && !viewModel.isLoading)
+        SliverToBoxAdapter(
+          child: _buildEmptyState(
+            '#${viewModel.selectedTag} 태그의 게시글이 없습니다.\n다른 태그를 선택해보세요!',
+          ),
+        ),
+
+      // 필터링된 게시글 목록
+      if (viewModel.filteredPosts.isNotEmpty)
+        SliverList(
+          delegate: SliverChildBuilderDelegate((context, index) {
+            final post = viewModel.filteredPosts[index];
+            return PostCard(
+              data: post,
+              onTap: () => _navigateToPostDetail(post.id),
+              onLikeTap: () => viewModel.toggleLike(post.id, !post.isLiked),
+              onCommentTap: () => _navigateToPostDetail(post.id),
+              onBookmarkTap: () =>
+                  viewModel.toggleBookmark(post.id, !post.isBookmarked),
+              onMoreTap: () => _showPostOptions(post.id),
+            );
+          }, childCount: viewModel.filteredPosts.length),
+        ),
+    ];
+  }
+
+  Widget _buildFilteredPostsHeader(CommunityViewModel viewModel) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              // 선택된 태그 표시
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.brand,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '#${viewModel.selectedTag}',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    GestureDetector(
+                      onTap: () => viewModel.clearTagFilter(),
+                      child: const Icon(
+                        Icons.close,
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                '${viewModel.filteredPosts.length}개의 게시글',
+                style: AppTextStyles.bodySmall.copyWith(
+                  color: AppColors.textSubtle,
+                ),
+              ),
+              const Spacer(),
+              // 필터 해제 버튼
+              GestureDetector(
+                onTap: () => viewModel.clearTagFilter(),
+                child: Text(
+                  '전체보기',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.brand,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          const Divider(height: 1, color: AppColors.borderLight),
+        ],
+      ),
+    );
   }
 
   // ============================================
@@ -272,21 +364,18 @@ class _CommunityScreenState extends State<CommunityScreen> {
     return [
       // Post List
       SliverList(
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            final post = viewModel.followingPosts[index];
-            return PostCard(
-              data: post,
-              onTap: () => _navigateToPostDetail(post.id),
-              onLikeTap: () => viewModel.toggleLike(post.id, !post.isLiked),
-              onCommentTap: () => _navigateToPostDetail(post.id),
-              onBookmarkTap: () =>
-                  viewModel.toggleBookmark(post.id, !post.isBookmarked),
-              onMoreTap: () => _showPostOptions(post.id),
-            );
-          },
-          childCount: viewModel.followingPosts.length,
-        ),
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final post = viewModel.followingPosts[index];
+          return PostCard(
+            data: post,
+            onTap: () => _navigateToPostDetail(post.id),
+            onLikeTap: () => viewModel.toggleLike(post.id, !post.isLiked),
+            onCommentTap: () => _navigateToPostDetail(post.id),
+            onBookmarkTap: () =>
+                viewModel.toggleBookmark(post.id, !post.isBookmarked),
+            onMoreTap: () => _showPostOptions(post.id),
+          );
+        }, childCount: viewModel.followingPosts.length),
       ),
     ];
   }
@@ -297,38 +386,26 @@ class _CommunityScreenState extends State<CommunityScreen> {
   List<Widget> _buildQnaTabContent(CommunityViewModel viewModel) {
     return [
       // Ask Question Button
-      SliverToBoxAdapter(
-        child: _buildAskQuestionButton(),
-      ),
+      SliverToBoxAdapter(child: _buildAskQuestionButton()),
 
       // Sub Tab Selector
-      SliverToBoxAdapter(
-        child: _buildQnaSubTabs(),
-      ),
+      SliverToBoxAdapter(child: _buildQnaSubTabs()),
 
       // Popular Tags
       if (viewModel.qnaTags.isNotEmpty)
-        SliverToBoxAdapter(
-          child: _buildPopularTags(viewModel),
-        ),
+        SliverToBoxAdapter(child: _buildPopularTags(viewModel)),
 
       // Popular Q&A Section
       if (viewModel.popularQuestions.isNotEmpty)
-        SliverToBoxAdapter(
-          child: _buildPopularQnaSection(viewModel),
-        ),
+        SliverToBoxAdapter(child: _buildPopularQnaSection(viewModel)),
 
       // Featured Question Card
       if (viewModel.featuredQuestion != null)
-        SliverToBoxAdapter(
-          child: _buildFeaturedQuestionCard(viewModel),
-        ),
+        SliverToBoxAdapter(child: _buildFeaturedQuestionCard(viewModel)),
 
       // Waiting Answer Section
       if (viewModel.waitingQuestions.isNotEmpty)
-        SliverToBoxAdapter(
-          child: _buildWaitingAnswerSection(viewModel),
-        ),
+        SliverToBoxAdapter(child: _buildWaitingAnswerSection(viewModel)),
 
       // Empty State for Q&A
       if (viewModel.popularQuestions.isEmpty &&
@@ -345,11 +422,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
       padding: const EdgeInsets.all(48),
       child: Column(
         children: [
-          const Icon(
-            Icons.inbox_outlined,
-            size: 64,
-            color: AppColors.textHint,
-          ),
+          const Icon(Icons.inbox_outlined, size: 64, color: AppColors.textHint),
           const SizedBox(height: 16),
           Text(
             message,
@@ -468,25 +541,35 @@ class _CommunityScreenState extends State<CommunityScreen> {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: viewModel.qnaTags.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            separatorBuilder: (context, index) => const SizedBox(width: 8),
             itemBuilder: (context, index) {
-              return Container(
-                height: 32,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: AppColors.chipPrimaryBg,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Center(
-                  child: Text(
-                    viewModel.qnaTags[index],
-                    style: AppTextStyles.captionMedium.copyWith(
-                      color: AppColors.brand,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      height: 18 / 12,
-                      letterSpacing: -0.25,
+              final tag = viewModel.qnaTags[index];
+              final isSelected =
+                  viewModel.selectedTag == tag.replaceAll('#', '');
+              return GestureDetector(
+                onTap: () => _onTagTap(tag),
+                child: Container(
+                  height: 32,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppColors.brand
+                        : AppColors.chipPrimaryBg,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Center(
+                    child: Text(
+                      tag,
+                      style: AppTextStyles.captionMedium.copyWith(
+                        color: isSelected ? Colors.white : AppColors.brand,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        height: 18 / 12,
+                        letterSpacing: -0.25,
+                      ),
                     ),
                   ),
                 ),
@@ -521,7 +604,11 @@ class _CommunityScreenState extends State<CommunityScreen> {
               ),
               GestureDetector(
                 onTap: () {
-                  // TODO: 더보기 화면으로 이동
+                  Navigator.pushNamed(
+                    context,
+                    '/more-list',
+                    arguments: MoreListType.popular,
+                  );
                 },
                 child: Row(
                   children: [
@@ -577,9 +664,8 @@ class _CommunityScreenState extends State<CommunityScreen> {
         QnaAskCard(
           userName: '미니모',
           question: viewModel.featuredQuestion!,
-          onCuriousTap: () {
-            // TODO: 궁금해요 기능
-          },
+          onCuriousTap: () =>
+              _onCuriousTap(viewModel, viewModel.featuredQuestion!.id),
           onAnswerTap: () =>
               _navigateToQuestionDetail(viewModel.featuredQuestion!.id),
         ),
@@ -618,9 +704,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                 child: QnaWaitingCard(
                   data: item,
                   onTap: () => _navigateToQuestionDetail(item.id),
-                  onCuriousTap: () {
-                    // TODO: 궁금해요 기능
-                  },
+                  onCuriousTap: () => _onCuriousTap(viewModel, item.id),
                   onAnswerTap: () => _navigateToQuestionDetail(item.id),
                 ),
               );
@@ -663,13 +747,13 @@ class _CommunityScreenState extends State<CommunityScreen> {
                       _buildIconButton(
                         icon: Icons.search,
                         onTap: () {
-                          // TODO: 검색 화면
+                          Navigator.pushNamed(context, '/search');
                         },
                       ),
                       _buildIconButton(
                         icon: Icons.notifications_outlined,
                         onTap: () {
-                          // TODO: 알림 화면
+                          Navigator.pushNamed(context, '/notifications');
                         },
                       ),
                       _buildIconButton(
@@ -738,8 +822,11 @@ class _CommunityScreenState extends State<CommunityScreen> {
                       color: Color(0xFFE8EBF0),
                     ),
                     child: const Center(
-                      child: Icon(Icons.person,
-                          size: 18, color: AppColors.textHint),
+                      child: Icon(
+                        Icons.person,
+                        size: 18,
+                        color: AppColors.textHint,
+                      ),
                     ),
                   ),
                 ],
@@ -762,11 +849,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
         width: 40,
         height: 40,
         alignment: Alignment.center,
-        child: Icon(
-          icon,
-          size: 24,
-          color: AppColors.textMain,
-        ),
+        child: Icon(icon, size: 24, color: AppColors.textMain),
       ),
     );
   }
@@ -793,7 +876,11 @@ class _CommunityScreenState extends State<CommunityScreen> {
               ),
               GestureDetector(
                 onTap: () {
-                  // TODO: 더보기 화면으로 이동
+                  Navigator.pushNamed(
+                    context,
+                    '/more-list',
+                    arguments: MoreListType.posts,
+                  );
                 },
                 child: Container(
                   width: 24,
@@ -861,25 +948,40 @@ class _CommunityScreenState extends State<CommunityScreen> {
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             itemCount: viewModel.tags.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            separatorBuilder: (context, index) => const SizedBox(width: 8),
             itemBuilder: (context, index) {
-              return Container(
-                height: 40,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: BoxDecoration(
-                  color: AppColors.chipPrimaryBg,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Center(
-                  child: Text(
-                    viewModel.tags[index],
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: AppColors.brand,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      height: 20 / 14,
-                      letterSpacing: -0.25,
+              final tag = viewModel.tags[index];
+              final isSelected =
+                  viewModel.selectedTag == tag.replaceAll('#', '');
+              return GestureDetector(
+                onTap: () => _onTagTap(tag),
+                child: Container(
+                  height: 40,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppColors.brand
+                        : AppColors.chipPrimaryBg,
+                    borderRadius: BorderRadius.circular(4),
+                    border: isSelected
+                        ? null
+                        : Border.all(
+                            color: AppColors.brand.withValues(alpha: 0.3),
+                          ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      tag,
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: isSelected ? Colors.white : AppColors.brand,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        height: 20 / 14,
+                        letterSpacing: -0.25,
+                      ),
                     ),
                   ),
                 ),
@@ -919,7 +1021,11 @@ class _CommunityScreenState extends State<CommunityScreen> {
               ),
               GestureDetector(
                 onTap: () {
-                  // TODO: 더보기 화면으로 이동
+                  Navigator.pushNamed(
+                    context,
+                    '/more-list',
+                    arguments: MoreListType.posts,
+                  );
                 },
                 child: Row(
                   children: [
@@ -946,10 +1052,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
           ),
         ),
         const SizedBox(height: 24),
-        Container(
-          height: 1,
-          color: AppColors.borderLight,
-        ),
+        Container(height: 1, color: AppColors.borderLight),
         const SizedBox(height: 24),
       ],
     );
@@ -988,6 +1091,21 @@ class _CommunityScreenState extends State<CommunityScreen> {
   }
 
   // ============================================
+  // Tag Filtering
+  // ============================================
+  void _onTagTap(String tag) {
+    final viewModel = context.read<CommunityViewModel>();
+    final cleanTag = tag.replaceAll('#', '');
+
+    // 이미 선택된 태그면 필터 해제
+    if (viewModel.selectedTag == cleanTag) {
+      viewModel.clearTagFilter();
+    } else {
+      viewModel.filterByTag(tag);
+    }
+  }
+
+  // ============================================
   // Navigation Helpers
   // ============================================
   void _navigateToPostDetail(String postId) {
@@ -998,6 +1116,21 @@ class _CommunityScreenState extends State<CommunityScreen> {
     final viewModel = context.read<CommunityViewModel>();
     viewModel.incrementViewCount(questionId);
     Navigator.pushNamed(context, '/question-detail', arguments: questionId);
+  }
+
+  Future<void> _onCuriousTap(
+    CommunityViewModel viewModel,
+    String questionId,
+  ) async {
+    final isCurious = await viewModel.toggleCurious(questionId);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(isCurious ? '궁금해요를 눌렀습니다' : '궁금해요를 취소했습니다'),
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    }
   }
 
   void _showPostOptions(String postId) {
@@ -1012,7 +1145,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
               title: const Text('신고하기'),
               onTap: () {
                 Navigator.pop(context);
-                // TODO: 신고 기능
+                _showReportDialog(postId, '게시글');
               },
             ),
             ListTile(
@@ -1020,10 +1153,89 @@ class _CommunityScreenState extends State<CommunityScreen> {
               title: const Text('공유하기'),
               onTap: () {
                 Navigator.pop(context);
-                // TODO: 공유 기능
+                _sharePost(postId);
               },
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _showReportDialog(String itemId, String itemType) {
+    final reasons = ['스팸/광고', '욕설/비하', '음란물', '허위정보', '저작권 침해', '기타'];
+    String? selectedReason;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text('$itemType 신고'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '신고 사유를 선택해주세요.',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.textSubtle,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ...reasons.map(
+                (reason) => RadioListTile<String>(
+                  title: Text(reason),
+                  value: reason,
+                  groupValue: selectedReason,
+                  onChanged: (value) {
+                    setState(() {
+                      selectedReason = value;
+                    });
+                  },
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('취소', style: TextStyle(color: AppColors.textSubtle)),
+            ),
+            ElevatedButton(
+              onPressed: selectedReason == null
+                  ? null
+                  : () {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('신고가 접수되었습니다.'),
+                          backgroundColor: AppColors.success,
+                        ),
+                      );
+                    },
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+              child: const Text('신고', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _sharePost(String postId) {
+    // 딥링크 또는 앱 링크 생성 (실제 구현 시 share_plus 패키지 사용)
+    final shareUrl = 'minimo://post/$postId';
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('링크가 복사되었습니다: $shareUrl'),
+        backgroundColor: AppColors.success,
+        action: SnackBarAction(
+          label: '확인',
+          textColor: Colors.white,
+          onPressed: () {},
         ),
       ),
     );

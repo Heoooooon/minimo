@@ -31,11 +31,7 @@ class QnaQuestionData {
 
 /// Q&A 인기 질문 카드 위젯 - Figma design Q&A 탭
 class QnaPopularCard extends StatelessWidget {
-  const QnaPopularCard({
-    super.key,
-    required this.data,
-    this.onTap,
-  });
+  const QnaPopularCard({super.key, required this.data, this.onTap});
 
   final QnaQuestionData data;
   final VoidCallback? onTap;
@@ -238,7 +234,8 @@ class QnaWaitingCard extends StatelessWidget {
                   height: 120,
                   width: double.infinity,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  errorBuilder: (context, error, stackTrace) =>
+                      const SizedBox.shrink(),
                 ),
               ),
             ],
@@ -331,11 +328,10 @@ class QnaAskCard extends StatelessWidget {
                 letterSpacing: -0.25,
               ),
               children: [
+                TextSpan(text: '$userName님이 커뮤니티에 '),
                 TextSpan(
-                  text: '$userName님이 커뮤니티에 ',
-                ),
-                TextSpan(
-                  text: '#${question.tags.isNotEmpty ? question.tags.first : '질문'}',
+                  text:
+                      '#${question.tags.isNotEmpty ? question.tags.first : '질문'}',
                   style: AppTextStyles.bodyMediumMedium.copyWith(
                     color: AppColors.brand,
                     fontSize: 14,
@@ -439,9 +435,7 @@ class QnaAskCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: isPrimary ? AppColors.brand : Colors.white,
           borderRadius: BorderRadius.circular(8),
-          border: isPrimary
-              ? null
-              : Border.all(color: AppColors.borderLight),
+          border: isPrimary ? null : Border.all(color: AppColors.borderLight),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,

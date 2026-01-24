@@ -1,19 +1,16 @@
-import 'package:flutter/foundation.dart';
+import '../../core/utils/app_logger.dart';
 import '../../data/repositories/community_repository.dart';
 import '../../data/repositories/record_repository.dart';
 import '../../domain/models/question_data.dart';
 import '../../domain/models/record_data.dart';
+import 'base_viewmodel.dart';
 
-class CommunityQuestionViewModel extends ChangeNotifier {
+class CommunityQuestionViewModel extends BaseViewModel {
   // PocketBase Repository 사용
-  final CommunityRepository _communityRepository = PocketBaseCommunityRepository.instance;
-  final RecordRepository _recordRepository = PocketBaseRecordRepository.instance;
-
-  bool _isLoading = false;
-  bool get isLoading => _isLoading;
-
-  String? _errorMessage;
-  String? get errorMessage => _errorMessage;
+  final CommunityRepository _communityRepository =
+      PocketBaseCommunityRepository.instance;
+  final RecordRepository _recordRepository =
+      PocketBaseRecordRepository.instance;
 
   /// 내 기록 목록
   List<RecordData> _myRecords = [];
@@ -21,17 +18,14 @@ class CommunityQuestionViewModel extends ChangeNotifier {
 
   /// 초기화: 내 기록 불러오기
   Future<void> loadMyRecords() async {
+    setLoading(true);
     try {
-      _isLoading = true;
-      notifyListeners();
-
       _myRecords = await _recordRepository.getRecords();
     } catch (e) {
-      debugPrint('Error loading my records: $e');
+      AppLogger.data('Error loading my records: $e', isError: true);
       // 기록 불러오기 실패는 치명적이지 않으므로 에러 메시지 설정 안 함 (조용히 실패)
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      setLoading(false);
     }
   }
 
@@ -42,11 +36,7 @@ class CommunityQuestionViewModel extends ChangeNotifier {
     required String category,
     List<RecordData> attachedRecords = const [],
   }) async {
-    try {
-      _isLoading = true;
-      _errorMessage = null;
-      notifyListeners();
-
+    return await runAsyncBool(() async {
       final question = QuestionData(
         title: title,
         content: content,
@@ -54,14 +44,6 @@ class CommunityQuestionViewModel extends ChangeNotifier {
       )..attachedRecordIds = attachedRecords.map((r) => r.id!).toList();
 
       await _communityRepository.createQuestion(question);
-      return true;
-    } catch (e) {
-      debugPrint('Error submitting question: $e');
-      _errorMessage = '질문 등록 중 오류가 발생했습니다.';
-      return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
+    }, errorPrefix: '질문 등록 중 오류가 발생했습니다');
   }
 }

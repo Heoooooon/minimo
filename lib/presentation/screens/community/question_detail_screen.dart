@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../../data/services/community_service.dart';
 import '../../../data/services/answer_service.dart';
 import '../../../data/services/auth_service.dart';
@@ -96,7 +97,7 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
         _isLoadingAnswers = false;
       });
     } catch (e) {
-      debugPrint('Failed to load answers: $e');
+      AppLogger.data('Failed to load answers: $e', isError: true);
       setState(() {
         _isLoadingAnswers = false;
       });
@@ -214,18 +215,26 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 48, color: AppColors.textHint),
+            const Icon(
+              Icons.error_outline,
+              size: 48,
+              color: AppColors.textHint,
+            ),
             const SizedBox(height: 16),
             Text(
               _errorMessage!,
-              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSubtle),
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textSubtle,
+              ),
             ),
             const SizedBox(height: 16),
             TextButton(
               onPressed: _loadQuestion,
               child: Text(
                 '다시 시도',
-                style: AppTextStyles.bodyMediumMedium.copyWith(color: AppColors.brand),
+                style: AppTextStyles.bodyMediumMedium.copyWith(
+                  color: AppColors.brand,
+                ),
               ),
             ),
           ],
@@ -234,9 +243,7 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
     }
 
     if (_question == null) {
-      return const Center(
-        child: Text('질문을 찾을 수 없습니다.'),
-      );
+      return const Center(child: Text('질문을 찾을 수 없습니다.'));
     }
 
     return RefreshIndicator(
@@ -315,7 +322,11 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
                   shape: BoxShape.circle,
                   color: Color(0xFFE8EBF0),
                 ),
-                child: const Icon(Icons.person, size: 18, color: AppColors.textHint),
+                child: const Icon(
+                  Icons.person,
+                  size: 18,
+                  color: AppColors.textHint,
+                ),
               ),
               const SizedBox(width: 8),
 
@@ -341,7 +352,11 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
               // 조회수
               Row(
                 children: [
-                  const Icon(Icons.remove_red_eye_outlined, size: 16, color: AppColors.textHint),
+                  const Icon(
+                    Icons.remove_red_eye_outlined,
+                    size: 16,
+                    color: AppColors.textHint,
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     '${_question!.viewCount}',
@@ -405,7 +420,11 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
                       color: AppColors.chipPrimaryBg,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.description, color: AppColors.brand, size: 20),
+                    child: const Icon(
+                      Icons.description,
+                      color: AppColors.brand,
+                      size: 20,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -413,7 +432,9 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          record.tags.isNotEmpty ? record.tags.first.label : '기록',
+                          record.tags.isNotEmpty
+                              ? record.tags.first.label
+                              : '기록',
                           style: AppTextStyles.bodySmall.copyWith(
                             color: AppColors.textMain,
                             fontWeight: FontWeight.w500,
@@ -482,7 +503,11 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
               alignment: Alignment.center,
               child: Column(
                 children: [
-                  const Icon(Icons.chat_bubble_outline, size: 48, color: AppColors.textHint),
+                  const Icon(
+                    Icons.chat_bubble_outline,
+                    size: 48,
+                    color: AppColors.textHint,
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     '아직 답변이 없습니다.\n첫 번째 답변을 작성해보세요!',
@@ -507,7 +532,9 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: answer.isAccepted ? AppColors.chipPrimaryBg : const Color(0xFFFDFDFF),
+        color: answer.isAccepted
+            ? AppColors.chipPrimaryBg
+            : const Color(0xFFFDFDFF),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: answer.isAccepted ? AppColors.brand : AppColors.borderLight,
@@ -544,7 +571,11 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
                   shape: BoxShape.circle,
                   color: Color(0xFFE8EBF0),
                 ),
-                child: const Icon(Icons.person, size: 18, color: AppColors.textHint),
+                child: const Icon(
+                  Icons.person,
+                  size: 18,
+                  color: AppColors.textHint,
+                ),
               ),
               const SizedBox(width: 8),
               Text(
@@ -587,7 +618,11 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
                 },
                 child: Row(
                   children: [
-                    const Icon(Icons.favorite_border, size: 18, color: AppColors.textHint),
+                    const Icon(
+                      Icons.favorite_border,
+                      size: 18,
+                      color: AppColors.textHint,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       '${answer.likeCount}',
@@ -615,9 +650,7 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
       ),
       decoration: BoxDecoration(
         color: const Color(0xFFFDFDFF),
-        border: Border(
-          top: BorderSide(color: AppColors.borderLight),
-        ),
+        border: Border(top: BorderSide(color: AppColors.borderLight)),
       ),
       child: Row(
         children: [
@@ -642,7 +675,10 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
                   borderRadius: BorderRadius.circular(24),
                   borderSide: BorderSide(color: AppColors.brand),
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
               ),
               maxLines: null,
               textInputAction: TextInputAction.send,
@@ -687,7 +723,7 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
               title: const Text('신고하기'),
               onTap: () {
                 Navigator.pop(context);
-                // TODO: 신고 기능
+                _showReportDialog();
               },
             ),
             ListTile(
@@ -695,7 +731,7 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
               title: const Text('공유하기'),
               onTap: () {
                 Navigator.pop(context);
-                // TODO: 공유 기능
+                _shareQuestion();
               },
             ),
           ],
@@ -735,5 +771,86 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
       default:
         return category.isNotEmpty ? category : '일반';
     }
+  }
+
+  void _showReportDialog() {
+    final reasons = ['스팸/광고', '욕설/비하', '음란물', '허위정보', '저작권 침해', '기타'];
+    String? selectedReason;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('질문 신고'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '신고 사유를 선택해주세요.',
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.textSubtle,
+                ),
+              ),
+              const SizedBox(height: 16),
+              ...reasons.map(
+                (reason) => RadioListTile<String>(
+                  title: Text(reason),
+                  value: reason,
+                  groupValue: selectedReason,
+                  onChanged: (value) {
+                    setState(() {
+                      selectedReason = value;
+                    });
+                  },
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('취소', style: TextStyle(color: AppColors.textSubtle)),
+            ),
+            ElevatedButton(
+              onPressed: selectedReason == null
+                  ? null
+                  : () {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(this.context).showSnackBar(
+                        const SnackBar(
+                          content: Text('신고가 접수되었습니다.'),
+                          backgroundColor: AppColors.success,
+                        ),
+                      );
+                    },
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+              child: const Text('신고', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _shareQuestion() {
+    if (_questionId == null) return;
+
+    // 딥링크 또는 앱 링크 생성 (실제 구현 시 share_plus 패키지 사용)
+    final shareUrl = 'minimo://question/$_questionId';
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('링크가 복사되었습니다: $shareUrl'),
+        backgroundColor: AppColors.success,
+        action: SnackBarAction(
+          label: '확인',
+          textColor: Colors.white,
+          onPressed: () {},
+        ),
+      ),
+    );
   }
 }

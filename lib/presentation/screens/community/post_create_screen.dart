@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../../../data/services/community_service.dart';
 import '../../../data/services/auth_service.dart';
+import '../../../data/services/tag_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../viewmodels/community_viewmodel.dart';
@@ -18,17 +19,85 @@ class PostCreateScreen extends StatefulWidget {
 
 class _PostCreateScreenState extends State<PostCreateScreen> {
   final CommunityService _service = CommunityService.instance;
+  final TagService _tagService = TagService.instance;
   final TextEditingController _contentController = TextEditingController();
+  final TextEditingController _tagController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
 
   final List<XFile> _selectedImages = [];
+  final List<String> _selectedTags = [];
+  List<TagData> _popularTags = [];
+  List<TagData> _searchedTags = [];
   bool _isSubmitting = false;
+  bool _isLoadingTags = false;
+  bool _showTagSearch = false;
   static const int _maxImages = 5;
+  static const int _maxTags = 5;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPopularTags();
+  }
 
   @override
   void dispose() {
     _contentController.dispose();
+    _tagController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadPopularTags() async {
+    setState(() => _isLoadingTags = true);
+    try {
+      final tags = await _tagService.getPopularTags(limit: 10);
+      setState(() {
+        _popularTags = tags;
+        _isLoadingTags = false;
+      });
+    } catch (e) {
+      setState(() => _isLoadingTags = false);
+    }
+  }
+
+  Future<void> _searchTags(String query) async {
+    if (query.isEmpty) {
+      setState(() => _searchedTags = []);
+      return;
+    }
+
+    try {
+      final tags = await _tagService.searchTags(query: query, limit: 10);
+      setState(() => _searchedTags = tags);
+    } catch (e) {
+      // 검색 실패 시 무시
+    }
+  }
+
+  void _addTag(String tagName) {
+    final cleanTag = tagName.replaceAll('#', '').trim();
+    if (cleanTag.isEmpty) return;
+    if (_selectedTags.length >= _maxTags) {
+      _showSnackBar('최대 $_maxTags개의 태그만 추가할 수 있습니다.');
+      return;
+    }
+    if (_selectedTags.contains(cleanTag)) {
+      _showSnackBar('이미 추가된 태그입니다.');
+      return;
+    }
+
+    setState(() {
+      _selectedTags.add(cleanTag);
+      _tagController.clear();
+      _searchedTags = [];
+      _showTagSearch = false;
+    });
+  }
+
+  void _removeTag(String tagName) {
+    setState(() {
+      _selectedTags.remove(tagName);
+    });
   }
 
   Future<void> _pickImages() async {
@@ -132,18 +201,28 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
     });
 
     try {
-      // 현재 사용자 이름 가져오기 (없으면 익명)
+      // 현재 사용자 정보 가져오기 (없으면 익명)
       final currentUser = AuthService.instance.currentUser;
+      final userId = currentUser?.id ?? '';
       final userName = currentUser?.getStringValue('name') ?? '익명';
 
       // 첫 번째 이미지만 업로드 (현재 API 제한)
-      final imagePath = _selectedImages.isNotEmpty ? _selectedImages.first.path : null;
+      final imagePath = _selectedImages.isNotEmpty
+          ? _selectedImages.first.path
+          : null;
 
       await _service.createPost(
+        authorId: userId,
         authorName: userName,
         content: content,
         imagePath: imagePath,
+        tags: _selectedTags.isNotEmpty ? _selectedTags : null,
       );
+
+      // 태그 사용량 증가
+      for (final tag in _selectedTags) {
+        await _tagService.getOrCreateTag(name: tag);
+      }
 
       // 커뮤니티 목록 새로고침
       if (mounted) {
@@ -186,7 +265,8 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
         leading: IconButton(
           icon: const Icon(Icons.close, color: AppColors.textMain),
           onPressed: () {
-            if (_contentController.text.isNotEmpty || _selectedImages.isNotEmpty) {
+            if (_contentController.text.isNotEmpty ||
+                _selectedImages.isNotEmpty) {
               _showDiscardDialog();
             } else {
               Navigator.pop(context);
@@ -218,7 +298,9 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
                   : Text(
                       '게시',
                       style: AppTextStyles.bodyMediumMedium.copyWith(
-                        color: _canSubmit ? AppColors.brand : AppColors.textHint,
+                        color: _canSubmit
+                            ? AppColors.brand
+                            : AppColors.textHint,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -234,6 +316,9 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
                 children: [
                   // 내용 입력 영역
                   _buildContentInput(),
+
+                  // 태그 섹션
+                  _buildTagSection(),
 
                   // 선택된 이미지 미리보기
                   if (_selectedImages.isNotEmpty) _buildImagePreview(),
@@ -273,6 +358,257 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
     );
   }
 
+  Widget _buildTagSection() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Divider(height: 1, color: AppColors.borderLight),
+          const SizedBox(height: 16),
+
+          // 태그 헤더
+          Row(
+            children: [
+              Text(
+                '태그',
+                style: AppTextStyles.bodyMediumMedium.copyWith(
+                  color: AppColors.textMain,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '(${_selectedTags.length}/$_maxTags)',
+                style: AppTextStyles.captionRegular.copyWith(
+                  color: AppColors.textHint,
+                ),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _showTagSearch = !_showTagSearch;
+                    if (!_showTagSearch) {
+                      _tagController.clear();
+                      _searchedTags = [];
+                    }
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _showTagSearch
+                        ? AppColors.brand
+                        : AppColors.chipPrimaryBg,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _showTagSearch ? Icons.close : Icons.add,
+                        size: 16,
+                        color: _showTagSearch ? Colors.white : AppColors.brand,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _showTagSearch ? '닫기' : '태그 추가',
+                        style: AppTextStyles.captionMedium.copyWith(
+                          color: _showTagSearch
+                              ? Colors.white
+                              : AppColors.brand,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // 선택된 태그 목록
+          if (_selectedTags.isNotEmpty) ...[
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _selectedTags
+                  .map((tag) => _buildSelectedTagChip(tag))
+                  .toList(),
+            ),
+            const SizedBox(height: 12),
+          ],
+
+          // 태그 검색/입력 영역
+          if (_showTagSearch) ...[
+            _buildTagSearchField(),
+            const SizedBox(height: 8),
+
+            // 검색 결과 또는 인기 태그
+            if (_isLoadingTags)
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.brand,
+                    ),
+                  ),
+                ),
+              )
+            else if (_searchedTags.isNotEmpty)
+              _buildTagSuggestions(_searchedTags, '검색 결과')
+            else if (_tagController.text.isEmpty && _popularTags.isNotEmpty)
+              _buildTagSuggestions(_popularTags, '인기 태그'),
+          ],
+
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSelectedTagChip(String tag) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.chipPrimaryBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.brand.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '#$tag',
+            style: AppTextStyles.captionMedium.copyWith(
+              color: AppColors.brand,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(width: 4),
+          GestureDetector(
+            onTap: () => _removeTag(tag),
+            child: Icon(Icons.close, size: 14, color: AppColors.brand),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTagSearchField() {
+    return TextField(
+      controller: _tagController,
+      decoration: InputDecoration(
+        hintText: '태그 검색 또는 입력 (Enter로 추가)',
+        hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.textHint),
+        prefixIcon: const Icon(Icons.tag, size: 20, color: AppColors.textHint),
+        suffixIcon: _tagController.text.isNotEmpty
+            ? IconButton(
+                icon: const Icon(Icons.add_circle, color: AppColors.brand),
+                onPressed: () => _addTag(_tagController.text),
+              )
+            : null,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: AppColors.borderLight),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: AppColors.borderLight),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: AppColors.brand),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 10,
+        ),
+      ),
+      style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMain),
+      onChanged: (value) {
+        setState(() {});
+        _searchTags(value);
+      },
+      onSubmitted: (value) {
+        if (value.trim().isNotEmpty) {
+          _addTag(value);
+        }
+      },
+    );
+  }
+
+  Widget _buildTagSuggestions(List<TagData> tags, String title) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: AppTextStyles.captionMedium.copyWith(
+            color: AppColors.textSubtle,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: tags.map((tag) => _buildSuggestionChip(tag)).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSuggestionChip(TagData tag) {
+    final isSelected = _selectedTags.contains(tag.name);
+    return GestureDetector(
+      onTap: () {
+        if (!isSelected) {
+          _addTag(tag.name);
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.brand.withValues(alpha: 0.1)
+              : AppColors.backgroundApp,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? AppColors.brand : AppColors.borderLight,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '#${tag.name}',
+              style: AppTextStyles.captionMedium.copyWith(
+                color: isSelected ? AppColors.brand : AppColors.textSubtle,
+              ),
+            ),
+            if (tag.usageCount > 0) ...[
+              const SizedBox(width: 4),
+              Text(
+                '${tag.usageCount}',
+                style: AppTextStyles.captionRegular.copyWith(
+                  color: AppColors.textHint,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildImagePreview() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -295,7 +631,7 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: _selectedImages.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              separatorBuilder: (context, index) => const SizedBox(width: 8),
               itemBuilder: (context, index) {
                 return Stack(
                   children: [
@@ -349,9 +685,7 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
       ),
       decoration: BoxDecoration(
         color: const Color(0xFFFDFDFF),
-        border: Border(
-          top: BorderSide(color: AppColors.borderLight),
-        ),
+        border: Border(top: BorderSide(color: AppColors.borderLight)),
       ),
       child: Row(
         children: [
@@ -404,20 +738,14 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(
-              '계속 작성',
-              style: TextStyle(color: AppColors.textSubtle),
-            ),
+            child: Text('계속 작성', style: TextStyle(color: AppColors.textSubtle)),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(context); // Dialog
               Navigator.pop(context); // Screen
             },
-            child: Text(
-              '나가기',
-              style: TextStyle(color: AppColors.error),
-            ),
+            child: Text('나가기', style: TextStyle(color: AppColors.error)),
           ),
         ],
       ),

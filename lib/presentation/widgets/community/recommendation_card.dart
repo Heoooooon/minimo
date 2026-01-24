@@ -25,11 +25,7 @@ class RecommendationData {
 ///
 /// 그라디언트 배경과 블러 효과가 있는 추천 콘텐츠 카드
 class RecommendationCard extends StatelessWidget {
-  const RecommendationCard({
-    super.key,
-    required this.data,
-    this.onTap,
-  });
+  const RecommendationCard({super.key, required this.data, this.onTap});
 
   final RecommendationData data;
   final VoidCallback? onTap;
@@ -61,7 +57,7 @@ class RecommendationCard extends StatelessWidget {
                 child: Image.network(
                   data.imageUrl!,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
+                  errorBuilder: (context, error, stackTrace) => Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
@@ -217,7 +213,7 @@ class RecommendationCardList extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 16),
+        separatorBuilder: (context, index) => const SizedBox(width: 16),
         itemBuilder: (context, index) {
           final item = items[index];
           return RecommendationCard(

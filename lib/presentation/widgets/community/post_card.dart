@@ -5,12 +5,14 @@ import '../../../theme/app_text_styles.dart';
 /// 커뮤니티 게시글 데이터 모델
 class PostData {
   final String id;
+  final String? authorId;
   final String authorName;
   final String? authorImageUrl;
   final String timeAgo;
   final String title;
   final String content;
   final List<String> imageUrls;
+  final List<String> tags;
   final int likeCount;
   final int commentCount;
   final int bookmarkCount;
@@ -19,12 +21,14 @@ class PostData {
 
   const PostData({
     required this.id,
+    this.authorId,
     required this.authorName,
     this.authorImageUrl,
     this.timeAgo = '00시간 전',
     required this.title,
     required this.content,
     this.imageUrls = const [],
+    this.tags = const [],
     this.likeCount = 0,
     this.commentCount = 0,
     this.bookmarkCount = 0,
@@ -81,10 +85,7 @@ class _PostCardState extends State<PostCard> {
           _buildContentSection(),
 
           // Divider
-          Container(
-            height: 1,
-            color: AppColors.borderLight,
-          ),
+          Container(height: 1, color: AppColors.borderLight),
         ],
       ),
     );
@@ -108,7 +109,8 @@ class _PostCardState extends State<PostCard> {
                     child: Image.network(
                       widget.data.authorImageUrl!,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _buildPlaceholderAvatar(),
+                      errorBuilder: (context, error, stackTrace) =>
+                          _buildPlaceholderAvatar(),
                     ),
                   )
                 : _buildPlaceholderAvatar(),
@@ -240,10 +242,14 @@ class _PostCardState extends State<PostCard> {
                   return Image.network(
                     widget.data.imageUrls[index],
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
+                    errorBuilder: (context, error, stackTrace) => Container(
                       color: AppColors.backgroundApp,
                       child: const Center(
-                        child: Icon(Icons.image, size: 40, color: AppColors.textHint),
+                        child: Icon(
+                          Icons.image,
+                          size: 40,
+                          color: AppColors.textHint,
+                        ),
                       ),
                     ),
                   );
@@ -293,7 +299,9 @@ class _PostCardState extends State<PostCard> {
                     height: 8,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(4),
-                      color: isActive ? Colors.white : Colors.white.withValues(alpha: 0.5),
+                      color: isActive
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: 0.5),
                     ),
                   );
                 }),
@@ -312,7 +320,9 @@ class _PostCardState extends State<PostCard> {
           // Like Button
           _buildInteractionButton(
             icon: widget.data.isLiked ? Icons.favorite : Icons.favorite_border,
-            iconColor: widget.data.isLiked ? const Color(0xFFFE5839) : AppColors.textSubtle,
+            iconColor: widget.data.isLiked
+                ? const Color(0xFFFE5839)
+                : AppColors.textSubtle,
             count: widget.data.likeCount,
             onTap: widget.onLikeTap,
           ),
@@ -329,7 +339,9 @@ class _PostCardState extends State<PostCard> {
 
           // Bookmark Button
           _buildInteractionButton(
-            icon: widget.data.isBookmarked ? Icons.bookmark : Icons.bookmark_border,
+            icon: widget.data.isBookmarked
+                ? Icons.bookmark
+                : Icons.bookmark_border,
             iconColor: AppColors.textSubtle,
             count: widget.data.bookmarkCount,
             onTap: widget.onBookmarkTap,
@@ -353,11 +365,7 @@ class _PostCardState extends State<PostCard> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 16,
-              color: iconColor,
-            ),
+            Icon(icon, size: 16, color: iconColor),
             const SizedBox(width: 8),
             Text(
               count.toString(),
