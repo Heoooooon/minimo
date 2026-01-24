@@ -124,10 +124,13 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
       final tags = _checkedTagsByAquarium[aquariumId] ?? {};
 
       if (tags.isNotEmpty) {
+        // content는 필수 필드이므로 태그 라벨들을 사용
+        final content = tags.map((t) => t.label).join(', ');
+
         final success = await _viewModel.saveRecord(
           date: _selectedDate,
           tags: tags.toList(),
-          content: '', // 체크리스트 방식에서는 내용 생략
+          content: content,
           isPublic: false,
           aquariumId: aquariumId,
         );

@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../data/repositories/record_repository.dart';
+import '../../core/utils/app_logger.dart';
 import '../../domain/models/record_data.dart';
+import '../../domain/models/aquarium_data.dart';
+import '../../data/services/aquarium_service.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../viewmodels/record_home_viewmodel.dart';
-import '../widgets/common/app_button.dart';
+import '../viewmodels/record_viewmodel.dart';
 import '../widgets/record/activity_add_bottom_sheet.dart';
 
 /// 기록 탭의 캘린더 뷰 타입
@@ -15,9 +17,8 @@ enum CalendarViewType { weekly, monthly }
 ///
 /// 주요 기능:
 /// - 월간/주간 캘린더 뷰 전환
-/// - 날짜 선택시 해당 날짜의 기록 표시
-/// - 기록이 있는 날에 파란 점 표시
-/// - 기록하기 버튼으로 기록 추가 화면 이동
+/// - 날짜 선택시 어항별 체크리스트 표시 (아코디언)
+/// - 할 일 선택 시 즉시 저장
 class RecordHomeScreen extends StatefulWidget {
   const RecordHomeScreen({super.key});
 
@@ -26,27 +27,38 @@ class RecordHomeScreen extends StatefulWidget {
 }
 
 class RecordHomeScreenState extends State<RecordHomeScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   CalendarViewType _viewType = CalendarViewType.weekly;
   DateTime _currentMonth = DateTime.now();
   DateTime _selectedDate = DateTime.now();
 
   late RecordHomeViewModel _viewModel;
+  late RecordViewModel _recordViewModel;
+
+  // 어항 목록
+  List<AquariumData> _aquariums = [];
+  bool _isLoadingAquariums = true;
+
+  // 어항별 펼침 상태
+  final Map<String, bool> _expandedAquariums = {};
+
+  // 어항별 저장된 기록 태그
+  final Map<String, Set<RecordTag>> _savedTagsByAquarium = {};
 
   // 드래그 애니메이션 관련
   late AnimationController _animationController;
   late Animation<double> _heightAnimation;
   double _dragStartY = 0;
   bool _isDragging = false;
-  static const double _weeklyHeight = 46.0; // 주간 뷰 높이 (한 줄)
-  static const double _monthlyHeight = 276.0; // 월간 뷰 높이 (6줄)
+  static const double _weeklyHeight = 46.0;
+  static const double _monthlyHeight = 276.0;
 
   @override
   void initState() {
     super.initState();
     _viewModel = RecordHomeViewModel();
+    _recordViewModel = RecordViewModel();
 
-    // 애니메이션 컨트롤러 초기화
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
@@ -61,12 +73,14 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
         );
 
     _loadData();
+    _loadAquariums();
   }
 
   @override
   void dispose() {
     _animationController.dispose();
     _viewModel.dispose();
+    _recordViewModel.dispose();
     super.dispose();
   }
 
@@ -75,14 +89,42 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
     await _viewModel.loadRecordsByDate(_selectedDate);
   }
 
-  /// 외부에서 데이터 새로고침 호출용 (탭 전환 시)
+  Future<void> _loadAquariums() async {
+    try {
+      final aquariums = await AquariumService.instance.getAllAquariums();
+      if (mounted) {
+        setState(() {
+          _aquariums = aquariums;
+          for (final aquarium in aquariums) {
+            final id = aquarium.id ?? '';
+            _expandedAquariums[id] = false; // 처음엔 모두 접힌 상태
+            _savedTagsByAquarium[id] = {};
+          }
+          _isLoadingAquariums = false;
+        });
+      }
+    } catch (e) {
+      AppLogger.data('Error loading aquariums: $e', isError: true);
+      if (mounted) {
+        setState(() {
+          _isLoadingAquariums = false;
+        });
+      }
+    }
+  }
+
   void refreshData() {
     _viewModel.refresh(_currentMonth, _selectedDate);
+    _loadAquariums();
   }
 
   void _onDateSelected(DateTime date) {
     setState(() {
       _selectedDate = date;
+      // 날짜 변경 시 저장된 태그 초기화
+      for (final key in _savedTagsByAquarium.keys) {
+        _savedTagsByAquarium[key] = {};
+      }
     });
     _viewModel.loadRecordsByDate(date);
   }
@@ -133,7 +175,6 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
         ? _weeklyHeight
         : _monthlyHeight;
 
-    // 드래그에 따른 높이 계산 (제한 적용)
     double newHeight = currentHeight + delta * 0.5;
     newHeight = newHeight.clamp(_weeklyHeight, _monthlyHeight);
 
@@ -148,7 +189,6 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
     final currentHeight = _heightAnimation.value;
     final threshold = (_weeklyHeight + _monthlyHeight) / 2;
 
-    // 임계값 기준으로 뷰 타입 결정
     final targetViewType = currentHeight > threshold
         ? CalendarViewType.monthly
         : CalendarViewType.weekly;
@@ -172,53 +212,83 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
     });
   }
 
-  Future<void> _showActivityBottomSheet() async {
+  /// 어항 섹션 펼침/접힘 토글
+  void _toggleAquariumExpanded(String aquariumId) {
+    setState(() {
+      _expandedAquariums[aquariumId] =
+          !(_expandedAquariums[aquariumId] ?? false);
+    });
+  }
+
+  /// 할 일 추가 (바텀시트) - 선택 시 즉시 저장
+  Future<void> _showAddActivitySheet(
+    String aquariumId,
+    String? aquariumName,
+  ) async {
     final selectedTags = await ActivityAddBottomSheet.show(
       context,
       selectedDate: _selectedDate,
     );
 
     if (selectedTags != null && selectedTags.isNotEmpty && mounted) {
-      await _saveRecord(selectedTags);
+      // 즉시 저장
+      await _saveRecordImmediately(aquariumId, aquariumName, selectedTags);
     }
   }
 
-  Future<void> _saveRecord(List<RecordTag> tags) async {
-    try {
-      final record = RecordData(
-        date: _selectedDate,
-        tags: tags,
-        content: tags.map((t) => t.label).join(', '),
-        isPublic: true,
-      );
+  /// 즉시 저장
+  Future<void> _saveRecordImmediately(
+    String aquariumId,
+    String? aquariumName,
+    List<RecordTag> tags,
+  ) async {
+    // content는 필수 필드이므로 태그 라벨들을 사용
+    final content = tags.map((t) => t.label).join(', ');
 
-      await PocketBaseRecordRepository.instance.createRecord(record);
+    final success = await _recordViewModel.saveRecord(
+      date: _selectedDate,
+      tags: tags,
+      content: content,
+      isPublic: false,
+      aquariumId: aquariumId,
+    );
 
-      if (mounted) {
+    if (mounted) {
+      if (success) {
+        setState(() {
+          final currentTags = _savedTagsByAquarium[aquariumId] ?? {};
+          currentTags.addAll(tags);
+          _savedTagsByAquarium[aquariumId] = currentTags;
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '기록이 추가되었습니다.',
+              '${aquariumName ?? '어항'}에 기록이 저장되었습니다.',
               style: AppTextStyles.bodySmall.copyWith(
                 color: AppColors.textInverse,
               ),
             ),
             backgroundColor: AppColors.success,
             behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
             ),
           ),
         );
 
-        // 데이터 새로고침
+        // 캘린더 점 업데이트
         _loadData();
-      }
-    } catch (e) {
-      if (mounted) {
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('기록 저장 중 오류가 발생했습니다: $e'),
+            content: Text(
+              _recordViewModel.errorMessage ?? '저장 중 오류가 발생했습니다.',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textInverse,
+              ),
+            ),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
           ),
@@ -250,7 +320,7 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
                 // 상단 캘린더 영역
                 _buildCalendarCard(viewModel),
 
-                // 하단 기록 목록 영역
+                // 하단 어항별 아코디언 영역
                 Expanded(child: _buildRecordContent(viewModel)),
               ],
             ),
@@ -285,15 +355,10 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
               padding: const EdgeInsets.only(top: 16, bottom: 8),
               child: Column(
                 children: [
-                  // 월 선택 헤더
                   _buildMonthHeader(),
                   const SizedBox(height: 24),
-
-                  // 요일 헤더
                   _buildWeekdayHeader(),
                   const SizedBox(height: 8),
-
-                  // 날짜 그리드 (애니메이션 높이 적용)
                   ClipRect(
                     child: SizedBox(
                       height: _heightAnimation.value,
@@ -303,10 +368,7 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 8),
-
-                  // 드래그 핸들 (뷰 타입 인디케이터)
                   _buildDragHandle(),
                 ],
               ),
@@ -318,7 +380,6 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
   }
 
   Widget _buildMonthHeader() {
-    // 높이가 중간 이상이면 월 탐색 버튼 표시
     final showNavButtons =
         _heightAnimation.value > (_weeklyHeight + _monthlyHeight) / 2;
     final navButtonOpacity =
@@ -330,7 +391,6 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          // 이전 월 버튼 (애니메이션 투명도)
           AnimatedOpacity(
             opacity: navButtonOpacity,
             duration: const Duration(milliseconds: 100),
@@ -348,14 +408,12 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
               ),
             ),
           ),
-          // 월 표시
           Text(
             '${_currentMonth.month}월',
             style: AppTextStyles.headlineSmall.copyWith(
               fontWeight: FontWeight.w600,
             ),
           ),
-          // 다음 월 버튼 (애니메이션 투명도)
           AnimatedOpacity(
             opacity: navButtonOpacity,
             duration: const Duration(milliseconds: 100),
@@ -374,7 +432,6 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
             ),
           ),
           const Spacer(),
-          // 스케줄 추가 버튼
           GestureDetector(
             onTap: _navigateToScheduleAdd,
             child: Container(
@@ -436,7 +493,6 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
   Widget _buildMonthlyCalendar(RecordHomeViewModel viewModel) {
     final weeks = _getMonthWeeks(_currentMonth);
 
-    // 선택된 날짜가 포함된 주의 인덱스 찾기
     int selectedWeekIndex = 0;
     for (int i = 0; i < weeks.length; i++) {
       if (weeks[i].any(
@@ -451,14 +507,12 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
       }
     }
 
-    // 선택된 주가 첫 번째에 오도록 재정렬 (주간 뷰일 때)
     final orderedWeeks = <List<DateTime?>>[];
     for (int i = 0; i < weeks.length; i++) {
       final index = (selectedWeekIndex + i) % weeks.length;
       orderedWeeks.add(weeks[index]);
     }
 
-    // 현재 높이에 따라 월간/주간 달력 표시
     final isMonthlyExpanded =
         _heightAnimation.value > (_weeklyHeight + _monthlyHeight) / 2;
 
@@ -496,9 +550,7 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
 
     Color textColor;
     if (!isCurrentMonth || isFuture) {
-      textColor = isSunday
-          ? const Color(0xFFFF9F8D) // 연한 빨강
-          : AppColors.disabledText;
+      textColor = isSunday ? const Color(0xFFFF9F8D) : AppColors.disabledText;
     } else if (isSunday) {
       textColor = AppColors.error;
     } else {
@@ -513,7 +565,6 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
-            // 날짜
             Container(
               width: isSelected ? 22 : 20,
               height: isSelected ? 22 : 20,
@@ -533,7 +584,6 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
               ),
             ),
             const SizedBox(height: 4),
-            // 기록 있음 표시 (파란 점)
             if (hasRecord && isCurrentMonth && !isFuture)
               Container(
                 width: 4,
@@ -573,52 +623,58 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
   }
 
   Widget _buildRecordContent(RecordHomeViewModel viewModel) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 24),
-          // 선택된 날짜 표시
-          Text(
-            _getFormattedDate(_selectedDate),
-            style: AppTextStyles.bodyMediumMedium,
+    return Column(
+      children: [
+        // 날짜 헤더
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+          child: Row(
+            children: [
+              Text(
+                _getFormattedDate(_selectedDate),
+                style: AppTextStyles.titleSmall.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 24),
-          // 기록 목록 또는 Empty 상태
-          Expanded(
-            child: viewModel.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : viewModel.selectedDateRecords.isEmpty
-                ? _buildEmptyState()
-                : _buildRecordList(viewModel.selectedDateRecords),
-          ),
-        ],
-      ),
+        ),
+
+        // 어항별 아코디언
+        Expanded(
+          child: _isLoadingAquariums
+              ? const Center(child: CircularProgressIndicator())
+              : _aquariums.isEmpty
+              ? _buildEmptyAquariumState()
+              : _buildAquariumAccordionView(),
+        ),
+      ],
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyAquariumState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          Icon(Icons.water_drop_outlined, size: 48, color: AppColors.textHint),
+          const SizedBox(height: 16),
           Text(
-            '기록이 아직 없어요.\n사육 기록을 추가해보세요!',
-            textAlign: TextAlign.center,
+            '등록된 어항이 없어요',
             style: AppTextStyles.bodyMedium.copyWith(
               color: AppColors.textSubtle,
             ),
           ),
-          const SizedBox(height: 32),
-          SizedBox(
-            width: 224,
-            child: AppButton(
-              text: '기록하기',
-              onPressed: _showActivityBottomSheet,
-              size: AppButtonSize.large,
-              shape: AppButtonShape.square,
-              variant: AppButtonVariant.contained,
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: () {
+              Navigator.pushNamed(context, '/aquarium/register');
+            },
+            child: Text(
+              '어항 등록하기',
+              style: AppTextStyles.bodyMediumMedium.copyWith(
+                color: AppColors.brand,
+              ),
             ),
           ),
         ],
@@ -626,55 +682,183 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
     );
   }
 
-  Widget _buildRecordList(List<RecordData> records) {
+  Widget _buildAquariumAccordionView() {
     return ListView.builder(
-      itemCount: records.length,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: _aquariums.length,
       itemBuilder: (context, index) {
-        final record = records[index];
-        return _buildRecordItem(record);
+        return _buildAquariumAccordionItem(_aquariums[index]);
       },
     );
   }
 
-  Widget _buildRecordItem(RecordData record) {
+  Widget _buildAquariumAccordionItem(AquariumData aquarium) {
+    final aquariumId = aquarium.id ?? '';
+    final isExpanded = _expandedAquariums[aquariumId] ?? false;
+    final savedTags = _savedTagsByAquarium[aquariumId] ?? {};
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.backgroundSurface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.borderLight),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 태그들
-          Wrap(
-            spacing: 8,
-            runSpacing: 4,
-            children: record.tags.map((tag) {
-              return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.chipPrimaryBg,
-                  borderRadius: BorderRadius.circular(4),
+          // 어항 헤더 (탭하면 펼침/접힘)
+          InkWell(
+            onTap: () => _toggleAquariumExpanded(aquariumId),
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: AppColors.chipPrimaryBg,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.water_drop,
+                      color: AppColors.brand,
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      aquarium.name ?? '이름 없음',
+                      style: AppTextStyles.titleSmall.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  // 저장된 태그 수 표시
+                  if (savedTags.isNotEmpty)
+                    Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.brand.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '${savedTags.length}개 완료',
+                        style: AppTextStyles.captionMedium.copyWith(
+                          color: AppColors.brand,
+                        ),
+                      ),
+                    ),
+                  // 펼침/접힘 아이콘
+                  AnimatedRotation(
+                    turns: isExpanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 200),
+                    child: const Icon(
+                      Icons.keyboard_arrow_down,
+                      color: AppColors.textSubtle,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // 펼쳐진 내용 (애니메이션)
+          AnimatedCrossFade(
+            firstChild: const SizedBox.shrink(),
+            secondChild: _buildExpandedContent(
+              aquariumId,
+              aquarium.name,
+              savedTags,
+            ),
+            crossFadeState: isExpanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 200),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExpandedContent(
+    String aquariumId,
+    String? aquariumName,
+    Set<RecordTag> savedTags,
+  ) {
+    return Column(
+      children: [
+        const Divider(height: 1, color: AppColors.borderLight),
+
+        // 저장된 태그 목록
+        if (savedTags.isNotEmpty)
+          ...savedTags.map((tag) => _buildSavedTagItem(tag)),
+
+        // 할 일 추가 버튼
+        InkWell(
+          onTap: () => _showAddActivitySheet(aquariumId, aquariumName),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: savedTags.isNotEmpty
+                ? const BoxDecoration(
+                    border: Border(
+                      top: BorderSide(color: AppColors.borderLight),
+                    ),
+                  )
+                : null,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.add_circle_outline,
+                  size: 18,
+                  color: AppColors.brand,
                 ),
-                child: Text(
-                  tag.label,
-                  style: AppTextStyles.captionMedium.copyWith(
-                    color: AppColors.chipPrimaryText,
+                const SizedBox(width: 8),
+                Text(
+                  '할 일 추가',
+                  style: AppTextStyles.bodyMediumMedium.copyWith(
+                    color: AppColors.brand,
                   ),
                 ),
-              );
-            }).toList(),
+              ],
+            ),
           ),
-          const SizedBox(height: 8),
-          // 내용
-          Text(
-            record.content,
-            style: AppTextStyles.bodySmall,
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSavedTagItem(RecordTag tag) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          // 완료 체크 아이콘
+          Container(
+            width: 20,
+            height: 20,
+            decoration: BoxDecoration(
+              color: AppColors.success,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: const Icon(Icons.check, color: Colors.white, size: 14),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              tag.label,
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textSubtle,
+                decoration: TextDecoration.lineThrough,
+              ),
+            ),
           ),
         ],
       ),
@@ -693,8 +877,7 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
     final List<List<DateTime?>> weeks = [];
     List<DateTime?> currentWeek = List.filled(7, null);
 
-    // 첫 주의 이전 달 날짜 채우기
-    final firstWeekday = firstDay.weekday % 7; // 일요일 = 0
+    final firstWeekday = firstDay.weekday % 7;
     if (firstWeekday > 0) {
       for (int i = 0; i < firstWeekday; i++) {
         final prevDate = firstDay.subtract(Duration(days: firstWeekday - i));
@@ -702,7 +885,6 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
       }
     }
 
-    // 현재 달의 날짜 채우기
     for (int day = 1; day <= lastDay.day; day++) {
       final date = DateTime(month.year, month.month, day);
       final weekday = date.weekday % 7;
@@ -710,7 +892,6 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
       currentWeek[weekday] = date;
 
       if (weekday == 6 || day == lastDay.day) {
-        // 마지막 주의 다음 달 날짜 채우기
         if (day == lastDay.day && weekday < 6) {
           for (int i = weekday + 1; i <= 6; i++) {
             final nextDate = lastDay.add(Duration(days: i - weekday));
@@ -724,17 +905,4 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
 
     return weeks;
   }
-
-  // TODO: 주간 뷰 기능 추가 시 활용 예정
-  // List<DateTime?> _getCurrentWeekDates() {
-  //   final now = _selectedDate;
-  //   final weekday = now.weekday % 7; // 일요일 = 0
-  //
-  //   final List<DateTime?> weekDates = [];
-  //   for (int i = 0; i < 7; i++) {
-  //     weekDates.add(now.subtract(Duration(days: weekday - i)));
-  //   }
-  //
-  //   return weekDates;
-  // }
 }

@@ -19,7 +19,7 @@ class AquariumService {
 
   static const String _collection = 'aquariums';
 
-  /// 모든 어항 목록 조회
+  /// 모든 어항 목록 조회 (현재 사용자 소유)
   Future<List<AquariumData>> getAquariums({
     int page = 1,
     int perPage = 20,
@@ -27,12 +27,23 @@ class AquariumService {
     String? sort,
   }) async {
     try {
+      final userId = AuthService.instance.currentUser?.id;
+      String? ownerFilter = userId != null ? 'owner = "$userId"' : null;
+
+      // 기존 필터와 owner 필터 결합
+      String? combinedFilter;
+      if (ownerFilter != null && filter != null) {
+        combinedFilter = '($ownerFilter) && ($filter)';
+      } else {
+        combinedFilter = ownerFilter ?? filter;
+      }
+
       final result = await _pb
           .collection(_collection)
           .getList(
             page: page,
             perPage: perPage,
-            filter: filter,
+            filter: combinedFilter,
             sort: (sort != null && sort.isNotEmpty) ? sort : null,
           );
 
@@ -55,12 +66,18 @@ class AquariumService {
     }
   }
 
-  /// 모든 어항 전체 목록 조회
+  /// 모든 어항 전체 목록 조회 (현재 사용자 소유)
   Future<List<AquariumData>> getAllAquariums({String? sort}) async {
     try {
+      final userId = AuthService.instance.currentUser?.id;
+      final filter = userId != null ? 'owner = "$userId"' : null;
+
       final records = await _pb
           .collection(_collection)
-          .getFullList(sort: (sort != null && sort.isNotEmpty) ? sort : null);
+          .getFullList(
+            filter: filter,
+            sort: (sort != null && sort.isNotEmpty) ? sort : null,
+          );
 
       return records.map((record) => _recordToAquariumData(record)).toList();
     } on ClientException catch (e) {
