@@ -1,7 +1,7 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:http/http.dart' as http;
+import '../../core/utils/app_logger.dart';
 import '../../domain/models/gallery_photo_data.dart';
 import 'pocketbase_service.dart';
 
@@ -12,7 +12,8 @@ class GalleryPhotoService {
   GalleryPhotoService._();
 
   static GalleryPhotoService? _instance;
-  static GalleryPhotoService get instance => _instance ??= GalleryPhotoService._();
+  static GalleryPhotoService get instance =>
+      _instance ??= GalleryPhotoService._();
 
   PocketBase get _client => PocketBaseService.instance.client;
   String get _baseUrl => PocketBaseService.serverUrl;
@@ -36,27 +37,27 @@ class GalleryPhotoService {
 
       List<RecordModel> records;
       if (limit != null) {
-        final result = await _client.collection(_collection).getList(
-          page: 1,
-          perPage: limit,
-          filter: filter,
-          sort: sort,
-          expand: 'creature_id',
-        );
+        final result = await _client
+            .collection(_collection)
+            .getList(
+              page: 1,
+              perPage: limit,
+              filter: filter,
+              sort: sort,
+              expand: 'creature_id',
+            );
         records = result.items;
       } else {
-        records = await _client.collection(_collection).getFullList(
-          filter: filter,
-          sort: sort,
-          expand: 'creature_id',
-        );
+        records = await _client
+            .collection(_collection)
+            .getFullList(filter: filter, sort: sort, expand: 'creature_id');
       }
 
       return records
           .map((r) => GalleryPhotoData.fromJson(r.toJson(), baseUrl: _baseUrl))
           .toList();
     } catch (e) {
-      debugPrint('Failed to get gallery photos: $e');
+      AppLogger.data('Failed to get gallery photos: $e', isError: true);
       rethrow;
     }
   }
@@ -69,16 +70,15 @@ class GalleryPhotoService {
     try {
       final sort = newestFirst ? '-photo_date' : 'photo_date';
 
-      final records = await _client.collection(_collection).getFullList(
-        filter: 'creature_id = "$creatureId"',
-        sort: sort,
-      );
+      final records = await _client
+          .collection(_collection)
+          .getFullList(filter: 'creature_id = "$creatureId"', sort: sort);
 
       return records
           .map((r) => GalleryPhotoData.fromJson(r.toJson(), baseUrl: _baseUrl))
           .toList();
     } catch (e) {
-      debugPrint('Failed to get photos by creature: $e');
+      AppLogger.data('Failed to get photos by creature: $e', isError: true);
       rethrow;
     }
   }
@@ -86,13 +86,12 @@ class GalleryPhotoService {
   /// 사진 상세 조회
   Future<GalleryPhotoData> getPhoto(String id) async {
     try {
-      final record = await _client.collection(_collection).getOne(
-        id,
-        expand: 'creature_id',
-      );
+      final record = await _client
+          .collection(_collection)
+          .getOne(id, expand: 'creature_id');
       return GalleryPhotoData.fromJson(record.toJson(), baseUrl: _baseUrl);
     } catch (e) {
-      debugPrint('Failed to get photo: $e');
+      AppLogger.data('Failed to get photo: $e', isError: true);
       rethrow;
     }
   }
@@ -114,14 +113,13 @@ class GalleryPhotoService {
         photo.imageFile!,
       );
 
-      final record = await _client.collection(_collection).create(
-        body: photo.toJson(),
-        files: [multipartFile],
-      );
+      final record = await _client
+          .collection(_collection)
+          .create(body: photo.toJson(), files: [multipartFile]);
 
       return GalleryPhotoData.fromJson(record.toJson(), baseUrl: _baseUrl);
     } catch (e) {
-      debugPrint('Failed to upload photo: $e');
+      AppLogger.data('Failed to upload photo: $e', isError: true);
       rethrow;
     }
   }
@@ -158,14 +156,13 @@ class GalleryPhotoService {
     }
 
     try {
-      final record = await _client.collection(_collection).update(
-        photo.id!,
-        body: photo.toJson(),
-      );
+      final record = await _client
+          .collection(_collection)
+          .update(photo.id!, body: photo.toJson());
 
       return GalleryPhotoData.fromJson(record.toJson(), baseUrl: _baseUrl);
     } catch (e) {
-      debugPrint('Failed to update photo: $e');
+      AppLogger.data('Failed to update photo: $e', isError: true);
       rethrow;
     }
   }
@@ -175,7 +172,7 @@ class GalleryPhotoService {
     try {
       await _client.collection(_collection).delete(id);
     } catch (e) {
-      debugPrint('Failed to delete photo: $e');
+      AppLogger.data('Failed to delete photo: $e', isError: true);
       rethrow;
     }
   }
@@ -195,14 +192,12 @@ class GalleryPhotoService {
         filter += ' && creature_id = "$creatureId"';
       }
 
-      final result = await _client.collection(_collection).getList(
-        page: 1,
-        perPage: 1,
-        filter: filter,
-      );
+      final result = await _client
+          .collection(_collection)
+          .getList(page: 1, perPage: 1, filter: filter);
       return result.totalItems;
     } catch (e) {
-      debugPrint('Failed to get photo count: $e');
+      AppLogger.data('Failed to get photo count: $e', isError: true);
       return 0;
     }
   }

@@ -1,7 +1,8 @@
-import 'package:flutter/foundation.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:http/http.dart' as http;
 import 'pocketbase_service.dart';
+import '../../core/exceptions/app_exceptions.dart';
+import '../../core/utils/app_logger.dart';
 import '../../domain/models/aquarium_data.dart';
 
 /// 어항 관리 서비스
@@ -25,31 +26,55 @@ class AquariumService {
     String? sort,
   }) async {
     try {
-      final result = await _pb.collection(_collection).getList(
-        page: page,
-        perPage: perPage,
-        filter: filter,
-        sort: (sort != null && sort.isNotEmpty) ? sort : null,
-      );
+      final result = await _pb
+          .collection(_collection)
+          .getList(
+            page: page,
+            perPage: perPage,
+            filter: filter,
+            sort: (sort != null && sort.isNotEmpty) ? sort : null,
+          );
 
-      return result.items.map((record) => _recordToAquariumData(record)).toList();
+      return result.items
+          .map((record) => _recordToAquariumData(record))
+          .toList();
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to get aquariums: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '어항 목록을 불러오는데 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
-      debugPrint('Failed to get aquariums: $e');
-      rethrow;
+      AppLogger.data('Failed to get aquariums: $e', isError: true);
+      throw NetworkException(
+        message: '어항 목록 조회 중 오류가 발생했습니다.',
+        originalError: e,
+      );
     }
   }
 
   /// 모든 어항 전체 목록 조회
   Future<List<AquariumData>> getAllAquariums({String? sort}) async {
     try {
-      final records = await _pb.collection(_collection).getFullList(
-        sort: (sort != null && sort.isNotEmpty) ? sort : null,
-      );
+      final records = await _pb
+          .collection(_collection)
+          .getFullList(sort: (sort != null && sort.isNotEmpty) ? sort : null);
 
       return records.map((record) => _recordToAquariumData(record)).toList();
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to get all aquariums: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '어항 목록을 불러오는데 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
-      debugPrint('Failed to get all aquariums: $e');
-      rethrow;
+      AppLogger.data('Failed to get all aquariums: $e', isError: true);
+      throw NetworkException(
+        message: '어항 목록 조회 중 오류가 발생했습니다.',
+        originalError: e,
+      );
     }
   }
 
@@ -58,29 +83,42 @@ class AquariumService {
     try {
       final record = await _pb.collection(_collection).getOne(id);
       return _recordToAquariumData(record);
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to get aquarium: $e', isError: true);
+      if (e.statusCode == 404) {
+        throw NotFoundException.aquarium(id);
+      }
+      throw NetworkException.clientError(
+        message: '어항을 불러오는데 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
-      debugPrint('Failed to get aquarium: $e');
-      return null;
+      AppLogger.data('Failed to get aquarium: $e', isError: true);
+      throw NetworkException(message: '어항 조회 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
   /// 어항 개수 조회
   Future<int> getAquariumCount({String? filter}) async {
     try {
-      final result = await _pb.collection(_collection).getList(
-        page: 1,
-        perPage: 1,
-        filter: filter,
-      );
+      final result = await _pb
+          .collection(_collection)
+          .getList(page: 1, perPage: 1, filter: filter);
       return result.totalItems;
     } catch (e) {
-      debugPrint('Failed to get aquarium count: $e');
+      AppLogger.data('Failed to get aquarium count: $e', isError: true);
       return 0;
     }
   }
 
   /// 어항 생성
   Future<AquariumData> createAquarium(AquariumData aquarium) async {
+    // 필수 필드 검증
+    if (aquarium.name == null || aquarium.name!.isEmpty) {
+      throw ValidationException.required('어항 이름');
+    }
+
     try {
       final body = aquarium.toJson();
 
@@ -88,20 +126,29 @@ class AquariumService {
 
       if (aquarium.photoPath != null && aquarium.photoPath!.isNotEmpty) {
         // 사진이 있는 경우 멀티파트로 업로드
-        final file = await http.MultipartFile.fromPath('photo', aquarium.photoPath!);
-        record = await _pb.collection(_collection).create(
-          body: body,
-          files: [file],
+        final file = await http.MultipartFile.fromPath(
+          'photo',
+          aquarium.photoPath!,
         );
+        record = await _pb
+            .collection(_collection)
+            .create(body: body, files: [file]);
       } else {
         record = await _pb.collection(_collection).create(body: body);
       }
 
-      debugPrint('Aquarium created: ${record.id}');
+      AppLogger.data('Aquarium created: ${record.id}');
       return _recordToAquariumData(record);
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to create aquarium: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '어항 등록에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
-      debugPrint('Failed to create aquarium: $e');
-      rethrow;
+      AppLogger.data('Failed to create aquarium: $e', isError: true);
+      throw NetworkException(message: '어항 등록 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -113,24 +160,32 @@ class AquariumService {
       RecordModel record;
 
       if (aquarium.photoPath != null && aquarium.photoPath!.isNotEmpty) {
-        final file = await http.MultipartFile.fromPath('photo', aquarium.photoPath!);
-        record = await _pb.collection(_collection).update(
-          id,
-          body: body,
-          files: [file],
+        final file = await http.MultipartFile.fromPath(
+          'photo',
+          aquarium.photoPath!,
         );
+        record = await _pb
+            .collection(_collection)
+            .update(id, body: body, files: [file]);
       } else {
-        record = await _pb.collection(_collection).update(
-          id,
-          body: body,
-        );
+        record = await _pb.collection(_collection).update(id, body: body);
       }
 
-      debugPrint('Aquarium updated: ${record.id}');
+      AppLogger.data('Aquarium updated: ${record.id}');
       return _recordToAquariumData(record);
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to update aquarium: $e', isError: true);
+      if (e.statusCode == 404) {
+        throw NotFoundException.aquarium(id);
+      }
+      throw NetworkException.clientError(
+        message: '어항 수정에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
-      debugPrint('Failed to update aquarium: $e');
-      rethrow;
+      AppLogger.data('Failed to update aquarium: $e', isError: true);
+      throw NetworkException(message: '어항 수정 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -138,10 +193,20 @@ class AquariumService {
   Future<void> deleteAquarium(String id) async {
     try {
       await _pb.collection(_collection).delete(id);
-      debugPrint('Aquarium deleted: $id');
+      AppLogger.data('Aquarium deleted: $id');
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to delete aquarium: $e', isError: true);
+      if (e.statusCode == 404) {
+        throw NotFoundException.aquarium(id);
+      }
+      throw NetworkException.clientError(
+        message: '어항 삭제에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
-      debugPrint('Failed to delete aquarium: $e');
-      rethrow;
+      AppLogger.data('Failed to delete aquarium: $e', isError: true);
+      throw NetworkException(message: '어항 삭제 중 오류가 발생했습니다.', originalError: e);
     }
   }
 

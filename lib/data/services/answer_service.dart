@@ -1,7 +1,7 @@
-import 'package:flutter/foundation.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'pocketbase_service.dart';
 import '../../domain/models/answer_data.dart';
+import '../../core/utils/app_logger.dart';
 
 /// 답변 서비스
 ///
@@ -23,16 +23,18 @@ class AnswerService {
     int perPage = 20,
   }) async {
     try {
-      final result = await _pb.collection(_collection).getList(
-        page: page,
-        perPage: perPage,
-        filter: 'question = "$questionId"',
-        expand: 'author',
-      );
+      final result = await _pb
+          .collection(_collection)
+          .getList(
+            page: page,
+            perPage: perPage,
+            filter: 'question = "$questionId"',
+            expand: 'author',
+          );
 
       return result.items.map((record) => _recordToAnswerData(record)).toList();
     } catch (e) {
-      debugPrint('Failed to get answers: $e');
+      AppLogger.data('Failed to get answers: $e', isError: true);
       rethrow;
     }
   }
@@ -40,13 +42,12 @@ class AnswerService {
   /// 특정 답변 조회
   Future<AnswerData?> getAnswer(String id) async {
     try {
-      final record = await _pb.collection(_collection).getOne(
-        id,
-        expand: 'author',
-      );
+      final record = await _pb
+          .collection(_collection)
+          .getOne(id, expand: 'author');
       return _recordToAnswerData(record);
     } catch (e) {
-      debugPrint('Failed to get answer: $e');
+      AppLogger.data('Failed to get answer: $e', isError: true);
       return null;
     }
   }
@@ -61,10 +62,10 @@ class AnswerService {
       // 질문의 comment_count 증가
       await _incrementQuestionCommentCount(data.questionId);
 
-      debugPrint('Answer created: ${record.id}');
+      AppLogger.data('Answer created: ${record.id}');
       return _recordToAnswerData(record);
     } catch (e) {
-      debugPrint('Failed to create answer: $e');
+      AppLogger.data('Failed to create answer: $e', isError: true);
       rethrow;
     }
   }
@@ -76,10 +77,10 @@ class AnswerService {
 
       final record = await _pb.collection(_collection).update(id, body: body);
 
-      debugPrint('Answer updated: ${record.id}');
+      AppLogger.data('Answer updated: ${record.id}');
       return _recordToAnswerData(record);
     } catch (e) {
-      debugPrint('Failed to update answer: $e');
+      AppLogger.data('Failed to update answer: $e', isError: true);
       rethrow;
     }
   }
@@ -92,9 +93,9 @@ class AnswerService {
       // 질문의 comment_count 감소
       await _decrementQuestionCommentCount(questionId);
 
-      debugPrint('Answer deleted: $id');
+      AppLogger.data('Answer deleted: $id');
     } catch (e) {
-      debugPrint('Failed to delete answer: $e');
+      AppLogger.data('Failed to delete answer: $e', isError: true);
       rethrow;
     }
   }
@@ -102,12 +103,10 @@ class AnswerService {
   /// 답변 채택
   Future<void> acceptAnswer(String id) async {
     try {
-      await _pb.collection(_collection).update(id, body: {
-        'is_accepted': true,
-      });
-      debugPrint('Answer accepted: $id');
+      await _pb.collection(_collection).update(id, body: {'is_accepted': true});
+      AppLogger.data('Answer accepted: $id');
     } catch (e) {
-      debugPrint('Failed to accept answer: $e');
+      AppLogger.data('Failed to accept answer: $e', isError: true);
       rethrow;
     }
   }
@@ -117,11 +116,18 @@ class AnswerService {
     try {
       final record = await _pb.collection(_collection).getOne(id);
       final currentCount = record.getIntValue('like_count');
-      await _pb.collection(_collection).update(id, body: {
-        'like_count': isLiked ? currentCount + 1 : (currentCount > 0 ? currentCount - 1 : 0),
-      });
+      await _pb
+          .collection(_collection)
+          .update(
+            id,
+            body: {
+              'like_count': isLiked
+                  ? currentCount + 1
+                  : (currentCount > 0 ? currentCount - 1 : 0),
+            },
+          );
     } catch (e) {
-      debugPrint('Failed to toggle like: $e');
+      AppLogger.data('Failed to toggle like: $e', isError: true);
     }
   }
 
@@ -132,11 +138,14 @@ class AnswerService {
     try {
       final record = await _pb.collection('questions').getOne(questionId);
       final currentCount = record.getIntValue('comment_count');
-      await _pb.collection('questions').update(questionId, body: {
-        'comment_count': currentCount + 1,
-      });
+      await _pb
+          .collection('questions')
+          .update(questionId, body: {'comment_count': currentCount + 1});
     } catch (e) {
-      debugPrint('Failed to increment question comment count: $e');
+      AppLogger.data(
+        'Failed to increment question comment count: $e',
+        isError: true,
+      );
     }
   }
 
@@ -145,11 +154,17 @@ class AnswerService {
     try {
       final record = await _pb.collection('questions').getOne(questionId);
       final currentCount = record.getIntValue('comment_count');
-      await _pb.collection('questions').update(questionId, body: {
-        'comment_count': currentCount > 0 ? currentCount - 1 : 0,
-      });
+      await _pb
+          .collection('questions')
+          .update(
+            questionId,
+            body: {'comment_count': currentCount > 0 ? currentCount - 1 : 0},
+          );
     } catch (e) {
-      debugPrint('Failed to decrement question comment count: $e');
+      AppLogger.data(
+        'Failed to decrement question comment count: $e',
+        isError: true,
+      );
     }
   }
 

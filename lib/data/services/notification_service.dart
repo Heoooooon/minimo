@@ -1,5 +1,5 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import '../../core/utils/app_logger.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:permission_handler/permission_handler.dart';
@@ -29,8 +29,9 @@ class NotificationService {
     tz.setLocalLocation(tz.getLocation('Asia/Seoul'));
 
     // 알림 설정
-    const androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const androidSettings = AndroidInitializationSettings(
+      '@mipmap/ic_launcher',
+    );
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
       requestBadgePermission: true,
@@ -48,12 +49,12 @@ class NotificationService {
     );
 
     _isInitialized = true;
-    debugPrint('NotificationService initialized');
+    AppLogger.ui('NotificationService initialized');
   }
 
   /// 알림 탭 시 콜백
   void _onNotificationTap(NotificationResponse response) {
-    debugPrint('Notification tapped: ${response.payload}');
+    AppLogger.ui('Notification tapped: ${response.payload}');
     // TODO: 알림 탭 시 해당 일정 상세 화면으로 이동
   }
 
@@ -82,7 +83,7 @@ class NotificationService {
     if (!await hasPermission()) {
       final granted = await requestPermission();
       if (!granted) {
-        debugPrint('Notification permission denied');
+        AppLogger.warning('Notification permission denied');
         return;
       }
     }
@@ -146,7 +147,7 @@ class NotificationService {
         break;
     }
 
-    debugPrint('Notification scheduled: $id at $adjustedTime');
+    AppLogger.ui('Notification scheduled: $id at $adjustedTime');
   }
 
   /// 즉시 알림 표시 (테스트용)
@@ -168,13 +169,13 @@ class NotificationService {
   /// 알림 취소
   Future<void> cancelNotification(int id) async {
     await _notifications.cancel(id);
-    debugPrint('Notification cancelled: $id');
+    AppLogger.ui('Notification cancelled: $id');
   }
 
   /// 모든 알림 취소
   Future<void> cancelAllNotifications() async {
     await _notifications.cancelAll();
-    debugPrint('All notifications cancelled');
+    AppLogger.ui('All notifications cancelled');
   }
 
   /// 예약된 알림 목록 조회

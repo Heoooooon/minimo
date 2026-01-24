@@ -1,7 +1,7 @@
-import 'package:flutter/foundation.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'pocketbase_service.dart';
 import '../../domain/models/schedule_data.dart';
+import '../../core/utils/app_logger.dart';
 
 /// 일정 관리 서비스
 ///
@@ -20,17 +20,20 @@ class ScheduleService {
   Future<List<ScheduleData>> getDailySchedule(DateTime date) async {
     try {
       // 날짜 범위로 필터링 - 날짜만 비교 (시간 무시)
-      final dateStr = '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-      final filter = 'date >= "$dateStr 00:00:00" && date < "$dateStr 23:59:59"';
+      final dateStr =
+          '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+      final filter =
+          'date >= "$dateStr 00:00:00" && date < "$dateStr 23:59:59"';
 
-      final result = await _pb.collection(_collection).getList(
-        filter: filter,
-        sort: 'time',
-      );
+      final result = await _pb
+          .collection(_collection)
+          .getList(filter: filter, sort: 'time');
 
-      return result.items.map((record) => _recordToScheduleData(record)).toList();
+      return result.items
+          .map((record) => _recordToScheduleData(record))
+          .toList();
     } catch (e) {
-      debugPrint('Failed to get daily schedule: $e');
+      AppLogger.data('Failed to get daily schedule: $e', isError: true);
       rethrow;
     }
   }
@@ -43,16 +46,15 @@ class ScheduleService {
     String sort = '-date,time',
   }) async {
     try {
-      final result = await _pb.collection(_collection).getList(
-        page: page,
-        perPage: perPage,
-        filter: filter,
-        sort: sort,
-      );
+      final result = await _pb
+          .collection(_collection)
+          .getList(page: page, perPage: perPage, filter: filter, sort: sort);
 
-      return result.items.map((record) => _recordToScheduleData(record)).toList();
+      return result.items
+          .map((record) => _recordToScheduleData(record))
+          .toList();
     } catch (e) {
-      debugPrint('Failed to get schedules: $e');
+      AppLogger.data('Failed to get schedules: $e', isError: true);
       rethrow;
     }
   }
@@ -87,10 +89,10 @@ class ScheduleService {
 
       final record = await _pb.collection(_collection).create(body: body);
 
-      debugPrint('Schedule created: ${record.id}');
+      AppLogger.data('Schedule created: ${record.id}');
       return _recordToScheduleData(record);
     } catch (e) {
-      debugPrint('Failed to create schedule: $e');
+      AppLogger.data('Failed to create schedule: $e', isError: true);
       rethrow;
     }
   }
@@ -112,10 +114,10 @@ class ScheduleService {
 
       final record = await _pb.collection(_collection).update(id, body: body);
 
-      debugPrint('Schedule updated: ${record.id}');
+      AppLogger.data('Schedule updated: ${record.id}');
       return _recordToScheduleData(record);
     } catch (e) {
-      debugPrint('Failed to update schedule: $e');
+      AppLogger.data('Failed to update schedule: $e', isError: true);
       rethrow;
     }
   }
@@ -123,13 +125,13 @@ class ScheduleService {
   /// 완료 상태 토글
   Future<void> toggleComplete(String id, bool isCompleted) async {
     try {
-      await _pb.collection(_collection).update(id, body: {
-        'is_completed': isCompleted,
-      });
+      await _pb
+          .collection(_collection)
+          .update(id, body: {'is_completed': isCompleted});
 
-      debugPrint('Schedule $id completion toggled to: $isCompleted');
+      AppLogger.data('Schedule $id completion toggled to: $isCompleted');
     } catch (e) {
-      debugPrint('Failed to toggle schedule completion: $e');
+      AppLogger.data('Failed to toggle schedule completion: $e', isError: true);
       rethrow;
     }
   }
@@ -138,9 +140,9 @@ class ScheduleService {
   Future<void> deleteSchedule(String id) async {
     try {
       await _pb.collection(_collection).delete(id);
-      debugPrint('Schedule deleted: $id');
+      AppLogger.data('Schedule deleted: $id');
     } catch (e) {
-      debugPrint('Failed to delete schedule: $e');
+      AppLogger.data('Failed to delete schedule: $e', isError: true);
       rethrow;
     }
   }

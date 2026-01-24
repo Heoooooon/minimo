@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/utils/app_logger.dart';
 import '../../domain/models/onboarding_data.dart';
 
 /// 온보딩 서비스
@@ -35,8 +35,10 @@ class OnboardingService {
     await _prefs!.setBool(_keyOnboardingCompleted, true);
     await _prefs!.setString(_keyOnboardingData, jsonEncode(data.toJson()));
 
-    debugPrint('OnboardingService: 온보딩 완료 저장됨');
-    debugPrint('OnboardingService: isOnboardingCompleted = $isOnboardingCompleted');
+    AppLogger.data('OnboardingService: 온보딩 완료 저장됨');
+    AppLogger.data(
+      'OnboardingService: isOnboardingCompleted = $isOnboardingCompleted',
+    );
   }
 
   /// 저장된 온보딩 데이터 조회

@@ -1,9 +1,9 @@
-import 'package:flutter/foundation.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:http/http.dart' as http;
 import 'pocketbase_service.dart';
 import '../../domain/models/question_data.dart';
 import '../../presentation/widgets/home/community_card.dart';
+import '../../core/utils/app_logger.dart';
 
 /// 커뮤니티 서비스
 ///
@@ -29,17 +29,21 @@ class CommunityService {
     String? sort,
   }) async {
     try {
-      final result = await _pb.collection(_questionsCollection).getList(
-        page: page,
-        perPage: perPage,
-        filter: filter ?? '',
-        sort: sort ?? '',
-        expand: 'attached_records',
-      );
+      final result = await _pb
+          .collection(_questionsCollection)
+          .getList(
+            page: page,
+            perPage: perPage,
+            filter: filter ?? '',
+            sort: sort ?? '',
+            expand: 'attached_records',
+          );
 
-      return result.items.map((record) => _recordToQuestionData(record)).toList();
+      return result.items
+          .map((record) => _recordToQuestionData(record))
+          .toList();
     } catch (e) {
-      debugPrint('Failed to get questions: $e');
+      AppLogger.data('Failed to get questions: $e', isError: true);
       rethrow;
     }
   }
@@ -47,13 +51,12 @@ class CommunityService {
   /// 특정 질문 조회
   Future<QuestionData?> getQuestion(String id) async {
     try {
-      final record = await _pb.collection(_questionsCollection).getOne(
-        id,
-        expand: 'attached_records',
-      );
+      final record = await _pb
+          .collection(_questionsCollection)
+          .getOne(id, expand: 'attached_records');
       return _recordToQuestionData(record);
     } catch (e) {
-      debugPrint('Failed to get question: $e');
+      AppLogger.data('Failed to get question: $e', isError: true);
       return null;
     }
   }
@@ -63,12 +66,14 @@ class CommunityService {
     try {
       final body = data.toJson();
 
-      final record = await _pb.collection(_questionsCollection).create(body: body);
+      final record = await _pb
+          .collection(_questionsCollection)
+          .create(body: body);
 
-      debugPrint('Question created: ${record.id}');
+      AppLogger.data('Question created: ${record.id}');
       return _recordToQuestionData(record);
     } catch (e) {
-      debugPrint('Failed to create question: $e');
+      AppLogger.data('Failed to create question: $e', isError: true);
       rethrow;
     }
   }
@@ -78,12 +83,14 @@ class CommunityService {
     try {
       final body = data.toJson();
 
-      final record = await _pb.collection(_questionsCollection).update(id, body: body);
+      final record = await _pb
+          .collection(_questionsCollection)
+          .update(id, body: body);
 
-      debugPrint('Question updated: ${record.id}');
+      AppLogger.data('Question updated: ${record.id}');
       return _recordToQuestionData(record);
     } catch (e) {
-      debugPrint('Failed to update question: $e');
+      AppLogger.data('Failed to update question: $e', isError: true);
       rethrow;
     }
   }
@@ -92,9 +99,9 @@ class CommunityService {
   Future<void> deleteQuestion(String id) async {
     try {
       await _pb.collection(_questionsCollection).delete(id);
-      debugPrint('Question deleted: $id');
+      AppLogger.data('Question deleted: $id');
     } catch (e) {
-      debugPrint('Failed to delete question: $e');
+      AppLogger.data('Failed to delete question: $e', isError: true);
       rethrow;
     }
   }
@@ -104,11 +111,11 @@ class CommunityService {
     try {
       final record = await _pb.collection(_questionsCollection).getOne(id);
       final currentCount = record.getIntValue('view_count');
-      await _pb.collection(_questionsCollection).update(id, body: {
-        'view_count': currentCount + 1,
-      });
+      await _pb
+          .collection(_questionsCollection)
+          .update(id, body: {'view_count': currentCount + 1});
     } catch (e) {
-      debugPrint('Failed to increment view count: $e');
+      AppLogger.data('Failed to increment view count: $e', isError: true);
     }
   }
 
@@ -122,29 +129,36 @@ class CommunityService {
     String? sort,
   }) async {
     try {
-      final result = await _pb.collection(_postsCollection).getList(
-        page: page,
-        perPage: perPage,
-        filter: filter ?? '',
-        sort: sort ?? '',
-      );
+      final result = await _pb
+          .collection(_postsCollection)
+          .getList(
+            page: page,
+            perPage: perPage,
+            filter: filter ?? '',
+            sort: sort ?? '',
+          );
 
-      return result.items.map((record) => _recordToCommunityData(record)).toList();
+      return result.items
+          .map((record) => _recordToCommunityData(record))
+          .toList();
     } catch (e) {
-      debugPrint('Failed to get posts: $e');
+      AppLogger.data('Failed to get posts: $e', isError: true);
       rethrow;
     }
   }
 
   /// 커뮤니티 포스트 생성
   Future<CommunityData> createPost({
+    required String authorId,
     required String authorName,
     required String content,
     String? authorImagePath,
     String? imagePath,
+    List<String>? tags,
   }) async {
     try {
       final body = <String, dynamic>{
+        'author_id': authorId,
         'author_name': authorName,
         'content': content,
         'like_count': 0,
@@ -152,10 +166,17 @@ class CommunityService {
         'bookmark_count': 0,
       };
 
+      // 태그 추가 (JSON 배열로 저장)
+      if (tags != null && tags.isNotEmpty) {
+        body['tags'] = tags;
+      }
+
       final files = <http.MultipartFile>[];
 
       if (authorImagePath != null && authorImagePath.isNotEmpty) {
-        files.add(await http.MultipartFile.fromPath('author_image', authorImagePath));
+        files.add(
+          await http.MultipartFile.fromPath('author_image', authorImagePath),
+        );
       }
 
       if (imagePath != null && imagePath.isNotEmpty) {
@@ -164,19 +185,81 @@ class CommunityService {
 
       RecordModel record;
       if (files.isNotEmpty) {
-        record = await _pb.collection(_postsCollection).create(
-          body: body,
-          files: files,
-        );
+        record = await _pb
+            .collection(_postsCollection)
+            .create(body: body, files: files);
       } else {
         record = await _pb.collection(_postsCollection).create(body: body);
       }
 
-      debugPrint('Post created: ${record.id}');
+      AppLogger.data('Post created: ${record.id}');
       return _recordToCommunityData(record);
     } catch (e) {
-      debugPrint('Failed to create post: $e');
+      AppLogger.data('Failed to create post: $e', isError: true);
       rethrow;
+    }
+  }
+
+  /// 커뮤니티 포스트 수정
+  Future<CommunityData> updatePost({
+    required String id,
+    String? content,
+    String? imagePath,
+    bool removeImage = false,
+  }) async {
+    try {
+      final body = <String, dynamic>{};
+
+      if (content != null) {
+        body['content'] = content;
+      }
+
+      if (removeImage) {
+        body['image'] = null;
+      }
+
+      final files = <http.MultipartFile>[];
+
+      if (imagePath != null && imagePath.isNotEmpty) {
+        files.add(await http.MultipartFile.fromPath('image', imagePath));
+      }
+
+      RecordModel record;
+      if (files.isNotEmpty) {
+        record = await _pb
+            .collection(_postsCollection)
+            .update(id, body: body, files: files);
+      } else {
+        record = await _pb.collection(_postsCollection).update(id, body: body);
+      }
+
+      AppLogger.data('Post updated: ${record.id}');
+      return _recordToCommunityData(record);
+    } catch (e) {
+      AppLogger.data('Failed to update post: $e', isError: true);
+      rethrow;
+    }
+  }
+
+  /// 커뮤니티 포스트 삭제
+  Future<void> deletePost(String id) async {
+    try {
+      await _pb.collection(_postsCollection).delete(id);
+      AppLogger.data('Post deleted: $id');
+    } catch (e) {
+      AppLogger.data('Failed to delete post: $e', isError: true);
+      rethrow;
+    }
+  }
+
+  /// 특정 포스트 조회
+  Future<CommunityData?> getPost(String id) async {
+    try {
+      final record = await _pb.collection(_postsCollection).getOne(id);
+      return _recordToCommunityData(record);
+    } catch (e) {
+      AppLogger.data('Failed to get post: $e', isError: true);
+      return null;
     }
   }
 
@@ -185,11 +268,18 @@ class CommunityService {
     try {
       final record = await _pb.collection(_postsCollection).getOne(id);
       final currentCount = record.getIntValue('like_count');
-      await _pb.collection(_postsCollection).update(id, body: {
-        'like_count': isLiked ? currentCount + 1 : (currentCount > 0 ? currentCount - 1 : 0),
-      });
+      await _pb
+          .collection(_postsCollection)
+          .update(
+            id,
+            body: {
+              'like_count': isLiked
+                  ? currentCount + 1
+                  : (currentCount > 0 ? currentCount - 1 : 0),
+            },
+          );
     } catch (e) {
-      debugPrint('Failed to toggle like: $e');
+      AppLogger.data('Failed to toggle like: $e', isError: true);
     }
   }
 
@@ -198,11 +288,18 @@ class CommunityService {
     try {
       final record = await _pb.collection(_postsCollection).getOne(id);
       final currentCount = record.getIntValue('bookmark_count');
-      await _pb.collection(_postsCollection).update(id, body: {
-        'bookmark_count': isBookmarked ? currentCount + 1 : (currentCount > 0 ? currentCount - 1 : 0),
-      });
+      await _pb
+          .collection(_postsCollection)
+          .update(
+            id,
+            body: {
+              'bookmark_count': isBookmarked
+                  ? currentCount + 1
+                  : (currentCount > 0 ? currentCount - 1 : 0),
+            },
+          );
     } catch (e) {
-      debugPrint('Failed to toggle bookmark: $e');
+      AppLogger.data('Failed to toggle bookmark: $e', isError: true);
     }
   }
 
@@ -253,13 +350,27 @@ class CommunityService {
       authorImageUrl = _pb.files.getUrl(record, authorImage).toString();
     }
 
+    // 태그 파싱
+    List<String> tags = [];
+    final tagsData = record.data['tags'];
+    if (tagsData != null) {
+      if (tagsData is List) {
+        tags = tagsData.map((e) => e.toString()).toList();
+      } else if (tagsData is String && tagsData.isNotEmpty) {
+        // JSON 문자열인 경우
+        tags = [tagsData];
+      }
+    }
+
     return CommunityData(
       id: record.id,
+      authorId: record.getStringValue('author_id'),
       authorName: record.getStringValue('author_name'),
       authorImageUrl: authorImageUrl,
       timeAgo: timeAgo,
       content: record.getStringValue('content'),
       imageUrl: imageUrl,
+      tags: tags,
       likeCount: record.getIntValue('like_count'),
       commentCount: record.getIntValue('comment_count'),
       bookmarkCount: record.getIntValue('bookmark_count'),

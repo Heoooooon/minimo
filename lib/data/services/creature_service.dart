@@ -1,9 +1,9 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:http/http.dart' as http;
 import '../../domain/models/creature_data.dart';
 import 'pocketbase_service.dart';
+import '../../core/utils/app_logger.dart';
 
 /// 생물 관리 서비스
 ///
@@ -22,15 +22,15 @@ class CreatureService {
   /// 어항별 생물 목록 조회
   Future<List<CreatureData>> getCreaturesByAquarium(String aquariumId) async {
     try {
-      final records = await _client.collection(_collection).getFullList(
-        filter: 'aquarium_id = "$aquariumId"',
-      );
+      final records = await _client
+          .collection(_collection)
+          .getFullList(filter: 'aquarium_id = "$aquariumId"');
 
       return records
           .map((r) => CreatureData.fromJson(r.toJson(), baseUrl: _baseUrl))
           .toList();
     } catch (e) {
-      debugPrint('Failed to get creatures: $e');
+      AppLogger.data('Failed to get creatures: $e', isError: true);
       rethrow;
     }
   }
@@ -41,7 +41,7 @@ class CreatureService {
       final record = await _client.collection(_collection).getOne(id);
       return CreatureData.fromJson(record.toJson(), baseUrl: _baseUrl);
     } catch (e) {
-      debugPrint('Failed to get creature: $e');
+      AppLogger.data('Failed to get creature: $e', isError: true);
       rethrow;
     }
   }
@@ -50,12 +50,15 @@ class CreatureService {
   Future<CreatureData> getCreatureWithMemos(String id) async {
     try {
       final record = await _client.collection(_collection).getOne(id);
-      final creature = CreatureData.fromJson(record.toJson(), baseUrl: _baseUrl);
+      final creature = CreatureData.fromJson(
+        record.toJson(),
+        baseUrl: _baseUrl,
+      );
 
       // 메모 조회
-      final memoRecords = await _client.collection('creature_memos').getFullList(
-        filter: 'creature_id = "$id"',
-      );
+      final memoRecords = await _client
+          .collection('creature_memos')
+          .getFullList(filter: 'creature_id = "$id"');
 
       final memos = memoRecords
           .map((r) => CreatureMemoData.fromJson(r.toJson()))
@@ -63,7 +66,7 @@ class CreatureService {
 
       return creature.copyWith(memos: memos);
     } catch (e) {
-      debugPrint('Failed to get creature with memos: $e');
+      AppLogger.data('Failed to get creature with memos: $e', isError: true);
       rethrow;
     }
   }
@@ -80,14 +83,13 @@ class CreatureService {
         }
       }
 
-      final record = await _client.collection(_collection).create(
-        body: creature.toJson(),
-        files: files,
-      );
+      final record = await _client
+          .collection(_collection)
+          .create(body: creature.toJson(), files: files);
 
       return CreatureData.fromJson(record.toJson(), baseUrl: _baseUrl);
     } catch (e) {
-      debugPrint('Failed to create creature: $e');
+      AppLogger.data('Failed to create creature: $e', isError: true);
       rethrow;
     }
   }
@@ -108,15 +110,13 @@ class CreatureService {
         }
       }
 
-      final record = await _client.collection(_collection).update(
-        creature.id!,
-        body: creature.toJson(),
-        files: files,
-      );
+      final record = await _client
+          .collection(_collection)
+          .update(creature.id!, body: creature.toJson(), files: files);
 
       return CreatureData.fromJson(record.toJson(), baseUrl: _baseUrl);
     } catch (e) {
-      debugPrint('Failed to update creature: $e');
+      AppLogger.data('Failed to update creature: $e', isError: true);
       rethrow;
     }
   }
@@ -126,7 +126,7 @@ class CreatureService {
     try {
       await _client.collection(_collection).delete(id);
     } catch (e) {
-      debugPrint('Failed to delete creature: $e');
+      AppLogger.data('Failed to delete creature: $e', isError: true);
       rethrow;
     }
   }
@@ -146,14 +146,13 @@ class CreatureService {
         throw ArgumentError('No valid files to upload');
       }
 
-      final record = await _client.collection(_collection).update(
-        id,
-        files: files,
-      );
+      final record = await _client
+          .collection(_collection)
+          .update(id, files: files);
 
       return CreatureData.fromJson(record.toJson(), baseUrl: _baseUrl);
     } catch (e) {
-      debugPrint('Failed to add photos: $e');
+      AppLogger.data('Failed to add photos: $e', isError: true);
       rethrow;
     }
   }
@@ -161,14 +160,13 @@ class CreatureService {
   /// 생물 사진 삭제
   Future<CreatureData> removePhoto(String id, String filename) async {
     try {
-      final record = await _client.collection(_collection).update(
-        id,
-        body: {'photos-': filename},
-      );
+      final record = await _client
+          .collection(_collection)
+          .update(id, body: {'photos-': filename});
 
       return CreatureData.fromJson(record.toJson(), baseUrl: _baseUrl);
     } catch (e) {
-      debugPrint('Failed to remove photo: $e');
+      AppLogger.data('Failed to remove photo: $e', isError: true);
       rethrow;
     }
   }
@@ -176,14 +174,12 @@ class CreatureService {
   /// 어항별 생물 수 조회
   Future<int> getCreatureCount(String aquariumId) async {
     try {
-      final result = await _client.collection(_collection).getList(
-        page: 1,
-        perPage: 1,
-        filter: 'aquarium_id = "$aquariumId"',
-      );
+      final result = await _client
+          .collection(_collection)
+          .getList(page: 1, perPage: 1, filter: 'aquarium_id = "$aquariumId"');
       return result.totalItems;
     } catch (e) {
-      debugPrint('Failed to get creature count: $e');
+      AppLogger.data('Failed to get creature count: $e', isError: true);
       return 0;
     }
   }

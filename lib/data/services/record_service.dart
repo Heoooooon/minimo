@@ -1,7 +1,7 @@
-import 'package:flutter/foundation.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'pocketbase_service.dart';
 import '../../domain/models/record_data.dart';
+import '../../core/utils/app_logger.dart';
 
 /// 기록 관리 서비스
 ///
@@ -24,16 +24,13 @@ class RecordService {
     String sort = '-date',
   }) async {
     try {
-      final result = await _pb.collection(_collection).getList(
-        page: page,
-        perPage: perPage,
-        filter: filter,
-        sort: sort,
-      );
+      final result = await _pb
+          .collection(_collection)
+          .getList(page: page, perPage: perPage, filter: filter, sort: sort);
 
       return result.items.map((record) => _recordToRecordData(record)).toList();
     } catch (e) {
-      debugPrint('Failed to get records: $e');
+      AppLogger.data('Failed to get records: $e', isError: true);
       rethrow;
     }
   }
@@ -68,13 +65,10 @@ class RecordService {
     final startOfDay = DateTime(date.year, date.month, date.day);
     final endOfDay = startOfDay.add(const Duration(days: 1));
 
-    final filter = 'date >= "${_formatDateForPocketBase(startOfDay)}" && date < "${_formatDateForPocketBase(endOfDay)}"';
+    final filter =
+        'date >= "${_formatDateForPocketBase(startOfDay)}" && date < "${_formatDateForPocketBase(endOfDay)}"';
 
-    return getRecords(
-      filter: filter,
-      perPage: 100,
-      sort: '-date',
-    );
+    return getRecords(filter: filter, perPage: 100, sort: '-date');
   }
 
   /// 특정 월의 기록이 있는 날짜 목록 조회
@@ -86,12 +80,9 @@ class RecordService {
       final filter =
           'date >= "${_formatDateForPocketBase(startOfMonth)}" && date <= "${_formatDateForPocketBase(endOfMonth)}"';
 
-      final result = await _pb.collection(_collection).getList(
-        page: 1,
-        perPage: 100,
-        filter: filter,
-        sort: 'date',
-      );
+      final result = await _pb
+          .collection(_collection)
+          .getList(page: 1, perPage: 100, filter: filter, sort: 'date');
 
       // 날짜만 추출하고 중복 제거
       final dates = <DateTime>{};
@@ -105,7 +96,7 @@ class RecordService {
 
       return dates.toList()..sort();
     } catch (e) {
-      debugPrint('Failed to get record dates in month: $e');
+      AppLogger.data('Failed to get record dates in month: $e', isError: true);
       return [];
     }
   }
@@ -116,7 +107,7 @@ class RecordService {
       final record = await _pb.collection(_collection).getOne(id);
       return _recordToRecordData(record);
     } catch (e) {
-      debugPrint('Failed to get record: $e');
+      AppLogger.data('Failed to get record: $e', isError: true);
       return null;
     }
   }
@@ -128,10 +119,10 @@ class RecordService {
 
       final record = await _pb.collection(_collection).create(body: body);
 
-      debugPrint('Record created: ${record.id}');
+      AppLogger.data('Record created: ${record.id}');
       return _recordToRecordData(record);
     } catch (e) {
-      debugPrint('Failed to create record: $e');
+      AppLogger.data('Failed to create record: $e', isError: true);
       rethrow;
     }
   }
@@ -143,10 +134,10 @@ class RecordService {
 
       final record = await _pb.collection(_collection).update(id, body: body);
 
-      debugPrint('Record updated: ${record.id}');
+      AppLogger.data('Record updated: ${record.id}');
       return _recordToRecordData(record);
     } catch (e) {
-      debugPrint('Failed to update record: $e');
+      AppLogger.data('Failed to update record: $e', isError: true);
       rethrow;
     }
   }
@@ -155,9 +146,9 @@ class RecordService {
   Future<void> deleteRecord(String id) async {
     try {
       await _pb.collection(_collection).delete(id);
-      debugPrint('Record deleted: $id');
+      AppLogger.data('Record deleted: $id');
     } catch (e) {
-      debugPrint('Failed to delete record: $e');
+      AppLogger.data('Failed to delete record: $e', isError: true);
       rethrow;
     }
   }
@@ -165,14 +156,12 @@ class RecordService {
   /// 기록 개수 조회
   Future<int> getRecordCount({String? filter}) async {
     try {
-      final result = await _pb.collection(_collection).getList(
-        page: 1,
-        perPage: 1,
-        filter: filter,
-      );
+      final result = await _pb
+          .collection(_collection)
+          .getList(page: 1, perPage: 1, filter: filter);
       return result.totalItems;
     } catch (e) {
-      debugPrint('Failed to get record count: $e');
+      AppLogger.data('Failed to get record count: $e', isError: true);
       return 0;
     }
   }

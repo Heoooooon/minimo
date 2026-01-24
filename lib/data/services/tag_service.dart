@@ -1,6 +1,6 @@
-import 'package:flutter/foundation.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'pocketbase_service.dart';
+import '../../core/utils/app_logger.dart';
 
 /// 태그 데이터 모델
 class TagData {
@@ -29,11 +29,7 @@ class TagData {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'name': name,
-      'usage_count': usageCount,
-      'category': category,
-    };
+    return {'name': name, 'usage_count': usageCount, 'category': category};
   }
 }
 
@@ -61,16 +57,18 @@ class TagService {
         filter = 'category = "$category"';
       }
 
-      final result = await _pb.collection(_collection).getList(
-        page: 1,
-        perPage: limit,
-        filter: filter,
-        sort: '-usage_count',
-      );
+      final result = await _pb
+          .collection(_collection)
+          .getList(
+            page: 1,
+            perPage: limit,
+            filter: filter,
+            sort: '-usage_count',
+          );
 
       return result.items.map((record) => _recordToTagData(record)).toList();
     } catch (e) {
-      debugPrint('Failed to get popular tags: $e');
+      AppLogger.data('Failed to get popular tags: $e', isError: true);
       return [];
     }
   }
@@ -81,16 +79,18 @@ class TagService {
     int limit = 20,
   }) async {
     try {
-      final result = await _pb.collection(_collection).getList(
-        page: 1,
-        perPage: limit,
-        filter: 'name ~ "$query"',
-        sort: '-usage_count',
-      );
+      final result = await _pb
+          .collection(_collection)
+          .getList(
+            page: 1,
+            perPage: limit,
+            filter: 'name ~ "$query"',
+            sort: '-usage_count',
+          );
 
       return result.items.map((record) => _recordToTagData(record)).toList();
     } catch (e) {
-      debugPrint('Failed to search tags: $e');
+      AppLogger.data('Failed to search tags: $e', isError: true);
       return [];
     }
   }
@@ -98,18 +98,16 @@ class TagService {
   /// 태그 조회 (이름으로)
   Future<TagData?> getTagByName(String name) async {
     try {
-      final result = await _pb.collection(_collection).getList(
-        page: 1,
-        perPage: 1,
-        filter: 'name = "$name"',
-      );
+      final result = await _pb
+          .collection(_collection)
+          .getList(page: 1, perPage: 1, filter: 'name = "$name"');
 
       if (result.items.isNotEmpty) {
         return _recordToTagData(result.items.first);
       }
       return null;
     } catch (e) {
-      debugPrint('Failed to get tag by name: $e');
+      AppLogger.data('Failed to get tag by name: $e', isError: true);
       return null;
     }
   }
@@ -130,16 +128,14 @@ class TagService {
       }
 
       // 새 태그 생성
-      final record = await _pb.collection(_collection).create(body: {
-        'name': name,
-        'usage_count': 1,
-        'category': category,
-      });
+      final record = await _pb
+          .collection(_collection)
+          .create(body: {'name': name, 'usage_count': 1, 'category': category});
 
-      debugPrint('Tag created: $name');
+      AppLogger.data('Tag created: $name');
       return _recordToTagData(record);
     } catch (e) {
-      debugPrint('Failed to get or create tag: $e');
+      AppLogger.data('Failed to get or create tag: $e', isError: true);
       rethrow;
     }
   }
@@ -149,11 +145,11 @@ class TagService {
     try {
       final record = await _pb.collection(_collection).getOne(id);
       final currentCount = record.getIntValue('usage_count');
-      await _pb.collection(_collection).update(id, body: {
-        'usage_count': currentCount + 1,
-      });
+      await _pb
+          .collection(_collection)
+          .update(id, body: {'usage_count': currentCount + 1});
     } catch (e) {
-      debugPrint('Failed to increment usage count: $e');
+      AppLogger.data('Failed to increment usage count: $e', isError: true);
     }
   }
 
@@ -162,11 +158,14 @@ class TagService {
     try {
       final record = await _pb.collection(_collection).getOne(id);
       final currentCount = record.getIntValue('usage_count');
-      await _pb.collection(_collection).update(id, body: {
-        'usage_count': currentCount > 0 ? currentCount - 1 : 0,
-      });
+      await _pb
+          .collection(_collection)
+          .update(
+            id,
+            body: {'usage_count': currentCount > 0 ? currentCount - 1 : 0},
+          );
     } catch (e) {
-      debugPrint('Failed to decrement usage count: $e');
+      AppLogger.data('Failed to decrement usage count: $e', isError: true);
     }
   }
 
@@ -177,15 +176,13 @@ class TagService {
     String? sort,
   }) async {
     try {
-      final result = await _pb.collection(_collection).getList(
-        page: page,
-        perPage: perPage,
-        sort: sort ?? 'name',
-      );
+      final result = await _pb
+          .collection(_collection)
+          .getList(page: page, perPage: perPage, sort: sort ?? 'name');
 
       return result.items.map((record) => _recordToTagData(record)).toList();
     } catch (e) {
-      debugPrint('Failed to get all tags: $e');
+      AppLogger.data('Failed to get all tags: $e', isError: true);
       return [];
     }
   }

@@ -1,6 +1,6 @@
-import 'package:flutter/foundation.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'pocketbase_service.dart';
+import '../../core/utils/app_logger.dart';
 
 /// 팔로우 데이터 모델
 class FollowData {
@@ -51,12 +51,11 @@ class FollowService {
         return existing;
       }
 
-      final record = await _pb.collection(_collection).create(body: {
-        'follower': followerId,
-        'following': followingId,
-      });
+      final record = await _pb
+          .collection(_collection)
+          .create(body: {'follower': followerId, 'following': followingId});
 
-      debugPrint('Followed: $followerId -> $followingId');
+      AppLogger.data('Followed: $followerId -> $followingId');
       return FollowData.fromJson({
         'id': record.id,
         'follower': followerId,
@@ -64,7 +63,7 @@ class FollowService {
         'created': record.getStringValue('created'),
       });
     } catch (e) {
-      debugPrint('Failed to follow: $e');
+      AppLogger.data('Failed to follow: $e', isError: true);
       rethrow;
     }
   }
@@ -78,10 +77,10 @@ class FollowService {
       final existing = await _getFollowRecord(followerId, followingId);
       if (existing?.id != null) {
         await _pb.collection(_collection).delete(existing!.id!);
-        debugPrint('Unfollowed: $followerId -> $followingId');
+        AppLogger.data('Unfollowed: $followerId -> $followingId');
       }
     } catch (e) {
-      debugPrint('Failed to unfollow: $e');
+      AppLogger.data('Failed to unfollow: $e', isError: true);
       rethrow;
     }
   }
@@ -95,7 +94,7 @@ class FollowService {
       final existing = await _getFollowRecord(followerId, followingId);
       return existing != null;
     } catch (e) {
-      debugPrint('Failed to check follow status: $e');
+      AppLogger.data('Failed to check follow status: $e', isError: true);
       return false;
     }
   }
@@ -107,16 +106,20 @@ class FollowService {
     int perPage = 100,
   }) async {
     try {
-      final result = await _pb.collection(_collection).getList(
-        page: page,
-        perPage: perPage,
-        filter: 'follower = "$userId"',
-        sort: '-created',
-      );
+      final result = await _pb
+          .collection(_collection)
+          .getList(
+            page: page,
+            perPage: perPage,
+            filter: 'follower = "$userId"',
+            sort: '-created',
+          );
 
-      return result.items.map((record) => record.getStringValue('following')).toList();
+      return result.items
+          .map((record) => record.getStringValue('following'))
+          .toList();
     } catch (e) {
-      debugPrint('Failed to get following: $e');
+      AppLogger.data('Failed to get following: $e', isError: true);
       return [];
     }
   }
@@ -128,16 +131,20 @@ class FollowService {
     int perPage = 100,
   }) async {
     try {
-      final result = await _pb.collection(_collection).getList(
-        page: page,
-        perPage: perPage,
-        filter: 'following = "$userId"',
-        sort: '-created',
-      );
+      final result = await _pb
+          .collection(_collection)
+          .getList(
+            page: page,
+            perPage: perPage,
+            filter: 'following = "$userId"',
+            sort: '-created',
+          );
 
-      return result.items.map((record) => record.getStringValue('follower')).toList();
+      return result.items
+          .map((record) => record.getStringValue('follower'))
+          .toList();
     } catch (e) {
-      debugPrint('Failed to get followers: $e');
+      AppLogger.data('Failed to get followers: $e', isError: true);
       return [];
     }
   }
@@ -145,14 +152,12 @@ class FollowService {
   /// 팔로잉 수 조회
   Future<int> getFollowingCount(String userId) async {
     try {
-      final result = await _pb.collection(_collection).getList(
-        page: 1,
-        perPage: 1,
-        filter: 'follower = "$userId"',
-      );
+      final result = await _pb
+          .collection(_collection)
+          .getList(page: 1, perPage: 1, filter: 'follower = "$userId"');
       return result.totalItems;
     } catch (e) {
-      debugPrint('Failed to get following count: $e');
+      AppLogger.data('Failed to get following count: $e', isError: true);
       return 0;
     }
   }
@@ -160,14 +165,12 @@ class FollowService {
   /// 팔로워 수 조회
   Future<int> getFollowersCount(String userId) async {
     try {
-      final result = await _pb.collection(_collection).getList(
-        page: 1,
-        perPage: 1,
-        filter: 'following = "$userId"',
-      );
+      final result = await _pb
+          .collection(_collection)
+          .getList(page: 1, perPage: 1, filter: 'following = "$userId"');
       return result.totalItems;
     } catch (e) {
-      debugPrint('Failed to get followers count: $e');
+      AppLogger.data('Failed to get followers count: $e', isError: true);
       return 0;
     }
   }
@@ -175,13 +178,18 @@ class FollowService {
   // ==================== Helpers ====================
 
   /// 팔로우 레코드 조회
-  Future<FollowData?> _getFollowRecord(String followerId, String followingId) async {
+  Future<FollowData?> _getFollowRecord(
+    String followerId,
+    String followingId,
+  ) async {
     try {
-      final result = await _pb.collection(_collection).getList(
-        page: 1,
-        perPage: 1,
-        filter: 'follower = "$followerId" && following = "$followingId"',
-      );
+      final result = await _pb
+          .collection(_collection)
+          .getList(
+            page: 1,
+            perPage: 1,
+            filter: 'follower = "$followerId" && following = "$followingId"',
+          );
 
       if (result.items.isNotEmpty) {
         final record = result.items.first;
@@ -194,7 +202,7 @@ class FollowService {
       }
       return null;
     } catch (e) {
-      debugPrint('Failed to get follow record: $e');
+      AppLogger.data('Failed to get follow record: $e', isError: true);
       return null;
     }
   }

@@ -1,6 +1,7 @@
-import 'package:flutter/foundation.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'pocketbase_service.dart';
+import '../../core/exceptions/app_exceptions.dart';
+import '../../core/utils/app_logger.dart';
 
 /// 인증 서비스
 ///
@@ -25,15 +26,25 @@ class AuthService {
     required String password,
   }) async {
     try {
-      final authData = await _pb.collection('users').authWithPassword(
-        email,
-        password,
-      );
-      debugPrint('Login successful: ${authData.record.id}');
+      final authData = await _pb
+          .collection('users')
+          .authWithPassword(email, password);
+      AppLogger.auth('Login successful: ${authData.record.id}');
       return authData.record;
+    } on ClientException catch (e) {
+      AppLogger.auth('Login failed: $e', isError: true);
+      // PocketBase 에러 코드 매핑
+      if (e.statusCode == 400) {
+        throw AuthException.invalidCredentials();
+      }
+      throw NetworkException.clientError(
+        message: '로그인에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
-      debugPrint('Login failed: $e');
-      rethrow;
+      AppLogger.auth('Login failed: $e', isError: true);
+      throw NetworkException(message: '로그인 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -44,22 +55,46 @@ class AuthService {
     required String passwordConfirm,
     required String name,
   }) async {
+    // 비밀번호 유효성 검사
+    if (password.length < 8) {
+      throw AuthException.weakPassword();
+    }
+    if (password != passwordConfirm) {
+      throw AuthException.passwordMismatch();
+    }
+
     try {
-      final record = await _pb.collection('users').create(body: {
-        'email': email,
-        'password': password,
-        'passwordConfirm': passwordConfirm,
-        'name': name,
-      });
-      debugPrint('Sign up successful: ${record.id}');
+      final record = await _pb
+          .collection('users')
+          .create(
+            body: {
+              'email': email,
+              'password': password,
+              'passwordConfirm': passwordConfirm,
+              'name': name,
+            },
+          );
+      AppLogger.auth('Sign up successful: ${record.id}');
 
       // 회원가입 후 자동 로그인
       await loginWithEmail(email: email, password: password);
 
       return record;
+    } on ClientException catch (e) {
+      AppLogger.auth('Sign up failed: $e', isError: true);
+      // PocketBase 에러 코드 매핑
+      final errorData = e.response['data'] as Map<String, dynamic>?;
+      if (errorData != null && errorData.containsKey('email')) {
+        throw AuthException.emailAlreadyExists();
+      }
+      throw NetworkException.clientError(
+        message: '회원가입에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
-      debugPrint('Sign up failed: $e');
-      rethrow;
+      AppLogger.auth('Sign up failed: $e', isError: true);
+      throw NetworkException(message: '회원가입 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -67,45 +102,68 @@ class AuthService {
   Future<void> requestEmailVerification(String email) async {
     try {
       await _pb.collection('users').requestVerification(email);
-      debugPrint('Verification email sent to: $email');
+      AppLogger.auth('Verification email sent to: $email');
+    } on ClientException catch (e) {
+      AppLogger.auth('Verification request failed: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '인증 메일 전송에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
-      debugPrint('Verification request failed: $e');
-      rethrow;
+      AppLogger.auth('Verification request failed: $e', isError: true);
+      throw NetworkException(message: '인증 요청 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
   /// 로그아웃
   void logout() {
     _pb.authStore.clear();
-    debugPrint('Logged out');
+    AppLogger.auth('Logged out');
   }
 
   /// 비밀번호 재설정 요청
   Future<void> requestPasswordReset(String email) async {
     try {
       await _pb.collection('users').requestPasswordReset(email);
-      debugPrint('Password reset email sent to: $email');
+      AppLogger.auth('Password reset email sent to: $email');
+    } on ClientException catch (e) {
+      AppLogger.auth('Password reset request failed: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '비밀번호 재설정 메일 전송에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
-      debugPrint('Password reset request failed: $e');
-      rethrow;
+      AppLogger.auth('Password reset request failed: $e', isError: true);
+      throw NetworkException(
+        message: '비밀번호 재설정 요청 중 오류가 발생했습니다.',
+        originalError: e,
+      );
     }
   }
 
   /// OAuth2 소셜 로그인 (카카오, 구글, 네이버, 애플)
   Future<RecordModel?> loginWithOAuth2(String provider) async {
     try {
-      final authData = await _pb.collection('users').authWithOAuth2(
-        provider,
-        (url) async {
-          // URL을 열어서 OAuth2 인증 진행
-          debugPrint('OAuth2 URL: $url');
-        },
-      );
-      debugPrint('OAuth2 login successful: ${authData.record.id}');
+      final authData = await _pb.collection('users').authWithOAuth2(provider, (
+        url,
+      ) async {
+        // URL을 열어서 OAuth2 인증 진행
+        AppLogger.auth('OAuth2 URL: $url');
+      });
+      AppLogger.auth('OAuth2 login successful: ${authData.record.id}');
       return authData.record;
+    } on ClientException catch (e) {
+      AppLogger.auth('OAuth2 login failed: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '소셜 로그인에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
-      debugPrint('OAuth2 login failed: $e');
-      rethrow;
+      AppLogger.auth('OAuth2 login failed: $e', isError: true);
+      throw NetworkException(message: '소셜 로그인 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -117,11 +175,21 @@ class AuthService {
         method: 'POST',
         body: {'email': email},
       );
-      debugPrint('Verification code sent: $response');
+      AppLogger.auth('Verification code sent: $response');
       return response['success'] == true;
+    } on ClientException catch (e) {
+      AppLogger.auth('Failed to send verification code: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '인증 코드 전송에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
-      debugPrint('Failed to send verification code: $e');
-      rethrow;
+      AppLogger.auth('Failed to send verification code: $e', isError: true);
+      throw NetworkException(
+        message: '인증 코드 전송 중 오류가 발생했습니다.',
+        originalError: e,
+      );
     }
   }
 
@@ -133,11 +201,27 @@ class AuthService {
         method: 'POST',
         body: {'email': email, 'code': code},
       );
-      debugPrint('Code verified: $response');
+      AppLogger.auth('Code verified: $response');
       return response['success'] == true;
+    } on ClientException catch (e) {
+      AppLogger.auth('Failed to verify code: $e', isError: true);
+      if (e.statusCode == 400) {
+        throw const AuthException(
+          message: '인증 코드가 올바르지 않습니다.',
+          code: 'INVALID_CODE',
+        );
+      }
+      throw NetworkException.clientError(
+        message: '인증 코드 검증에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
-      debugPrint('Failed to verify code: $e');
-      rethrow;
+      AppLogger.auth('Failed to verify code: $e', isError: true);
+      throw NetworkException(
+        message: '인증 코드 검증 중 오류가 발생했습니다.',
+        originalError: e,
+      );
     }
   }
 }

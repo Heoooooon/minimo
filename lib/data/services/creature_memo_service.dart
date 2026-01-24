@@ -1,5 +1,5 @@
-import 'package:flutter/foundation.dart';
 import 'package:pocketbase/pocketbase.dart';
+import '../../core/utils/app_logger.dart';
 import '../../domain/models/creature_data.dart';
 import 'pocketbase_service.dart';
 
@@ -10,7 +10,8 @@ class CreatureMemoService {
   CreatureMemoService._();
 
   static CreatureMemoService? _instance;
-  static CreatureMemoService get instance => _instance ??= CreatureMemoService._();
+  static CreatureMemoService get instance =>
+      _instance ??= CreatureMemoService._();
 
   PocketBase get _client => PocketBaseService.instance.client;
 
@@ -19,15 +20,13 @@ class CreatureMemoService {
   /// 생물별 메모 목록 조회
   Future<List<CreatureMemoData>> getMemosByCreature(String creatureId) async {
     try {
-      final records = await _client.collection(_collection).getFullList(
-        filter: 'creature_id = "$creatureId"',
-      );
+      final records = await _client
+          .collection(_collection)
+          .getFullList(filter: 'creature_id = "$creatureId"');
 
-      return records
-          .map((r) => CreatureMemoData.fromJson(r.toJson()))
-          .toList();
+      return records.map((r) => CreatureMemoData.fromJson(r.toJson())).toList();
     } catch (e) {
-      debugPrint('Failed to get memos: $e');
+      AppLogger.data('Failed to get memos: $e', isError: true);
       rethrow;
     }
   }
@@ -38,7 +37,7 @@ class CreatureMemoService {
       final record = await _client.collection(_collection).getOne(id);
       return CreatureMemoData.fromJson(record.toJson());
     } catch (e) {
-      debugPrint('Failed to get memo: $e');
+      AppLogger.data('Failed to get memo: $e', isError: true);
       rethrow;
     }
   }
@@ -46,13 +45,13 @@ class CreatureMemoService {
   /// 메모 추가
   Future<CreatureMemoData> createMemo(CreatureMemoData memo) async {
     try {
-      final record = await _client.collection(_collection).create(
-        body: memo.toJson(),
-      );
+      final record = await _client
+          .collection(_collection)
+          .create(body: memo.toJson());
 
       return CreatureMemoData.fromJson(record.toJson());
     } catch (e) {
-      debugPrint('Failed to create memo: $e');
+      AppLogger.data('Failed to create memo: $e', isError: true);
       rethrow;
     }
   }
@@ -64,14 +63,13 @@ class CreatureMemoService {
     }
 
     try {
-      final record = await _client.collection(_collection).update(
-        memo.id!,
-        body: memo.toJson(),
-      );
+      final record = await _client
+          .collection(_collection)
+          .update(memo.id!, body: memo.toJson());
 
       return CreatureMemoData.fromJson(record.toJson());
     } catch (e) {
-      debugPrint('Failed to update memo: $e');
+      AppLogger.data('Failed to update memo: $e', isError: true);
       rethrow;
     }
   }
@@ -81,7 +79,7 @@ class CreatureMemoService {
     try {
       await _client.collection(_collection).delete(id);
     } catch (e) {
-      debugPrint('Failed to delete memo: $e');
+      AppLogger.data('Failed to delete memo: $e', isError: true);
       rethrow;
     }
   }
@@ -89,14 +87,12 @@ class CreatureMemoService {
   /// 생물별 메모 수 조회
   Future<int> getMemoCount(String creatureId) async {
     try {
-      final result = await _client.collection(_collection).getList(
-        page: 1,
-        perPage: 1,
-        filter: 'creature_id = "$creatureId"',
-      );
+      final result = await _client
+          .collection(_collection)
+          .getList(page: 1, perPage: 1, filter: 'creature_id = "$creatureId"');
       return result.totalItems;
     } catch (e) {
-      debugPrint('Failed to get memo count: $e');
+      AppLogger.data('Failed to get memo count: $e', isError: true);
       return 0;
     }
   }

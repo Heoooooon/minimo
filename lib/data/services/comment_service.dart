@@ -1,6 +1,6 @@
-import 'package:flutter/foundation.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'pocketbase_service.dart';
+import '../../core/utils/app_logger.dart';
 import '../../domain/models/comment_data.dart';
 
 /// 댓글 서비스
@@ -23,19 +23,23 @@ class CommentService {
     int perPage = 50,
   }) async {
     try {
-      final result = await _pb.collection(_collection).getList(
-        page: page,
-        perPage: perPage,
-        filter: 'post = "$postId"',
-        expand: 'author',
-      );
+      final result = await _pb
+          .collection(_collection)
+          .getList(
+            page: page,
+            perPage: perPage,
+            filter: 'post = "$postId"',
+            expand: 'author',
+          );
 
-      final comments = result.items.map((record) => _recordToCommentData(record)).toList();
+      final comments = result.items
+          .map((record) => _recordToCommentData(record))
+          .toList();
 
       // 대댓글 구조화
       return _organizeComments(comments);
     } catch (e) {
-      debugPrint('Failed to get comments: $e');
+      AppLogger.data('Failed to get comments: $e', isError: true);
       rethrow;
     }
   }
@@ -43,13 +47,12 @@ class CommentService {
   /// 특정 댓글 조회
   Future<CommentData?> getComment(String id) async {
     try {
-      final record = await _pb.collection(_collection).getOne(
-        id,
-        expand: 'author',
-      );
+      final record = await _pb
+          .collection(_collection)
+          .getOne(id, expand: 'author');
       return _recordToCommentData(record);
     } catch (e) {
-      debugPrint('Failed to get comment: $e');
+      AppLogger.data('Failed to get comment: $e', isError: true);
       return null;
     }
   }
@@ -64,10 +67,10 @@ class CommentService {
       // 게시글의 comment_count 증가
       await _incrementPostCommentCount(data.postId);
 
-      debugPrint('Comment created: ${record.id}');
+      AppLogger.data('Comment created: ${record.id}');
       return _recordToCommentData(record);
     } catch (e) {
-      debugPrint('Failed to create comment: $e');
+      AppLogger.data('Failed to create comment: $e', isError: true);
       rethrow;
     }
   }
@@ -75,16 +78,14 @@ class CommentService {
   /// 댓글 수정
   Future<CommentData> updateComment(String id, CommentData data) async {
     try {
-      final body = {
-        'content': data.content,
-      };
+      final body = {'content': data.content};
 
       final record = await _pb.collection(_collection).update(id, body: body);
 
-      debugPrint('Comment updated: ${record.id}');
+      AppLogger.data('Comment updated: ${record.id}');
       return _recordToCommentData(record);
     } catch (e) {
-      debugPrint('Failed to update comment: $e');
+      AppLogger.data('Failed to update comment: $e', isError: true);
       rethrow;
     }
   }
@@ -97,9 +98,9 @@ class CommentService {
       // 게시글의 comment_count 감소
       await _decrementPostCommentCount(postId);
 
-      debugPrint('Comment deleted: $id');
+      AppLogger.data('Comment deleted: $id');
     } catch (e) {
-      debugPrint('Failed to delete comment: $e');
+      AppLogger.data('Failed to delete comment: $e', isError: true);
       rethrow;
     }
   }
@@ -109,11 +110,18 @@ class CommentService {
     try {
       final record = await _pb.collection(_collection).getOne(id);
       final currentCount = record.getIntValue('like_count');
-      await _pb.collection(_collection).update(id, body: {
-        'like_count': isLiked ? currentCount + 1 : (currentCount > 0 ? currentCount - 1 : 0),
-      });
+      await _pb
+          .collection(_collection)
+          .update(
+            id,
+            body: {
+              'like_count': isLiked
+                  ? currentCount + 1
+                  : (currentCount > 0 ? currentCount - 1 : 0),
+            },
+          );
     } catch (e) {
-      debugPrint('Failed to toggle like: $e');
+      AppLogger.data('Failed to toggle like: $e', isError: true);
     }
   }
 
@@ -124,11 +132,14 @@ class CommentService {
     try {
       final record = await _pb.collection('community_posts').getOne(postId);
       final currentCount = record.getIntValue('comment_count');
-      await _pb.collection('community_posts').update(postId, body: {
-        'comment_count': currentCount + 1,
-      });
+      await _pb
+          .collection('community_posts')
+          .update(postId, body: {'comment_count': currentCount + 1});
     } catch (e) {
-      debugPrint('Failed to increment post comment count: $e');
+      AppLogger.data(
+        'Failed to increment post comment count: $e',
+        isError: true,
+      );
     }
   }
 
@@ -137,11 +148,17 @@ class CommentService {
     try {
       final record = await _pb.collection('community_posts').getOne(postId);
       final currentCount = record.getIntValue('comment_count');
-      await _pb.collection('community_posts').update(postId, body: {
-        'comment_count': currentCount > 0 ? currentCount - 1 : 0,
-      });
+      await _pb
+          .collection('community_posts')
+          .update(
+            postId,
+            body: {'comment_count': currentCount > 0 ? currentCount - 1 : 0},
+          );
     } catch (e) {
-      debugPrint('Failed to decrement post comment count: $e');
+      AppLogger.data(
+        'Failed to decrement post comment count: $e',
+        isError: true,
+      );
     }
   }
 
@@ -159,11 +176,15 @@ class CommentService {
 
     // 부모-자식 관계 설정
     for (final comment in comments) {
-      if (comment.parentCommentId != null && commentMap.containsKey(comment.parentCommentId)) {
+      if (comment.parentCommentId != null &&
+          commentMap.containsKey(comment.parentCommentId)) {
         // 대댓글
         final parent = commentMap[comment.parentCommentId]!;
-        final updatedReplies = List<CommentData>.from(parent.replies)..add(comment);
-        commentMap[comment.parentCommentId!] = parent.copyWith(replies: updatedReplies);
+        final updatedReplies = List<CommentData>.from(parent.replies)
+          ..add(comment);
+        commentMap[comment.parentCommentId!] = parent.copyWith(
+          replies: updatedReplies,
+        );
       } else {
         // 루트 댓글
         rootComments.add(comment);

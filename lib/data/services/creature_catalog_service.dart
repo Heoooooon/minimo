@@ -1,9 +1,9 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:pocketbase/pocketbase.dart';
 
+import '../../core/utils/app_logger.dart';
 import '../../domain/models/creature_catalog_data.dart';
 import '../../domain/utils/creature_catalog_text.dart';
 import 'auth_service.dart';
@@ -39,7 +39,10 @@ class CreatureCatalogService {
           )
           .toList();
     } catch (e) {
-      debugPrint('Failed to get suggested catalog creatures: $e');
+      AppLogger.data(
+        'Failed to get suggested catalog creatures: $e',
+        isError: true,
+      );
       rethrow;
     }
   }
@@ -71,7 +74,7 @@ class CreatureCatalogService {
           )
           .toList();
     } catch (e) {
-      debugPrint('Failed to search catalog creatures: $e');
+      AppLogger.data('Failed to search catalog creatures: $e', isError: true);
       rethrow;
     }
   }
@@ -140,7 +143,7 @@ class CreatureCatalogService {
 
       return CreatureCatalogData.fromJson(record.toJson(), baseUrl: _baseUrl);
     } catch (e) {
-      debugPrint('Failed to create catalog creature: $e');
+      AppLogger.data('Failed to create catalog creature: $e', isError: true);
       rethrow;
     }
   }
@@ -171,7 +174,7 @@ class CreatureCatalogService {
           .collection(_collection)
           .update(catalogId, body: {'report_count': currentCount + 1});
     } catch (e) {
-      debugPrint('Failed to report catalog creature: $e');
+      AppLogger.data('Failed to report catalog creature: $e', isError: true);
       rethrow;
     }
   }

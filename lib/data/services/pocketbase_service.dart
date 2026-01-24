@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../config/app_config.dart';
+import '../../core/utils/app_logger.dart';
 
 /// PocketBase 서비스
 ///
@@ -31,15 +33,14 @@ class PocketBaseService {
   bool get isInitialized => _client != null;
 
   /// PocketBase 서버 URL
-  static String get serverUrl {
-    return 'https://minimo-pocketbase.fly.dev';
-  }
+  /// AppConfig에서 환경변수를 통해 관리
+  static String get serverUrl => AppConfig.pocketbaseUrl;
 
   /// PocketBase 초기화
   Future<void> initialize({String? customUrl}) async {
     final url = customUrl ?? serverUrl;
     _client = PocketBase(url);
-    debugPrint('PocketBase initialized with URL: $url');
+    AppLogger.network('PocketBase initialized with URL: $url');
 
     // 자동 로그인이 활성화되어 있으면 저장된 토큰 복원
     await _restoreAuthIfEnabled();
@@ -49,7 +50,7 @@ class PocketBaseService {
   @visibleForTesting
   void initializeForTesting(PocketBase mockClient) {
     _client = mockClient;
-    debugPrint('PocketBase initialized with mock client for testing');
+    AppLogger.debug('PocketBase initialized with mock client for testing');
   }
 
   /// 테스트용 리셋
@@ -63,7 +64,7 @@ class PocketBaseService {
   Future<void> setAutoLogin(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_autoLoginKey, enabled);
-    debugPrint('Auto login set to: $enabled');
+    AppLogger.auth('Auto login set to: $enabled');
 
     if (enabled && _client?.authStore.isValid == true) {
       // 자동 로그인 활성화 시 현재 토큰 저장
@@ -89,7 +90,7 @@ class PocketBaseService {
     if (_client!.authStore.record != null) {
       await prefs.setString(_recordKey, _client!.authStore.record!.toString());
     }
-    debugPrint('Auth saved to SharedPreferences');
+    AppLogger.auth('Auth saved to SharedPreferences');
   }
 
   /// 저장된 인증 정보 삭제
@@ -97,7 +98,7 @@ class PocketBaseService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
     await prefs.remove(_recordKey);
-    debugPrint('Saved auth cleared');
+    AppLogger.auth('Saved auth cleared');
   }
 
   /// 자동 로그인이 활성화되어 있으면 저장된 토큰 복원
@@ -106,21 +107,21 @@ class PocketBaseService {
     final autoLoginEnabled = prefs.getBool(_autoLoginKey) ?? false;
 
     if (!autoLoginEnabled) {
-      debugPrint('Auto login disabled, skipping auth restore');
+      AppLogger.auth('Auto login disabled, skipping auth restore');
       return;
     }
 
     final token = prefs.getString(_tokenKey);
     if (token != null && token.isNotEmpty) {
       _client!.authStore.save(token, null);
-      debugPrint('Auth token restored from SharedPreferences');
+      AppLogger.auth('Auth token restored from SharedPreferences');
 
       // 토큰 유효성 확인
       try {
         await _client!.collection('users').authRefresh();
-        debugPrint('Auth token is valid');
+        AppLogger.auth('Auth token is valid');
       } catch (e) {
-        debugPrint('Auth token expired or invalid: $e');
+        AppLogger.auth('Auth token expired or invalid: $e', isError: true);
         _client!.authStore.clear();
         await _clearSavedAuth();
       }
@@ -156,7 +157,7 @@ class PocketBaseService {
       await client.health.check();
       return true;
     } catch (e) {
-      debugPrint('PocketBase health check failed: $e');
+      AppLogger.network('PocketBase health check failed: $e', isError: true);
       return false;
     }
   }
