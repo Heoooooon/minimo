@@ -1,39 +1,23 @@
 import 'package:flutter/material.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
-import '../../../domain/models/schedule_data.dart';
+import '../../../domain/models/record_data.dart';
 import '../common/skeleton_loader.dart';
 
-/// 홈 화면 일정 섹션 (타임라인 형식)
-///
-/// 오늘 날짜와 할 일 목록을 타임라인 형태로 표시
 class HomeScheduleSection extends StatelessWidget {
   const HomeScheduleSection({
     super.key,
-    required this.scheduleItems,
+    required this.recordItems,
     required this.hasAquariums,
     this.isLoading = false,
-    this.onToggleComplete,
-    this.onAddScheduleTap,
+    this.onAddRecordTap,
     this.onExpandTap,
   });
 
-  /// 일정 데이터 리스트
-  final List<ScheduleData> scheduleItems;
-
-  /// 어항 보유 여부
+  final List<RecordData> recordItems;
   final bool hasAquariums;
-
-  /// 로딩 상태
   final bool isLoading;
-
-  /// 완료 토글 콜백
-  final void Function(String id, bool value)? onToggleComplete;
-
-  /// 스케줄 추가 버튼 콜백
-  final VoidCallback? onAddScheduleTap;
-
-  /// 펼치기 버튼 콜백
+  final VoidCallback? onAddRecordTap;
   final VoidCallback? onExpandTap;
 
   @override
@@ -49,19 +33,14 @@ class HomeScheduleSection extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Date Header
             _buildDateHeader(),
             const SizedBox(height: 17),
-
-            // Timeline Items
             if (isLoading)
               const ScheduleSkeleton()
-            else if (scheduleItems.isEmpty || !hasAquariums)
+            else if (recordItems.isEmpty || !hasAquariums)
               _buildEmptyTimeline()
             else
               _buildTimelineItems(),
-
-            // Expand Button
             _buildExpandButton(),
           ],
         ),
@@ -89,10 +68,9 @@ class HomeScheduleSection extends StatelessWidget {
               color: AppColors.textMain,
             ),
           ),
-          // 스케줄 추가 버튼
           if (hasAquariums)
             GestureDetector(
-              onTap: onAddScheduleTap,
+              onTap: onAddRecordTap,
               child: Container(
                 width: 32,
                 height: 32,
@@ -115,12 +93,12 @@ class HomeScheduleSection extends StatelessWidget {
       child: Column(
         children: [
           Text(
-            '오늘 할 일이 비어있어요',
+            '오늘 기록이 비어있어요',
             style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textHint),
           ),
           const SizedBox(height: 4),
           Text(
-            '어항을 등록한 후 할 일을 추가해 보세요',
+            '어항을 등록한 후 기록을 추가해 보세요',
             style: AppTextStyles.bodySmall.copyWith(color: AppColors.textHint),
           ),
         ],
@@ -130,15 +108,11 @@ class HomeScheduleSection extends StatelessWidget {
 
   Widget _buildTimelineItems() {
     return Column(
-      children: scheduleItems.asMap().entries.map((entry) {
+      children: recordItems.asMap().entries.map((entry) {
         final index = entry.key;
         final item = entry.value;
-        final isLast = index == scheduleItems.length - 1;
-        return _ScheduleTimelineItem(
-          item: item,
-          isLast: isLast,
-          onToggle: (value) => onToggleComplete?.call(item.id, value),
-        );
+        final isLast = index == recordItems.length - 1;
+        return _RecordTimelineItem(item: item, isLast: isLast);
       }).toList(),
     );
   }
@@ -173,22 +147,21 @@ class HomeScheduleSection extends StatelessWidget {
   }
 }
 
-/// 타임라인 아이템 위젯
-class _ScheduleTimelineItem extends StatelessWidget {
-  const _ScheduleTimelineItem({
-    required this.item,
-    required this.isLast,
-    this.onToggle,
-  });
+class _RecordTimelineItem extends StatelessWidget {
+  const _RecordTimelineItem({required this.item, required this.isLast});
 
-  final ScheduleData item;
+  final RecordData item;
   final bool isLast;
-  final void Function(bool)? onToggle;
 
   @override
   Widget build(BuildContext context) {
-    final amPm = item.time.contains('오전') ? '오전' : '오전';
-    final time = item.time.replaceAll('오전 ', '').replaceAll('오후 ', '');
+    final hour = item.date.hour;
+    final minute = item.date.minute;
+    final amPm = hour < 12 ? '오전' : '오후';
+    final displayHour = hour <= 12 ? hour : hour - 12;
+    final time = '$displayHour:${minute.toString().padLeft(2, '0')}';
+
+    final tagLabels = item.tags.map((t) => t.label).join(', ');
 
     return Padding(
       padding: EdgeInsets.only(bottom: isLast ? 0 : 17),
@@ -196,13 +169,11 @@ class _ScheduleTimelineItem extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Timeline Indicator (Circle + Line)
             SizedBox(
               width: 12,
               child: Column(
                 children: [
                   const SizedBox(height: 4),
-                  // Circle
                   Container(
                     width: 12,
                     height: 12,
@@ -215,7 +186,6 @@ class _ScheduleTimelineItem extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // Vertical Line
                   if (!isLast)
                     Expanded(
                       child: Container(
@@ -227,10 +197,7 @@ class _ScheduleTimelineItem extends StatelessWidget {
                 ],
               ),
             ),
-
             const SizedBox(width: 8),
-
-            // Time
             SizedBox(
               width: 60,
               child: Row(
@@ -257,64 +224,37 @@ class _ScheduleTimelineItem extends StatelessWidget {
                 ],
               ),
             ),
-
-            // Task Content
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    item.title,
+                    tagLabels.isNotEmpty ? tagLabels : '기록',
                     style: AppTextStyles.bodyMediumMedium.copyWith(
                       color: AppColors.textMain,
                       fontSize: 16,
                       height: 24 / 16,
                       letterSpacing: -0.5,
-                      decoration: item.isCompleted
-                          ? TextDecoration.lineThrough
-                          : null,
                     ),
                   ),
-                  const SizedBox(height: 5),
-                  Text(
-                    item.aquariumName,
-                    style: AppTextStyles.captionRegular.copyWith(
-                      color: AppColors.textHint,
-                      fontSize: 12,
-                      height: 18 / 12,
-                      letterSpacing: -0.25,
+                  if (item.content.isNotEmpty) ...[
+                    const SizedBox(height: 5),
+                    Text(
+                      item.content,
+                      style: AppTextStyles.captionRegular.copyWith(
+                        color: AppColors.textHint,
+                        fontSize: 12,
+                        height: 18 / 12,
+                        letterSpacing: -0.25,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
-
-            // Checkbox
-            GestureDetector(
-              onTap: () => onToggle?.call(!item.isCompleted),
-              child: Container(
-                width: 48,
-                height: 48,
-                padding: const EdgeInsets.all(8),
-                child: Container(
-                  width: 19,
-                  height: 19,
-                  decoration: BoxDecoration(
-                    color: item.isCompleted ? AppColors.brand : Colors.white,
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(
-                      color: item.isCompleted
-                          ? AppColors.brand
-                          : AppColors.border,
-                      width: 1,
-                    ),
-                  ),
-                  child: item.isCompleted
-                      ? const Icon(Icons.check, size: 14, color: Colors.white)
-                      : null,
-                ),
-              ),
-            ),
+            const SizedBox(width: 12),
           ],
         ),
       ),

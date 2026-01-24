@@ -84,7 +84,9 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
   }
 
   bool get _isFormValid {
-    return _selectedTags.isNotEmpty && _contentController.text.isNotEmpty;
+    return _selectedAquarium != null &&
+        _selectedTags.isNotEmpty &&
+        _contentController.text.isNotEmpty;
   }
 
   Future<void> _handleSave() async {
@@ -482,12 +484,24 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '어항 선택',
-          style: AppTextStyles.bodySmall.copyWith(
-            color: AppColors.textSubtle,
-            fontWeight: FontWeight.w500,
-          ),
+        Row(
+          children: [
+            Text(
+              '어항 선택',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textSubtle,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              '*',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.error,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 8),
         Container(
@@ -517,7 +531,7 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
                     isExpanded: true,
                     hint: const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 16),
-                      child: Text('어항을 선택하세요 (선택사항)'),
+                      child: Text('어항을 선택하세요'),
                     ),
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     borderRadius: BorderRadius.circular(12),
@@ -526,10 +540,6 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
                       color: AppColors.textSubtle,
                     ),
                     items: [
-                      const DropdownMenuItem<AquariumData?>(
-                        value: null,
-                        child: Text('선택 안함'),
-                      ),
                       ..._aquariums.map((aquarium) {
                         return DropdownMenuItem<AquariumData?>(
                           value: aquarium,

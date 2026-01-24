@@ -7,11 +7,12 @@ import '../widgets/home/tip_card.dart';
 import '../widgets/home/community_card.dart';
 import '../widgets/common/skeleton_loader.dart';
 import '../../domain/models/schedule_data.dart';
+import '../../domain/models/record_data.dart';
 import '../../data/repositories/schedule_repository.dart';
+import '../../data/repositories/record_repository.dart';
 import '../../data/repositories/aquarium_repository.dart';
 import '../../data/services/auth_service.dart';
 import '../../domain/models/aquarium_data.dart' as domain;
-// 분리된 위젯 import
 import '../widgets/home/home_sticky_top_bar.dart';
 import '../widgets/home/home_hero_section.dart';
 import '../widgets/home/home_schedule_section.dart';
@@ -45,9 +46,12 @@ class HomeContentState extends State<HomeContent> {
 
   final ScheduleRepository _scheduleRepository =
       PocketBaseScheduleRepository.instance;
+  final RecordRepository _recordRepository =
+      PocketBaseRecordRepository.instance;
   final AquariumRepository _aquariumRepository =
       PocketBaseAquariumRepository.instance;
   List<ScheduleData> _scheduleItems = [];
+  List<RecordData> _recordItems = [];
 
   // 사용자 닉네임
   String _userName = '미니모';
@@ -59,13 +63,13 @@ class HomeContentState extends State<HomeContent> {
   // Hero 섹션 높이 (흰색 배경 전환점)
   static const double _heroHeight = 266;
 
-  // 로딩 상태
   bool _isLoadingSchedule = true;
+  bool _isLoadingRecords = true;
   bool _isLoadingAquariums = true;
 
-  // 캐싱 관련 필드
   DateTime? _lastAquariumFetchTime;
   DateTime? _lastScheduleFetchTime;
+  DateTime? _lastRecordFetchTime;
   static const Duration _cacheValidDuration = Duration(minutes: 5);
 
   @override
@@ -73,6 +77,7 @@ class HomeContentState extends State<HomeContent> {
     super.initState();
     _loadUserInfo();
     _loadSchedule();
+    _loadRecords();
     _loadAquariums();
     _scrollController.addListener(_onScroll);
   }
@@ -84,10 +89,10 @@ class HomeContentState extends State<HomeContent> {
     super.dispose();
   }
 
-  /// 외부에서 데이터 새로고침 호출용 (탭 전환 시)
   void refreshData() {
     _loadAquariums(forceRefresh: true);
     _loadSchedule(forceRefresh: true);
+    _loadRecords(forceRefresh: true);
   }
 
   void _onScroll() {
@@ -170,12 +175,47 @@ class HomeContentState extends State<HomeContent> {
     }
   }
 
-  /// 스케줄 캐시가 유효한지 확인
   bool _isScheduleCacheValid() {
     return _lastScheduleFetchTime != null &&
         DateTime.now().difference(_lastScheduleFetchTime!) <
             _cacheValidDuration &&
         _scheduleItems.isNotEmpty;
+  }
+
+  bool _isRecordCacheValid() {
+    return _lastRecordFetchTime != null &&
+        DateTime.now().difference(_lastRecordFetchTime!) <
+            _cacheValidDuration &&
+        _recordItems.isNotEmpty;
+  }
+
+  Future<void> _loadRecords({bool forceRefresh = false}) async {
+    if (!forceRefresh && _isRecordCacheValid()) {
+      if (mounted && _isLoadingRecords) {
+        setState(() {
+          _isLoadingRecords = false;
+        });
+      }
+      return;
+    }
+
+    try {
+      final items = await _recordRepository.getRecordsByDate(DateTime.now());
+      _lastRecordFetchTime = DateTime.now();
+      if (mounted) {
+        setState(() {
+          _recordItems = items;
+          _isLoadingRecords = false;
+        });
+      }
+    } catch (e) {
+      AppLogger.data('Error loading records: $e', isError: true);
+      if (mounted) {
+        setState(() {
+          _isLoadingRecords = false;
+        });
+      }
+    }
   }
 
   Future<void> _loadSchedule({bool forceRefresh = false}) async {
@@ -257,6 +297,13 @@ class HomeContentState extends State<HomeContent> {
     final result = await Navigator.pushNamed(context, '/aquarium/register');
     if (result == true && mounted) {
       _loadAquariums(forceRefresh: true);
+    }
+  }
+
+  Future<void> _navigateToRecordAdd() async {
+    final result = await Navigator.pushNamed(context, '/record/add');
+    if (result == true && mounted) {
+      _loadRecords(forceRefresh: true);
     }
   }
 
@@ -439,13 +486,11 @@ class HomeContentState extends State<HomeContent> {
             ),
           ],
         ),
-        // Schedule Section
         HomeScheduleSection(
-          scheduleItems: _scheduleItems,
+          recordItems: _recordItems,
           hasAquariums: _hasAquariums,
-          isLoading: _isLoadingSchedule,
-          onToggleComplete: _toggleTimeline,
-          onAddScheduleTap: _navigateToScheduleAdd,
+          isLoading: _isLoadingRecords,
+          onAddRecordTap: _navigateToRecordAdd,
           onExpandTap: () {},
         ),
       ],
