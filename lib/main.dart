@@ -80,6 +80,10 @@ class OomoolApp extends StatelessWidget {
     final isOnboardingCompleted =
         OnboardingService.instance.isOnboardingCompleted;
 
+    debugPrint(
+      '🚀 App Start - isLoggedIn: $isLoggedIn, isOnboardingCompleted: $isOnboardingCompleted',
+    );
+
     Widget homeScreen;
     if (!isLoggedIn) {
       homeScreen = const SocialLoginScreen();

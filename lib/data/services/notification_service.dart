@@ -33,9 +33,11 @@ class NotificationService {
       '@mipmap/ic_launcher',
     );
     const iosSettings = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
+      // Foreground에서도 알림 표시
+      notificationCategories: [],
     );
 
     const settings = InitializationSettings(
@@ -66,6 +68,17 @@ class NotificationService {
 
   /// 알림 권한 확인
   Future<bool> hasPermission() async {
+    // iOS에서는 flutter_local_notifications로 직접 확인
+    final iosImpl = _notifications
+        .resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin
+        >();
+    if (iosImpl != null) {
+      final settings = await iosImpl.checkPermissions();
+      return settings?.isEnabled ?? false;
+    }
+
+    // Android는 permission_handler 사용
     final status = await Permission.notification.status;
     return status.isGranted;
   }

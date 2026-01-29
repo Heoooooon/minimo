@@ -10,6 +10,7 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../viewmodels/community_viewmodel.dart';
 import '../../widgets/community/post_card.dart';
+import '../../widgets/common/empty_state.dart';
 
 /// 게시글 상세 화면
 class PostDetailScreen extends StatefulWidget {
@@ -790,27 +791,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             )
           // 댓글이 없는 경우
           else if (_comments.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(32),
-              alignment: Alignment.center,
-              child: Column(
-                children: [
-                  const Icon(
-                    Icons.chat_bubble_outline,
-                    size: 48,
-                    color: AppColors.textHint,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    '아직 댓글이 없습니다.\n첫 번째 댓글을 작성해보세요!',
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: AppColors.textSubtle,
-                    ),
-                  ),
-                ],
-              ),
-            )
+            EmptyStatePresets.noComments()
           // 댓글 목록
           else
             ..._comments.map((comment) => _buildCommentItem(comment)),

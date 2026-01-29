@@ -5,11 +5,18 @@ import FirebaseMessaging
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
+  lazy var flutterEngine = FlutterEngine(name: "main engine")
+  
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    FirebaseApp.configure()
+    flutterEngine.run()
+    GeneratedPluginRegistrant.register(with: flutterEngine)
+    
+    if FirebaseApp.app() == nil {
+      FirebaseApp.configure()
+    }
     
     if #available(iOS 10.0, *) {
       UNUserNotificationCenter.current().delegate = self
@@ -27,7 +34,6 @@ import FirebaseMessaging
     
     Messaging.messaging().delegate = self
     
-    GeneratedPluginRegistrant.register(with: self)
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
   

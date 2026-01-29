@@ -51,3 +51,7 @@ backend/pb_data/
 
 # App Icon Package
 Appicon_Package/
+
+# Fastlane secrets
+ios/fastlane/*.p8
+ios/fastlane/api_key.json

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import '../../core/utils/app_logger.dart';
@@ -24,6 +25,32 @@ class FcmService {
 
   bool _isInitialized = false;
 
+  /// iOS에서 APNS 토큰이 준비될 때까지 대기 후 FCM 토큰 획득
+  Future<String?> _getTokenSafely() async {
+    try {
+      // iOS에서는 APNS 토큰이 먼저 준비되어야 함
+      if (Platform.isIOS) {
+        String? apnsToken;
+        // 최대 10초 대기 (1초 간격으로 10번 시도)
+        for (int i = 0; i < 10; i++) {
+          apnsToken = await _messaging.getAPNSToken();
+          if (apnsToken != null) break;
+          await Future.delayed(const Duration(seconds: 1));
+        }
+        if (apnsToken == null) {
+          AppLogger.data(
+            'APNS token not available (simulator or no push capability)',
+          );
+          return null;
+        }
+      }
+      return await _messaging.getToken();
+    } catch (e) {
+      AppLogger.data('Failed to get FCM token: $e', isError: true);
+      return null;
+    }
+  }
+
   Future<void> initialize() async {
     if (_isInitialized) return;
 
@@ -40,11 +67,13 @@ class FcmService {
 
     if (settings.authorizationStatus == AuthorizationStatus.authorized ||
         settings.authorizationStatus == AuthorizationStatus.provisional) {
-      _fcmToken = await _messaging.getToken();
-      AppLogger.data('FCM Token: $_fcmToken');
+      _fcmToken = await _getTokenSafely();
+      if (_fcmToken != null) {
+        AppLogger.data('FCM Token: $_fcmToken');
 
-      if (AuthService.instance.isLoggedIn && _fcmToken != null) {
-        await _saveFcmTokenToServer(_fcmToken!);
+        if (AuthService.instance.isLoggedIn) {
+          await _saveFcmTokenToServer(_fcmToken!);
+        }
       }
     }
 

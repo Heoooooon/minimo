@@ -5,6 +5,7 @@ import '../../../theme/app_text_styles.dart';
 import '../../viewmodels/community_viewmodel.dart';
 import '../../widgets/community/post_card.dart';
 import '../../widgets/community/qna_question_card.dart';
+import '../../widgets/common/empty_state.dart';
 
 /// 커뮤니티 검색 화면
 class SearchScreen extends StatefulWidget {
@@ -468,29 +469,8 @@ class _SearchScreenState extends State<SearchScreen>
   }
 
   Widget _buildEmptyResult(String type) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.search_off,
-            size: 64,
-            color: AppColors.textHint.withValues(alpha: 0.5),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            '검색 결과가 없습니다',
-            style: AppTextStyles.titleMedium.copyWith(
-              color: AppColors.textSubtle,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '다른 검색어로 $type을 찾아보세요',
-            style: AppTextStyles.bodySmall.copyWith(color: AppColors.textHint),
-          ),
-        ],
-      ),
+    return EmptyStatePresets.noSearchResults(
+      query: _searchController.text.isNotEmpty ? _searchController.text : null,
     );
   }
 }

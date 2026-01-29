@@ -7,6 +7,7 @@ import '../../../domain/models/question_data.dart';
 import '../../../domain/models/answer_data.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../widgets/common/empty_state.dart';
 
 /// 질문 상세 화면
 class QuestionDetailScreen extends StatefulWidget {
@@ -498,27 +499,7 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
             )
           // 답변이 없는 경우
           else if (_answers.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(32),
-              alignment: Alignment.center,
-              child: Column(
-                children: [
-                  const Icon(
-                    Icons.chat_bubble_outline,
-                    size: 48,
-                    color: AppColors.textHint,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    '아직 답변이 없습니다.\n첫 번째 답변을 작성해보세요!',
-                    textAlign: TextAlign.center,
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: AppColors.textSubtle,
-                    ),
-                  ),
-                ],
-              ),
-            )
+            EmptyStatePresets.noComments(type: '답변')
           // 답변 목록
           else
             ..._answers.map((answer) => _buildAnswerItem(answer)),

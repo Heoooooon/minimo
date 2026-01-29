@@ -35,7 +35,9 @@ class OnboardingService {
     await _prefs!.setBool(_keyOnboardingCompleted, true);
     await _prefs!.setString(_keyOnboardingData, jsonEncode(data.toJson()));
 
-    AppLogger.data('OnboardingService: 온보딩 완료 저장됨');
+    // 저장 확인을 위해 다시 읽기
+    final saved = _prefs!.getBool(_keyOnboardingCompleted);
+    AppLogger.data('OnboardingService: 온보딩 완료 저장됨 (saved=$saved)');
     AppLogger.data(
       'OnboardingService: isOnboardingCompleted = $isOnboardingCompleted',
     );

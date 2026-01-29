@@ -59,9 +59,9 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('이메일 또는 비밀번호가 올바르지 않습니다')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('이메일 또는 비밀번호가 올바르지 않습니다')));
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -72,7 +72,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: false,
+      resizeToAvoidBottomInset: true,
       body: Stack(
         children: [
           // 배경 이미지
@@ -86,10 +86,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [
-                        Color(0xFF0A3D62),
-                        Color(0xFF001529),
-                      ],
+                      colors: [Color(0xFF0A3D62), Color(0xFF001529)],
                     ),
                   ),
                 );
@@ -113,136 +110,157 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
             ),
           ),
           Positioned.fill(
-            child: Container(
-              color: Colors.black.withValues(alpha: 0.52),
-            ),
+            child: Container(color: Colors.black.withValues(alpha: 0.52)),
           ),
           // 콘텐츠
           SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 30),
-                  // 타이틀 (그라데이션 텍스트)
-                  _buildGradientTitle(),
-                  const Spacer(),
-                  // 이메일 입력
-                  _buildLabel('이메일'),
-                  const SizedBox(height: 8),
-                  _buildTextField(
-                    controller: _emailController,
-                    hintText: '이메일을 입력하세요',
-                    keyboardType: TextInputType.emailAddress,
-                  ),
-                  const SizedBox(height: 12),
-                  // 비밀번호 입력
-                  _buildLabel('비밀번호'),
-                  const SizedBox(height: 8),
-                  _buildTextField(
-                    controller: _passwordController,
-                    hintText: '비밀번호를 입력하세요',
-                    obscureText: _obscurePassword,
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_off
-                            : Icons.visibility,
-                        color: Colors.white.withValues(alpha: 0.7),
-                      ),
-                      onPressed: () {
-                        setState(() => _obscurePassword = !_obscurePassword);
-                      },
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return SingleChildScrollView(
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  // 자동 로그인
-                  GestureDetector(
-                    onTap: () => setState(() => _autoLogin = !_autoLogin),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 20,
-                          height: 20,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: _autoLogin
-                                  ? AppColors.brand
-                                  : Colors.white.withValues(alpha: 0.5),
-                              width: 1.5,
+                    child: IntrinsicHeight(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const SizedBox(height: 30),
+                            // 타이틀 (그라데이션 텍스트)
+                            _buildGradientTitle(),
+                            const Spacer(),
+                            // 이메일 입력
+                            _buildLabel('이메일'),
+                            const SizedBox(height: 8),
+                            _buildTextField(
+                              controller: _emailController,
+                              hintText: '이메일을 입력하세요',
+                              keyboardType: TextInputType.emailAddress,
                             ),
-                            color: _autoLogin
-                                ? AppColors.brand
-                                : Colors.transparent,
-                          ),
-                          child: _autoLogin
-                              ? const Icon(Icons.check,
-                                  size: 12, color: Colors.white)
-                              : null,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '자동 로그인',
-                          style: AppTextStyles.bodySmall.copyWith(
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  // 로그인 버튼
-                  AppButton(
-                    text: '로그인',
-                    size: AppButtonSize.large,
-                    expanded: true,
-                    isEnabled: _isFormValid,
-                    isLoading: _isLoading,
-                    onPressed: _handleLogin,
-                  ),
-                  const SizedBox(height: 8),
-                  // 하단 링크
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextButton(
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const SignUpScreen(),
+                            const SizedBox(height: 12),
+                            // 비밀번호 입력
+                            _buildLabel('비밀번호'),
+                            const SizedBox(height: 8),
+                            _buildTextField(
+                              controller: _passwordController,
+                              hintText: '비밀번호를 입력하세요',
+                              obscureText: _obscurePassword,
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_off
+                                      : Icons.visibility,
+                                  color: Colors.white.withValues(alpha: 0.7),
+                                ),
+                                onPressed: () {
+                                  setState(
+                                    () => _obscurePassword = !_obscurePassword,
+                                  );
+                                },
                               ),
-                            );
-                          },
-                          child: Text(
-                            '회원가입',
-                            style: AppTextStyles.bodySmall.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w500,
                             ),
-                          ),
+                            const SizedBox(height: 16),
+                            // 자동 로그인
+                            GestureDetector(
+                              onTap: () =>
+                                  setState(() => _autoLogin = !_autoLogin),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 20,
+                                    height: 20,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: _autoLogin
+                                            ? AppColors.brand
+                                            : Colors.white.withValues(
+                                                alpha: 0.5,
+                                              ),
+                                        width: 1.5,
+                                      ),
+                                      color: _autoLogin
+                                          ? AppColors.brand
+                                          : Colors.transparent,
+                                    ),
+                                    child: _autoLogin
+                                        ? const Icon(
+                                            Icons.check,
+                                            size: 12,
+                                            color: Colors.white,
+                                          )
+                                        : null,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '자동 로그인',
+                                    style: AppTextStyles.bodySmall.copyWith(
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            // 로그인 버튼
+                            AppButton(
+                              text: '로그인',
+                              size: AppButtonSize.large,
+                              expanded: true,
+                              isEnabled: _isFormValid,
+                              isLoading: _isLoading,
+                              onPressed: _handleLogin,
+                            ),
+                            const SizedBox(height: 8),
+                            // 하단 링크
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: TextButton(
+                                    onPressed: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) => const SignUpScreen(),
+                                        ),
+                                      );
+                                    },
+                                    child: Text(
+                                      '회원가입',
+                                      style: AppTextStyles.bodySmall.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: TextButton(
+                                    onPressed: () {
+                                      // TODO: 비밀번호 찾기
+                                    },
+                                    child: Text(
+                                      '이메일/비밀번호 찾기',
+                                      style: AppTextStyles.bodySmall.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 34),
+                          ],
                         ),
                       ),
-                      Expanded(
-                        child: TextButton(
-                          onPressed: () {
-                            // TODO: 비밀번호 찾기
-                          },
-                          child: Text(
-                            '이메일/비밀번호 찾기',
-                            style: AppTextStyles.bodySmall.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                  const SizedBox(height: 34),
-                ],
-              ),
+                );
+              },
             ),
           ),
         ],
@@ -256,10 +274,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
         return const LinearGradient(
           begin: Alignment(-0.5, -0.5),
           end: Alignment(0.8, 1.2),
-          colors: [
-            Color(0xFFF9FAFC),
-            Color(0x99000E24),
-          ],
+          colors: [Color(0xFFF9FAFC), Color(0x99000E24)],
           stops: [0.2368, 0.924],
         ).createShader(bounds);
       },
@@ -332,8 +347,10 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
         ),
         filled: true,
         fillColor: Colors.white.withValues(alpha: 0.15),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,

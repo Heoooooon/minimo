@@ -933,97 +933,113 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
     final timeString = '$displayHour:${minute.toString().padLeft(2, '0')}';
     final periodString = isAM ? '오전' : '오후';
 
-    return GestureDetector(
-      onLongPress: () => _showScheduleOptions(schedule),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.borderLight),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // 시간 (큰 글씨)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  periodString,
-                  style: const TextStyle(
-                    fontFamily: 'WantedSans',
-                    fontSize: 12,
-                    fontWeight: FontWeight.w400,
-                    color: Color(0xFF666E78),
-                    height: 18 / 12,
-                    letterSpacing: -0.25,
-                  ),
-                ),
-                Text(
-                  timeString,
-                  style: const TextStyle(
-                    fontFamily: 'WantedSans',
-                    fontSize: 28,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF212529),
-                    height: 36 / 28,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(width: 16),
-            // 라벨 + 반복주기
-            Expanded(
-              child: Column(
+    return Dismissible(
+      key: Key(schedule.id),
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (direction) async {
+        return await _showDeleteConfirmDialog(schedule);
+      },
+      onDismissed: (direction) {
+        _deleteSchedule(schedule);
+      },
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        color: AppColors.error,
+        child: const Icon(Icons.delete, color: Colors.white),
+      ),
+      child: GestureDetector(
+        onLongPress: () => _showScheduleOptions(schedule),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.borderLight),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // 시간 (큰 글씨)
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 알림 라벨 (브랜드 색상)
                   Text(
-                    schedule.title,
+                    periodString,
                     style: const TextStyle(
                       fontFamily: 'WantedSans',
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF0165FE), // 브랜드 색상
-                      height: 24 / 16,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                      color: Color(0xFF666E78),
+                      height: 18 / 12,
+                      letterSpacing: -0.25,
+                    ),
+                  ),
+                  Text(
+                    timeString,
+                    style: const TextStyle(
+                      fontFamily: 'WantedSans',
+                      fontSize: 28,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF212529),
+                      height: 36 / 28,
                       letterSpacing: -0.5,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  // 반복주기
-                  if (schedule.repeatCycle != RepeatCycle.none)
-                    Text(
-                      schedule.repeatCycle.label,
-                      style: const TextStyle(
-                        fontFamily: 'WantedSans',
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: Color(0xFF666E78),
-                        height: 20 / 14,
-                        letterSpacing: -0.25,
-                      ),
-                    ),
                 ],
               ),
-            ),
-            // 토글 스위치
-            Switch(
-              value: schedule.isNotificationEnabled,
-              onChanged: (value) =>
-                  _toggleScheduleNotification(schedule, value),
-              activeTrackColor: AppColors.switchActiveTrack,
-              inactiveTrackColor: AppColors.switchInactiveTrack,
-              thumbColor: WidgetStateProperty.resolveWith((states) {
-                if (states.contains(WidgetState.selected)) {
-                  return AppColors.brand;
-                }
-                return AppColors.textHint;
-              }),
-            ),
-          ],
+              const SizedBox(width: 16),
+              // 라벨 + 반복주기
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 알림 라벨 (브랜드 색상)
+                    Text(
+                      schedule.title,
+                      style: const TextStyle(
+                        fontFamily: 'WantedSans',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF0165FE), // 브랜드 색상
+                        height: 24 / 16,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    // 반복주기
+                    if (schedule.repeatCycle != RepeatCycle.none)
+                      Text(
+                        schedule.repeatCycle.label,
+                        style: const TextStyle(
+                          fontFamily: 'WantedSans',
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                          color: Color(0xFF666E78),
+                          height: 20 / 14,
+                          letterSpacing: -0.25,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              // 토글 스위치
+              Switch(
+                value: schedule.isNotificationEnabled,
+                onChanged: (value) =>
+                    _toggleScheduleNotification(schedule, value),
+                activeTrackColor: AppColors.switchActiveTrack,
+                inactiveTrackColor: AppColors.switchInactiveTrack,
+                thumbColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return AppColors.brand;
+                  }
+                  return AppColors.textHint;
+                }),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1108,6 +1124,28 @@ class _AquariumDetailScreenState extends State<AquariumDetailScreen>
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// 알림 삭제 확인 (Dismissible용)
+  Future<bool?> _showDeleteConfirmDialog(ScheduleData schedule) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('알림 삭제'),
+        content: Text('"${schedule.title}" 알림을 삭제할까요?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('삭제'),
+          ),
+        ],
       ),
     );
   }

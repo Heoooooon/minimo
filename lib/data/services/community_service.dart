@@ -35,8 +35,8 @@ class CommunityService {
           .getList(
             page: page,
             perPage: perPage,
-            filter: filter ?? '',
-            sort: sort ?? '',
+            filter: filter?.isNotEmpty == true ? filter : null,
+            sort: sort?.isNotEmpty == true ? sort : null,
             expand: 'attached_records',
           );
 
@@ -140,8 +140,8 @@ class CommunityService {
           .getList(
             page: page,
             perPage: perPage,
-            filter: filter ?? '',
-            sort: sort ?? '',
+            filter: filter?.isNotEmpty == true ? filter : null,
+            sort: sort?.isNotEmpty == true ? sort : null,
           );
 
       return result.items

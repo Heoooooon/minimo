@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../domain/models/aquarium_data.dart';
 import '../../../domain/models/schedule_data.dart';
@@ -112,6 +113,14 @@ class _ScheduleAddScreenState extends State<ScheduleAddScreen> {
 
     setState(() => _isSaving = true);
 
+    // 디버깅: 선택된 시간 값 로깅
+    AppLogger.data(
+      'Time selection - Hour: $_selectedHour, Minute: $_selectedMinute, isAM: $_isAM',
+    );
+    AppLogger.data(
+      'Converted to 24h: $_hour24:${_selectedMinute.toString().padLeft(2, '0')}',
+    );
+
     try {
       // 오늘 날짜 + 선택한 시간으로 DateTime 생성
       final now = DateTime.now();
@@ -122,6 +131,9 @@ class _ScheduleAddScreenState extends State<ScheduleAddScreen> {
         _hour24,
         _selectedMinute,
       );
+
+      // 디버깅: 스케줄 시간 로깅
+      AppLogger.data('Scheduled DateTime: $scheduledDateTime');
 
       // 일정 데이터 생성
       final scheduleData = ScheduleData(
@@ -142,25 +154,63 @@ class _ScheduleAddScreenState extends State<ScheduleAddScreen> {
         scheduleData,
       );
 
-      // 푸시 알림 예약 (활성화된 경우) - 실패해도 일정은 저장됨
+      // 푸시 알림 예약 (활성화된 경우)
       if (_isNotificationEnabled) {
-        try {
-          await NotificationService.instance.scheduleNotification(
-            id: NotificationService.instance.scheduleIdToNotificationId(
-              created.id,
-            ),
-            title: _titleController.text.trim(),
-            body: '${_aquarium?.name ?? '어항'} - ${_selectedAlarmType.label}',
-            scheduledTime: scheduledDateTime,
-            repeatCycle: _selectedRepeatCycle,
-            payload: created.id,
-          );
-        } catch (notificationError) {
-          AppLogger.data(
-            'Notification scheduling failed: $notificationError',
-            isError: true,
-          );
-          // 알림 예약 실패는 무시하고 일정은 저장 완료로 처리
+        // 권한 확인
+        final hasPermission = await NotificationService.instance
+            .hasPermission();
+        if (!hasPermission) {
+          final granted = await NotificationService.instance
+              .requestPermission();
+          if (!granted && mounted) {
+            // 권한 거부됨 - 알림 없이 저장할지 확인
+            final saveWithoutNotification =
+                await _showSaveWithoutNotificationDialog();
+            if (saveWithoutNotification != true) {
+              setState(() => _isSaving = false);
+              return; // 저장 취소
+            }
+            // 알림 없이 저장 계속 진행 (아래 try 블록 스킵)
+          } else {
+            // 권한 허용됨 - 알림 예약 진행
+            try {
+              await NotificationService.instance.scheduleNotification(
+                id: NotificationService.instance.scheduleIdToNotificationId(
+                  created.id,
+                ),
+                title: _titleController.text.trim(),
+                body:
+                    '${_aquarium?.name ?? '어항'} - ${_selectedAlarmType.label}',
+                scheduledTime: scheduledDateTime,
+                repeatCycle: _selectedRepeatCycle,
+                payload: created.id,
+              );
+            } catch (notificationError) {
+              AppLogger.data(
+                'Notification scheduling failed: $notificationError',
+                isError: true,
+              );
+            }
+          }
+        } else {
+          // 권한 있음 - 알림 예약 진행
+          try {
+            await NotificationService.instance.scheduleNotification(
+              id: NotificationService.instance.scheduleIdToNotificationId(
+                created.id,
+              ),
+              title: _titleController.text.trim(),
+              body: '${_aquarium?.name ?? '어항'} - ${_selectedAlarmType.label}',
+              scheduledTime: scheduledDateTime,
+              repeatCycle: _selectedRepeatCycle,
+              payload: created.id,
+            );
+          } catch (notificationError) {
+            AppLogger.data(
+              'Notification scheduling failed: $notificationError',
+              isError: true,
+            );
+          }
         }
       }
 
@@ -585,17 +635,107 @@ class _ScheduleAddScreenState extends State<ScheduleAddScreen> {
           ),
           Switch(
             value: _isNotificationEnabled,
-            onChanged: (value) {
+            onChanged: (value) async {
+              if (value) {
+                // 알림을 켜려고 할 때 권한 확인
+                final hasPermission = await NotificationService.instance
+                    .hasPermission();
+                if (!hasPermission) {
+                  // 권한 요청
+                  final granted = await NotificationService.instance
+                      .requestPermission();
+                  if (!granted && mounted) {
+                    // 권한 거부됨 - 설정으로 이동 안내 다이얼로그
+                    _showPermissionDeniedDialog();
+                    return; // 토글 변경 안 함
+                  }
+                }
+              }
               setState(() => _isNotificationEnabled = value);
             },
             activeTrackColor: AppColors.switchActiveTrack,
             inactiveTrackColor: AppColors.switchInactiveTrack,
             thumbColor: WidgetStateProperty.resolveWith((states) {
               if (states.contains(WidgetState.selected)) {
-                return AppColors.brand;
+                return Colors.white;
               }
               return AppColors.textHint;
             }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPermissionDeniedDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('알림 권한 필요', style: AppTextStyles.titleMedium),
+        content: Text(
+          '푸시 알림을 받으려면 설정에서 알림을 허용해주세요.',
+          style: AppTextStyles.bodyMedium,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              '나중에',
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textSubtle,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              openAppSettings();
+            },
+            child: Text(
+              '설정으로 이동',
+              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.brand),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool?> _showSaveWithoutNotificationDialog() {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('알림 권한 필요', style: AppTextStyles.titleMedium),
+        content: Text(
+          '알림 권한이 없어 푸시 알림을 받을 수 없습니다.\n알림 없이 일정만 저장할까요?',
+          style: AppTextStyles.bodyMedium,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(
+              '취소',
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textSubtle,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context, false);
+              openAppSettings();
+            },
+            child: Text(
+              '설정으로 이동',
+              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.brand),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(
+              '알림 없이 저장',
+              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.brand),
+            ),
           ),
         ],
       ),

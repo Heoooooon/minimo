@@ -219,6 +219,15 @@ class AppTheme {
         unselectedLabelStyle: AppTextStyles.captionRegular,
         type: BottomNavigationBarType.fixed,
       ),
+
+      // Page Transitions Theme (부드러운 전환)
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+        },
+      ),
     );
   }
 }

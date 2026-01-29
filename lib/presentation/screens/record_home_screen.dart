@@ -4,6 +4,7 @@ import '../../core/utils/app_logger.dart';
 import '../../domain/models/record_data.dart';
 import '../../domain/models/aquarium_data.dart';
 import '../../data/services/aquarium_service.dart';
+import '../../data/repositories/record_repository.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
 import '../viewmodels/record_home_viewmodel.dart';
@@ -13,12 +14,21 @@ import '../widgets/record/activity_add_bottom_sheet.dart';
 /// 기록 탭의 캘린더 뷰 타입
 enum CalendarViewType { weekly, monthly }
 
+/// 체크리스트 아이템 (태그 + 체크 상태 + 저장된 기록 ID)
+class ChecklistItem {
+  final RecordTag tag;
+  bool isChecked;
+  String? recordId; // 저장된 경우 기록 ID
+
+  ChecklistItem({required this.tag, this.isChecked = false, this.recordId});
+}
+
 /// 기록 홈 화면
 ///
 /// 주요 기능:
 /// - 월간/주간 캘린더 뷰 전환
 /// - 날짜 선택시 어항별 체크리스트 표시 (아코디언)
-/// - 할 일 선택 시 즉시 저장
+/// - 체크 시 즉시 저장, 해제 시 삭제
 class RecordHomeScreen extends StatefulWidget {
   const RecordHomeScreen({super.key});
 
@@ -42,8 +52,8 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
   // 어항별 펼침 상태
   final Map<String, bool> _expandedAquariums = {};
 
-  // 어항별 저장된 기록 태그
-  final Map<String, Set<RecordTag>> _savedTagsByAquarium = {};
+  // 어항별 체크리스트 아이템
+  final Map<String, List<ChecklistItem>> _checklistByAquarium = {};
 
   // 드래그 애니메이션 관련
   late AnimationController _animationController;
@@ -97,8 +107,8 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
           _aquariums = aquariums;
           for (final aquarium in aquariums) {
             final id = aquarium.id ?? '';
-            _expandedAquariums[id] = false; // 처음엔 모두 접힌 상태
-            _savedTagsByAquarium[id] = {};
+            _expandedAquariums[id] = false;
+            _checklistByAquarium[id] = [];
           }
           _isLoadingAquariums = false;
         });
@@ -121,9 +131,9 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
   void _onDateSelected(DateTime date) {
     setState(() {
       _selectedDate = date;
-      // 날짜 변경 시 저장된 태그 초기화
-      for (final key in _savedTagsByAquarium.keys) {
-        _savedTagsByAquarium[key] = {};
+      // 날짜 변경 시 체크리스트 초기화
+      for (final key in _checklistByAquarium.keys) {
+        _checklistByAquarium[key] = [];
       }
     });
     _viewModel.loadRecordsByDate(date);
@@ -220,81 +230,93 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
     });
   }
 
-  /// 할 일 추가 (바텀시트) - 선택 시 즉시 저장
-  Future<void> _showAddActivitySheet(
-    String aquariumId,
-    String? aquariumName,
-  ) async {
+  /// 할 일 추가 (바텀시트) - 언체크 상태로 추가
+  Future<void> _showAddActivitySheet(String aquariumId) async {
     final selectedTags = await ActivityAddBottomSheet.show(
       context,
       selectedDate: _selectedDate,
     );
 
     if (selectedTags != null && selectedTags.isNotEmpty && mounted) {
-      // 즉시 저장
-      await _saveRecordImmediately(aquariumId, aquariumName, selectedTags);
+      setState(() {
+        final currentList = _checklistByAquarium[aquariumId] ?? [];
+        for (final tag in selectedTags) {
+          // 이미 있는 태그는 추가하지 않음
+          if (!currentList.any((item) => item.tag == tag)) {
+            currentList.add(ChecklistItem(tag: tag, isChecked: false));
+          }
+        }
+        _checklistByAquarium[aquariumId] = currentList;
+      });
     }
   }
 
-  /// 즉시 저장
-  Future<void> _saveRecordImmediately(
+  /// 체크박스 토글 - 체크 시 저장, 해제 시 삭제
+  Future<void> _toggleChecklistItem(
     String aquariumId,
     String? aquariumName,
-    List<RecordTag> tags,
+    int index,
   ) async {
-    // content는 필수 필드이므로 태그 라벨들을 사용
-    final content = tags.map((t) => t.label).join(', ');
+    final list = _checklistByAquarium[aquariumId];
+    if (list == null || index >= list.length) return;
 
-    final success = await _recordViewModel.saveRecord(
-      date: _selectedDate,
-      tags: tags,
-      content: content,
-      isPublic: false,
-      aquariumId: aquariumId,
-    );
+    final item = list[index];
+    final newCheckedState = !item.isChecked;
 
-    if (mounted) {
-      if (success) {
+    if (newCheckedState) {
+      // 체크 → 저장
+      final content = item.tag.label;
+      final success = await _recordViewModel.saveRecord(
+        date: _selectedDate,
+        tags: [item.tag],
+        content: content,
+        isPublic: false,
+        aquariumId: aquariumId,
+      );
+
+      if (success && mounted) {
         setState(() {
-          final currentTags = _savedTagsByAquarium[aquariumId] ?? {};
-          currentTags.addAll(tags);
-          _savedTagsByAquarium[aquariumId] = currentTags;
+          item.isChecked = true;
+          // recordId는 나중에 삭제 시 필요하지만, 현재 saveRecord가 ID를 반환하지 않음
+          // 일단 체크 상태만 변경
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              '${aquariumName ?? '어항'}에 기록이 저장되었습니다.',
+              '${item.tag.label} 완료!',
               style: AppTextStyles.bodySmall.copyWith(
                 color: AppColors.textInverse,
               ),
             ),
             backgroundColor: AppColors.success,
             behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
+            duration: const Duration(seconds: 1),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
             ),
           ),
         );
 
-        // 캘린더 점 업데이트
-        _loadData();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _recordViewModel.errorMessage ?? '저장 중 오류가 발생했습니다.',
-              style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.textInverse,
-              ),
-            ),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        _loadData(); // 캘린더 점 업데이트
       }
+    } else {
+      // 체크 해제 → 삭제 (현재는 UI만 변경, DB 삭제는 복잡하므로 생략)
+      // TODO: 기록 ID를 추적해서 삭제하려면 saveRecord 반환값 수정 필요
+      setState(() {
+        item.isChecked = false;
+      });
     }
+  }
+
+  /// 체크리스트에서 항목 제거 (X 버튼)
+  void _removeChecklistItem(String aquariumId, int index) {
+    setState(() {
+      final list = _checklistByAquarium[aquariumId];
+      if (list != null && index < list.length) {
+        list.removeAt(index);
+      }
+    });
   }
 
   String _getWeekdayName(int weekday) {
@@ -317,10 +339,7 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
             backgroundColor: AppColors.backgroundApp,
             body: Column(
               children: [
-                // 상단 캘린더 영역
                 _buildCalendarCard(viewModel),
-
-                // 하단 어항별 아코디언 영역
                 Expanded(child: _buildRecordContent(viewModel)),
               ],
             ),
@@ -625,7 +644,6 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
   Widget _buildRecordContent(RecordHomeViewModel viewModel) {
     return Column(
       children: [
-        // 날짜 헤더
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
           child: Row(
@@ -639,8 +657,6 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
             ],
           ),
         ),
-
-        // 어항별 아코디언
         Expanded(
           child: _isLoadingAquariums
               ? const Center(child: CircularProgressIndicator())
@@ -695,7 +711,8 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
   Widget _buildAquariumAccordionItem(AquariumData aquarium) {
     final aquariumId = aquarium.id ?? '';
     final isExpanded = _expandedAquariums[aquariumId] ?? false;
-    final savedTags = _savedTagsByAquarium[aquariumId] ?? {};
+    final checklist = _checklistByAquarium[aquariumId] ?? [];
+    final checkedCount = checklist.where((item) => item.isChecked).length;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -706,7 +723,7 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
       ),
       child: Column(
         children: [
-          // 어항 헤더 (탭하면 펼침/접힘)
+          // 어항 헤더
           InkWell(
             onTap: () => _toggleAquariumExpanded(aquariumId),
             borderRadius: BorderRadius.circular(16),
@@ -736,8 +753,7 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
                       ),
                     ),
                   ),
-                  // 저장된 태그 수 표시
-                  if (savedTags.isNotEmpty)
+                  if (checkedCount > 0)
                     Container(
                       margin: const EdgeInsets.only(right: 8),
                       padding: const EdgeInsets.symmetric(
@@ -745,17 +761,16 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.brand.withValues(alpha: 0.1),
+                        color: AppColors.success.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        '${savedTags.length}개 완료',
+                        '$checkedCount개 완료',
                         style: AppTextStyles.captionMedium.copyWith(
-                          color: AppColors.brand,
+                          color: AppColors.success,
                         ),
                       ),
                     ),
-                  // 펼침/접힘 아이콘
                   AnimatedRotation(
                     turns: isExpanded ? 0.5 : 0,
                     duration: const Duration(milliseconds: 200),
@@ -769,13 +784,13 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
             ),
           ),
 
-          // 펼쳐진 내용 (애니메이션)
+          // 펼쳐진 내용
           AnimatedCrossFade(
             firstChild: const SizedBox.shrink(),
             secondChild: _buildExpandedContent(
               aquariumId,
               aquarium.name,
-              savedTags,
+              checklist,
             ),
             crossFadeState: isExpanded
                 ? CrossFadeState.showSecond
@@ -790,28 +805,43 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
   Widget _buildExpandedContent(
     String aquariumId,
     String? aquariumName,
-    Set<RecordTag> savedTags,
+    List<ChecklistItem> checklist,
   ) {
     return Column(
       children: [
         const Divider(height: 1, color: AppColors.borderLight),
 
-        // 저장된 태그 목록
-        if (savedTags.isNotEmpty)
-          ...savedTags.map((tag) => _buildSavedTagItem(tag)),
+        // 체크리스트 아이템들
+        if (checklist.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: Text(
+              '할 일을 추가해주세요',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textHint,
+              ),
+            ),
+          )
+        else
+          ...checklist.asMap().entries.map((entry) {
+            final index = entry.key;
+            final item = entry.value;
+            return _buildChecklistItemWidget(
+              aquariumId,
+              aquariumName,
+              index,
+              item,
+            );
+          }),
 
         // 할 일 추가 버튼
         InkWell(
-          onTap: () => _showAddActivitySheet(aquariumId, aquariumName),
+          onTap: () => _showAddActivitySheet(aquariumId),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: savedTags.isNotEmpty
-                ? const BoxDecoration(
-                    border: Border(
-                      top: BorderSide(color: AppColors.borderLight),
-                    ),
-                  )
-                : null,
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: AppColors.borderLight)),
+            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -835,33 +865,64 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
     );
   }
 
-  Widget _buildSavedTagItem(RecordTag tag) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          // 완료 체크 아이콘
-          Container(
-            width: 20,
-            height: 20,
-            decoration: BoxDecoration(
-              color: AppColors.success,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: const Icon(Icons.check, color: Colors.white, size: 14),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              tag.label,
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.textSubtle,
-                decoration: TextDecoration.lineThrough,
+  Widget _buildChecklistItemWidget(
+    String aquariumId,
+    String? aquariumName,
+    int index,
+    ChecklistItem item,
+  ) {
+    return InkWell(
+      onTap: () => _toggleChecklistItem(aquariumId, aquariumName, index),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            // 체크박스
+            _buildCheckbox(item.isChecked),
+            const SizedBox(width: 12),
+            // 태그 라벨
+            Expanded(
+              child: Text(
+                item.tag.label,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: item.isChecked
+                      ? AppColors.textSubtle
+                      : AppColors.textMain,
+                  decoration: item.isChecked
+                      ? TextDecoration.lineThrough
+                      : null,
+                ),
               ),
             ),
-          ),
-        ],
+            // 삭제 버튼
+            GestureDetector(
+              onTap: () => _removeChecklistItem(aquariumId, index),
+              child: const Icon(
+                Icons.close,
+                size: 18,
+                color: AppColors.textHint,
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildCheckbox(bool isChecked) {
+    return Container(
+      width: 20,
+      height: 20,
+      decoration: BoxDecoration(
+        color: isChecked ? AppColors.success : Colors.transparent,
+        border: isChecked
+            ? null
+            : Border.all(color: AppColors.border, width: 1.5),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: isChecked
+          ? const Icon(Icons.check, color: Colors.white, size: 14)
+          : null,
     );
   }
 

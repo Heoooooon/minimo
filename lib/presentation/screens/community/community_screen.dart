@@ -7,6 +7,7 @@ import '../../widgets/community/post_card.dart';
 import '../../widgets/community/recommendation_card.dart';
 import '../../widgets/community/popular_ranking_card.dart';
 import '../../widgets/community/qna_question_card.dart';
+import '../../widgets/common/empty_state.dart';
 import 'more_list_screen.dart';
 
 /// 커뮤니티 탭 열거형
@@ -153,33 +154,9 @@ class _CommunityScreenState extends State<CommunityScreen> {
   }
 
   Widget _buildErrorWidget(String message) {
-    return Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        children: [
-          const Icon(Icons.error_outline, size: 48, color: AppColors.textHint),
-          const SizedBox(height: 16),
-          Text(
-            message,
-            style: AppTextStyles.bodyMedium.copyWith(
-              color: AppColors.textSubtle,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          TextButton(
-            onPressed: () {
-              context.read<CommunityViewModel>().refreshAll();
-            },
-            child: Text(
-              '다시 시도',
-              style: AppTextStyles.bodyMediumMedium.copyWith(
-                color: AppColors.brand,
-              ),
-            ),
-          ),
-        ],
-      ),
+    return EmptyStatePresets.error(
+      message: message,
+      onRetry: () => context.read<CommunityViewModel>().refreshAll(),
     );
   }
 
@@ -209,7 +186,9 @@ class _CommunityScreenState extends State<CommunityScreen> {
         !viewModel.isLoading) {
       return [
         SliverToBoxAdapter(
-          child: _buildEmptyState('아직 게시글이 없습니다.\n첫 번째 게시글을 작성해보세요!'),
+          child: EmptyStatePresets.noPosts(
+            onAction: () => Navigator.pushNamed(context, '/post-create'),
+          ),
         ),
       ];
     }
@@ -257,8 +236,12 @@ class _CommunityScreenState extends State<CommunityScreen> {
       // 필터링된 게시글이 없는 경우
       if (viewModel.filteredPosts.isEmpty && !viewModel.isLoading)
         SliverToBoxAdapter(
-          child: _buildEmptyState(
-            '#${viewModel.selectedTag} 태그의 게시글이 없습니다.\n다른 태그를 선택해보세요!',
+          child: EmptyState(
+            icon: Icons.tag,
+            message: '#${viewModel.selectedTag} 태그의 게시글이 없습니다',
+            subMessage: '다른 태그를 선택해보세요!',
+            actionLabel: '전체보기',
+            onAction: () => viewModel.clearTagFilter(),
           ),
         ),
 
@@ -355,9 +338,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
   List<Widget> _buildFollowingTabContent(CommunityViewModel viewModel) {
     if (viewModel.followingPosts.isEmpty && !viewModel.isLoading) {
       return [
-        SliverToBoxAdapter(
-          child: _buildEmptyState('팔로우한 사용자의 게시글이 없습니다.\n관심있는 사용자를 팔로우해보세요!'),
-        ),
+        const SliverToBoxAdapter(child: EmptyStatePresets.noFollowingPosts),
       ];
     }
 
@@ -412,28 +393,11 @@ class _CommunityScreenState extends State<CommunityScreen> {
           viewModel.waitingQuestions.isEmpty &&
           !viewModel.isLoading)
         SliverToBoxAdapter(
-          child: _buildEmptyState('아직 질문이 없습니다.\n첫 번째 질문을 작성해보세요!'),
+          child: EmptyStatePresets.noQuestions(
+            onAction: () => Navigator.pushNamed(context, '/community-question'),
+          ),
         ),
     ];
-  }
-
-  Widget _buildEmptyState(String message) {
-    return Padding(
-      padding: const EdgeInsets.all(48),
-      child: Column(
-        children: [
-          const Icon(Icons.inbox_outlined, size: 64, color: AppColors.textHint),
-          const SizedBox(height: 16),
-          Text(
-            message,
-            style: AppTextStyles.bodyMedium.copyWith(
-              color: AppColors.textSubtle,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
   }
 
   Widget _buildAskQuestionButton() {

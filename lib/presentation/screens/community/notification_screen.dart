@@ -3,6 +3,7 @@ import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../../domain/models/notification_data.dart';
 import '../../../data/services/pb_notification_service.dart';
+import '../../widgets/common/empty_state.dart';
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
@@ -114,30 +115,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
   }
 
   Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.notifications_none,
-            size: 80,
-            color: AppColors.textHint.withValues(alpha: 0.5),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            '알림이 없습니다',
-            style: AppTextStyles.titleMedium.copyWith(
-              color: AppColors.textSubtle,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '새로운 소식이 있으면 알려드릴게요',
-            style: AppTextStyles.bodySmall.copyWith(color: AppColors.textHint),
-          ),
-        ],
-      ),
-    );
+    return EmptyStatePresets.noNotifications;
   }
 
   Widget _buildNotificationList() {

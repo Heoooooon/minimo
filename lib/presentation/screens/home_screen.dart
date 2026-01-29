@@ -8,10 +8,12 @@ import '../widgets/home/community_card.dart';
 import '../widgets/common/skeleton_loader.dart';
 import '../../domain/models/schedule_data.dart';
 import '../../domain/models/record_data.dart';
+import '../../domain/models/question_data.dart';
 import '../../data/repositories/schedule_repository.dart';
 import '../../data/repositories/record_repository.dart';
 import '../../data/repositories/aquarium_repository.dart';
 import '../../data/services/auth_service.dart';
+import '../../data/services/community_service.dart';
 import '../../domain/models/aquarium_data.dart' as domain;
 import '../widgets/home/home_sticky_top_bar.dart';
 import '../widgets/home/home_hero_section.dart';
@@ -66,11 +68,18 @@ class HomeContentState extends State<HomeContent> {
   bool _isLoadingSchedule = true;
   bool _isLoadingRecords = true;
   bool _isLoadingAquariums = true;
+  bool _isLoadingCommunity = true;
 
   DateTime? _lastAquariumFetchTime;
   DateTime? _lastScheduleFetchTime;
   DateTime? _lastRecordFetchTime;
+  DateTime? _lastCommunityFetchTime;
   static const Duration _cacheValidDuration = Duration(minutes: 5);
+
+  // 커뮤니티 데이터
+  final CommunityService _communityService = CommunityService.instance;
+  List<CommunityData> _communityItems = [];
+  QnAData? _qnaItem;
 
   @override
   void initState() {
@@ -79,6 +88,7 @@ class HomeContentState extends State<HomeContent> {
     _loadSchedule();
     _loadRecords();
     _loadAquariums();
+    _loadCommunityData();
     _scrollController.addListener(_onScroll);
   }
 
@@ -93,6 +103,7 @@ class HomeContentState extends State<HomeContent> {
     _loadAquariums(forceRefresh: true);
     _loadSchedule(forceRefresh: true);
     _loadRecords(forceRefresh: true);
+    _loadCommunityData(forceRefresh: true);
   }
 
   void _onScroll() {
@@ -248,6 +259,83 @@ class HomeContentState extends State<HomeContent> {
     }
   }
 
+  bool _isCommunityCacheValid() {
+    return _lastCommunityFetchTime != null &&
+        DateTime.now().difference(_lastCommunityFetchTime!) <
+            _cacheValidDuration &&
+        (_communityItems.isNotEmpty || _qnaItem != null);
+  }
+
+  Future<void> _loadCommunityData({bool forceRefresh = false}) async {
+    if (!forceRefresh && _isCommunityCacheValid()) {
+      if (mounted && _isLoadingCommunity) {
+        setState(() {
+          _isLoadingCommunity = false;
+        });
+      }
+      return;
+    }
+
+    try {
+      // 커뮤니티 게시글 로드 (최신순 3개)
+      final posts = await _communityService.getPosts(
+        perPage: 3,
+        sort: '-created',
+      );
+
+      // Q&A 질문 로드 (답변 없는 최신 1개)
+      final questions = await _communityService.getQuestions(
+        perPage: 1,
+        sort: '-created',
+      );
+
+      _lastCommunityFetchTime = DateTime.now();
+      if (mounted) {
+        setState(() {
+          _communityItems = posts;
+          _qnaItem = questions.isNotEmpty
+              ? _questionToQnAData(questions.first)
+              : null;
+          _isLoadingCommunity = false;
+        });
+      }
+    } catch (e) {
+      AppLogger.data('Error loading community data: $e', isError: true);
+      if (mounted) {
+        setState(() {
+          _isLoadingCommunity = false;
+        });
+      }
+    }
+  }
+
+  /// QuestionData를 QnAData로 변환
+  QnAData _questionToQnAData(QuestionData q) {
+    // 작성 시간 계산
+    String timeAgo = '방금 전';
+    if (q.created != null) {
+      final diff = DateTime.now().difference(q.created!);
+      if (diff.inDays > 0) {
+        timeAgo = '${diff.inDays}일 전';
+      } else if (diff.inHours > 0) {
+        timeAgo = '${diff.inHours}시간 전';
+      } else if (diff.inMinutes > 0) {
+        timeAgo = '${diff.inMinutes}분 전';
+      }
+    }
+
+    return QnAData(
+      id: q.id ?? '',
+      authorName: '익명',
+      title: q.title ?? '',
+      content: q.content ?? '',
+      tags: [],
+      viewCount: q.viewCount ?? 0,
+      timeAgo: timeAgo,
+      curiousCount: 0,
+    );
+  }
+
   bool get _hasAquariums => _aquariums.isNotEmpty;
 
   /// 상태 태그 계산 (오늘 할 일 수, 물잡이 D-day 등)
@@ -307,57 +395,7 @@ class HomeContentState extends State<HomeContent> {
     }
   }
 
-  // Mock 데이터 (추후 실제 데이터로 교체)
-  final List<CommunityData> _communityItems = const [
-    CommunityData(
-      id: '1',
-      authorName: 'User',
-      authorImageUrl: null,
-      timeAgo: '00시간 전',
-      content:
-          '출장 다녀왔는데 어항에 이끼 실화인가욬ㅋㅋㅋㅋ청소할 생각에 어지러운데 혹시 도움 주실 수 있는 분 계신가요? 사진 올리고 싶은데 너무 창피해서...ㅋㅋㅋㅋ 정말 아마존 강 수준이에요\n비슷한 경험 있으신 분들 조언 부탁드려요! 특히 이끼 제거하면서 물고기 스트레스 최소화하는 방법 있으면 알려주세요ㅠㅠ  아 그리고 다음 출장 때는 어떻게 대비해야 할지도...',
-      imageUrl: null,
-      likeCount: 12,
-      commentCount: 2,
-      bookmarkCount: 1,
-    ),
-    CommunityData(
-      id: '2',
-      authorName: 'User',
-      authorImageUrl: null,
-      timeAgo: '00시간 전',
-      content: '출장 다녀왔는데 어항에 이끼 실화인가욬ㅋㅋㅋㅋ청소할 생각에 어지러운데 혹시...',
-      imageUrl:
-          'https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=400',
-      likeCount: 12,
-      commentCount: 2,
-      bookmarkCount: 1,
-    ),
-    CommunityData(
-      id: '3',
-      authorName: 'User',
-      authorImageUrl: null,
-      timeAgo: '00시간 전',
-      content: '출장 다녀왔는데 어항에 이끼 실화인가욬ㅋㅋㅋㅋ청소할 생각에 어지러운데 혹시... 더보기',
-      imageUrl: null,
-      likeCount: 12,
-      commentCount: 2,
-      bookmarkCount: 1,
-    ),
-  ];
-
-  final QnAData _qnaItem = const QnAData(
-    id: '1',
-    authorName: '미니모',
-    title: '물고기 몸에 갑자기 하얀 반점이 생겼어요',
-    content:
-        '안녕하세요 초보 반려어 사육자입니다.\n오전까지만 해도 괜찮았는데.... 퇴근하고 오니까 갑자기 물고기 몸에 하얀 반점이 생겼어요 ㅠㅠㅠㅠㅠ\n해결 방법 아시는 고수님들 도와주세요...!',
-    tags: ['하얀반점', '초보사육자'],
-    viewCount: 49,
-    timeAgo: '16시간 전',
-    curiousCount: 0,
-  );
-
+  // Tips는 아직 API가 없으므로 하드코딩 유지
   final List<TipData> _tips = const [
     TipData(
       id: '1',
@@ -407,34 +445,38 @@ class HomeContentState extends State<HomeContent> {
                       _buildAquariumSection(),
 
                       // Recommended Content Section
-                      HomeSectionHeader(
-                        title: '추천 컨텐츠',
-                        showMore: true,
-                        onMoreTap: () {},
-                      ),
-                      const SizedBox(height: 11),
-                      HomeContentCarousel(
-                        items: _communityItems,
-                        onItemTap: (_) {},
-                      ),
-                      const SizedBox(height: 32),
+                      if (_communityItems.isNotEmpty) ...[
+                        HomeSectionHeader(
+                          title: '추천 컨텐츠',
+                          showMore: true,
+                          onMoreTap: () {},
+                        ),
+                        const SizedBox(height: 11),
+                        HomeContentCarousel(
+                          items: _communityItems,
+                          onItemTap: (_) {},
+                        ),
+                        const SizedBox(height: 32),
+                      ],
 
                       // Q&A Section
-                      HomeSectionHeader(
-                        title: '답변을 기다리고 있어요',
-                        showMore: true,
-                        onMoreTap: () {},
-                      ),
-                      const SizedBox(height: 11),
-                      QnACard(
-                        data: _qnaItem,
-                        onTap: () {},
-                        onCuriousTap: () {},
-                        onAnswerTap: () {
-                          Navigator.pushNamed(context, '/community-question');
-                        },
-                      ),
-                      const SizedBox(height: 32),
+                      if (_qnaItem != null) ...[
+                        HomeSectionHeader(
+                          title: '답변을 기다리고 있어요',
+                          showMore: true,
+                          onMoreTap: () {},
+                        ),
+                        const SizedBox(height: 11),
+                        QnACard(
+                          data: _qnaItem!,
+                          onTap: () {},
+                          onCuriousTap: () {},
+                          onAnswerTap: () {
+                            Navigator.pushNamed(context, '/community-question');
+                          },
+                        ),
+                        const SizedBox(height: 32),
+                      ],
 
                       // Tips Section
                       HomeSectionHeader(
