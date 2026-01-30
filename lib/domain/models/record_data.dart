@@ -38,6 +38,7 @@ class RecordData {
     required this.tags,
     required this.content,
     this.isPublic = true,
+    this.isCompleted = false,
     this.created,
     this.updated,
   });
@@ -49,10 +50,10 @@ class RecordData {
   List<RecordTag> tags;
   String content;
   bool isPublic;
+  bool isCompleted;
   DateTime? created;
   DateTime? updated;
 
-  /// PocketBase JSON 변환
   Map<String, dynamic> toJson() {
     return {
       'aquarium': aquariumId,
@@ -60,6 +61,7 @@ class RecordData {
       'tags': tags.map((e) => e.value).toList(),
       'content': content,
       'is_public': isPublic,
+      'is_completed': isCompleted,
     };
   }
 
@@ -77,6 +79,7 @@ class RecordData {
           [],
       content: json['content'] ?? '',
       isPublic: json['is_public'] ?? true,
+      isCompleted: json['is_completed'] ?? false,
       created: DateTime.tryParse(json['created'] ?? ''),
       updated: DateTime.tryParse(json['updated'] ?? ''),
     );

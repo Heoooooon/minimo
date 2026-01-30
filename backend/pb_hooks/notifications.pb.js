@@ -1,37 +1,40 @@
 /// <reference path="../pb_data/types.d.ts" />
 
-const FCM_SERVER_KEY = $os.getenv("FCM_SERVER_KEY") || "";
+const PUSH_FUNCTION_URL = $os.getenv("PUSH_FUNCTION_URL") || "";
+const WEBHOOK_SECRET = $os.getenv("WEBHOOK_SECRET") || "";
 
 function sendFcmPush(fcmToken, title, body, data) {
-    if (!FCM_SERVER_KEY || !fcmToken) {
+    if (!PUSH_FUNCTION_URL || !fcmToken) {
         return;
     }
 
     try {
+        const headers = {
+            "Content-Type": "application/json"
+        };
+
+        if (WEBHOOK_SECRET) {
+            headers["Authorization"] = "Bearer " + WEBHOOK_SECRET;
+        }
+
         const response = $http.send({
-            url: "https://fcm.googleapis.com/fcm/send",
+            url: PUSH_FUNCTION_URL,
             method: "POST",
-            headers: {
-                "Authorization": "key=" + FCM_SERVER_KEY,
-                "Content-Type": "application/json"
-            },
+            headers: headers,
             body: JSON.stringify({
-                to: fcmToken,
-                notification: {
-                    title: title,
-                    body: body,
-                    sound: "default"
-                },
+                fcmToken: fcmToken,
+                title: title,
+                body: body,
                 data: data || {}
             }),
-            timeout: 10
+            timeout: 15
         });
 
         if (response.statusCode !== 200) {
-            console.log("FCM send failed:", response.statusCode);
+            console.log("Push function failed:", response.statusCode, response.raw);
         }
     } catch (err) {
-        console.log("FCM send error:", err);
+        console.log("Push function error:", err);
     }
 }
 
@@ -151,3 +154,105 @@ onRecordAfterCreateSuccess((e) => {
         console.log("Failed to create follow notification:", err);
     }
 }, "follows");
+
+onRecordAfterCreateSuccess((e) => {
+    const like = e.record;
+    const userId = like.get("user");
+    const targetId = like.get("target_id");
+    const targetType = like.get("target_type");
+
+    if (!userId || !targetId || !targetType) return;
+
+    try {
+        let collectionName = "";
+        let authorField = "author";
+        
+        if (targetType === "post") {
+            collectionName = "community_posts";
+        } else if (targetType === "comment") {
+            collectionName = "comments";
+        } else if (targetType === "answer") {
+            collectionName = "answers";
+        }
+
+        if (!collectionName) return;
+
+        const target = $app.findRecordById(collectionName, targetId);
+        const currentCount = target.getInt("like_count") || 0;
+        target.set("like_count", currentCount + 1);
+        $app.save(target);
+
+        const authorId = target.get(authorField);
+        if (authorId && authorId !== userId) {
+            const liker = $app.findRecordById("users", userId);
+            const likerName = liker.get("name") || "회원";
+
+            const notificationsCollection = $app.findCollectionByNameOrId("notifications");
+            const notification = new Record(notificationsCollection);
+
+            let message = "";
+            let notifTargetType = targetType;
+            let notifTargetId = targetId;
+
+            if (targetType === "post") {
+                message = likerName + "님이 회원님의 게시글을 좋아합니다.";
+            } else if (targetType === "comment") {
+                message = likerName + "님이 회원님의 댓글을 좋아합니다.";
+                const postId = target.get("post");
+                if (postId) {
+                    notifTargetType = "post";
+                    notifTargetId = postId;
+                }
+            } else if (targetType === "answer") {
+                message = likerName + "님이 회원님의 답변을 좋아합니다.";
+                const questionId = target.get("question");
+                if (questionId) {
+                    notifTargetType = "question";
+                    notifTargetId = questionId;
+                }
+            }
+
+            notification.set("user", authorId);
+            notification.set("type", "like");
+            notification.set("title", "좋아요");
+            notification.set("message", message);
+            notification.set("target_id", notifTargetId);
+            notification.set("target_type", notifTargetType);
+            notification.set("is_read", false);
+            notification.set("actor", userId);
+
+            $app.save(notification);
+        }
+    } catch (err) {
+        console.log("Failed to handle like:", err);
+    }
+}, "likes");
+
+onRecordAfterDeleteSuccess((e) => {
+    const like = e.record;
+    const targetId = like.get("target_id");
+    const targetType = like.get("target_type");
+
+    if (!targetId || !targetType) return;
+
+    try {
+        let collectionName = "";
+        
+        if (targetType === "post") {
+            collectionName = "community_posts";
+        } else if (targetType === "comment") {
+            collectionName = "comments";
+        } else if (targetType === "answer") {
+            collectionName = "answers";
+        }
+
+        if (!collectionName) return;
+
+        const target = $app.findRecordById(collectionName, targetId);
+        const currentCount = target.getInt("like_count") || 0;
+        target.set("like_count", Math.max(0, currentCount - 1));
+        $app.save(target);
+    } catch (err) {
+        console.log("Failed to decrement like count:", err);
+    }
+}, "likes");

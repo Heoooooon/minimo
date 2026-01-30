@@ -503,7 +503,9 @@ class HomeContentState extends State<HomeContent> {
             child: HomeStickyTopBar(
               isScrolledPastHero: isScrolledPastHero,
               backgroundOpacity: topBarBackgroundOpacity,
-              onNotificationTap: () {},
+              onNotificationTap: () {
+                Navigator.pushNamed(context, '/notifications');
+              },
               onGuideTap: () {},
             ),
           ),

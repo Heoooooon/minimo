@@ -137,6 +137,13 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
       }
     });
     _viewModel.loadRecordsByDate(date);
+
+    // 이미 펼쳐진 어항들의 체크리스트 다시 로드
+    for (final entry in _expandedAquariums.entries) {
+      if (entry.value) {
+        _loadChecklistForAquarium(entry.key);
+      }
+    }
   }
 
   void _onMonthChanged(int delta) {
@@ -224,13 +231,49 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
 
   /// 어항 섹션 펼침/접힘 토글
   void _toggleAquariumExpanded(String aquariumId) {
+    final willExpand = !(_expandedAquariums[aquariumId] ?? false);
+
     setState(() {
-      _expandedAquariums[aquariumId] =
-          !(_expandedAquariums[aquariumId] ?? false);
+      _expandedAquariums[aquariumId] = willExpand;
     });
+
+    // 펼칠 때 서버에서 해당 어항의 기록 로드
+    if (willExpand) {
+      _loadChecklistForAquarium(aquariumId);
+    }
   }
 
-  /// 할 일 추가 (바텀시트) - 언체크 상태로 추가
+  /// 특정 어항의 체크리스트를 서버에서 로드
+  Future<void> _loadChecklistForAquarium(String aquariumId) async {
+    try {
+      final records = await _recordViewModel.getRecordsByDateAndAquarium(
+        _selectedDate,
+        aquariumId,
+      );
+
+      if (mounted) {
+        setState(() {
+          final checklistItems = <ChecklistItem>[];
+          for (final record in records) {
+            // 태그가 없으면 건너뜀
+            if (record.tags.isEmpty) continue;
+            checklistItems.add(
+              ChecklistItem(
+                tag: record.tags.first,
+                isChecked: record.isCompleted,
+                recordId: record.id,
+              ),
+            );
+          }
+          _checklistByAquarium[aquariumId] = checklistItems;
+        });
+      }
+    } catch (e) {
+      AppLogger.data('Error loading checklist for aquarium: $e', isError: true);
+    }
+  }
+
+  /// 할 일 추가 (바텀시트) - 서버에 isCompleted: false로 저장
   Future<void> _showAddActivitySheet(String aquariumId) async {
     final selectedTags = await ActivityAddBottomSheet.show(
       context,
@@ -238,20 +281,41 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
     );
 
     if (selectedTags != null && selectedTags.isNotEmpty && mounted) {
-      setState(() {
-        final currentList = _checklistByAquarium[aquariumId] ?? [];
-        for (final tag in selectedTags) {
-          // 이미 있는 태그는 추가하지 않음
-          if (!currentList.any((item) => item.tag == tag)) {
-            currentList.add(ChecklistItem(tag: tag, isChecked: false));
-          }
+      final currentList = _checklistByAquarium[aquariumId] ?? [];
+
+      for (final tag in selectedTags) {
+        // 이미 있는 태그는 추가하지 않음
+        if (currentList.any((item) => item.tag == tag)) continue;
+
+        // 서버에 미완료 상태로 저장
+        final savedRecord = await _recordViewModel.saveRecord(
+          date: _selectedDate,
+          tags: [tag],
+          content: tag.label,
+          isPublic: false,
+          aquariumId: aquariumId,
+          isCompleted: false,
+        );
+
+        if (savedRecord != null && mounted) {
+          setState(() {
+            currentList.add(
+              ChecklistItem(
+                tag: tag,
+                isChecked: false,
+                recordId: savedRecord.id,
+              ),
+            );
+            _checklistByAquarium[aquariumId] = currentList;
+          });
         }
-        _checklistByAquarium[aquariumId] = currentList;
-      });
+      }
+
+      _loadData(); // 캘린더 점 업데이트
     }
   }
 
-  /// 체크박스 토글 - 체크 시 저장, 해제 시 삭제
+  /// 체크박스 토글 - 체크 시 완료 처리, 해제 시 미완료 처리
   Future<void> _toggleChecklistItem(
     String aquariumId,
     String? aquariumName,
@@ -262,25 +326,28 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
 
     final item = list[index];
     final newCheckedState = !item.isChecked;
+    final recordId = item.recordId;
 
-    if (newCheckedState) {
-      // 체크 → 저장
-      final content = item.tag.label;
-      final success = await _recordViewModel.saveRecord(
-        date: _selectedDate,
-        tags: [item.tag],
-        content: content,
-        isPublic: false,
-        aquariumId: aquariumId,
-      );
+    if (recordId == null) {
+      // recordId가 없으면 로컬 상태만 변경 (비정상 상태)
+      setState(() {
+        item.isChecked = newCheckedState;
+      });
+      return;
+    }
 
-      if (success && mounted) {
-        setState(() {
-          item.isChecked = true;
-          // recordId는 나중에 삭제 시 필요하지만, 현재 saveRecord가 ID를 반환하지 않음
-          // 일단 체크 상태만 변경
-        });
+    // 서버에 완료 상태 업데이트
+    final success = await _recordViewModel.updateRecordCompletion(
+      recordId,
+      newCheckedState,
+    );
 
+    if (success && mounted) {
+      setState(() {
+        item.isChecked = newCheckedState;
+      });
+
+      if (newCheckedState) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -297,26 +364,36 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
             ),
           ),
         );
-
-        _loadData(); // 캘린더 점 업데이트
       }
-    } else {
-      // 체크 해제 → 삭제 (현재는 UI만 변경, DB 삭제는 복잡하므로 생략)
-      // TODO: 기록 ID를 추적해서 삭제하려면 saveRecord 반환값 수정 필요
-      setState(() {
-        item.isChecked = false;
-      });
+
+      _loadData(); // 캘린더 점 업데이트
     }
   }
 
-  /// 체크리스트에서 항목 제거 (X 버튼)
-  void _removeChecklistItem(String aquariumId, int index) {
-    setState(() {
-      final list = _checklistByAquarium[aquariumId];
-      if (list != null && index < list.length) {
-        list.removeAt(index);
+  /// 체크리스트에서 항목 제거 (X 버튼) - 서버에서도 삭제
+  Future<void> _removeChecklistItem(String aquariumId, int index) async {
+    final list = _checklistByAquarium[aquariumId];
+    if (list == null || index >= list.length) return;
+
+    final item = list[index];
+    final recordId = item.recordId;
+
+    // 서버에서 삭제
+    if (recordId != null) {
+      try {
+        await PocketBaseRecordRepository.instance.deleteRecord(recordId);
+      } catch (e) {
+        AppLogger.data('Error deleting record: $e', isError: true);
       }
-    });
+    }
+
+    // UI에서 제거
+    if (mounted) {
+      setState(() {
+        list.removeAt(index);
+      });
+      _loadData(); // 캘린더 점 업데이트
+    }
   }
 
   String _getWeekdayName(int weekday) {

@@ -273,21 +273,34 @@ class CommunityService {
     }
   }
 
-  /// 좋아요 토글
-  Future<void> toggleLike(String id, bool isLiked) async {
+  Future<void> toggleLike(String postId, bool isLiked) async {
     try {
-      final record = await _pb.collection(_postsCollection).getOne(id);
-      final currentCount = record.getIntValue('like_count');
-      await _pb
-          .collection(_postsCollection)
-          .update(
-            id,
-            body: {
-              'like_count': isLiked
-                  ? currentCount + 1
-                  : (currentCount > 0 ? currentCount - 1 : 0),
-            },
-          );
+      final userId = AuthService.instance.currentUser?.id;
+      if (userId == null) return;
+
+      if (isLiked) {
+        await _pb
+            .collection('likes')
+            .create(
+              body: {
+                'user': userId,
+                'target_id': postId,
+                'target_type': 'post',
+              },
+            );
+      } else {
+        final existing = await _pb
+            .collection('likes')
+            .getList(
+              page: 1,
+              perPage: 1,
+              filter:
+                  'user = "$userId" && target_id = "$postId" && target_type = "post"',
+            );
+        if (existing.items.isNotEmpty) {
+          await _pb.collection('likes').delete(existing.items.first.id);
+        }
+      }
     } catch (e) {
       AppLogger.data('Failed to toggle like: $e', isError: true);
     }

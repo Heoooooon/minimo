@@ -60,3 +60,6 @@ ios/fastlane/report.xml
 # iOS build artifacts
 ios/build/
 ios/ExportOptions.plist
+
+# Firebase Functions
+functions/node_modules/

@@ -127,7 +127,7 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
         // content는 필수 필드이므로 태그 라벨들을 사용
         final content = tags.map((t) => t.label).join(', ');
 
-        final success = await _viewModel.saveRecord(
+        final savedRecord = await _viewModel.saveRecord(
           date: _selectedDate,
           tags: tags.toList(),
           content: content,
@@ -135,7 +135,7 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
           aquariumId: aquariumId,
         );
 
-        if (success) {
+        if (savedRecord != null) {
           savedCount++;
         } else {
           allSuccess = false;

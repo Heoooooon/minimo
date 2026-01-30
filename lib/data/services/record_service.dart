@@ -72,6 +72,37 @@ class RecordService {
     return getRecords(filter: filter, perPage: 100, sort: '-date');
   }
 
+  /// 특정 날짜와 어항의 기록 조회
+  Future<List<RecordData>> getRecordsByDateAndAquarium(
+    DateTime date,
+    String? aquariumId,
+  ) async {
+    final startOfDay = DateTime(date.year, date.month, date.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+
+    String filter =
+        'date >= "${_formatDateForPocketBase(startOfDay)}" && date < "${_formatDateForPocketBase(endOfDay)}"';
+
+    if (aquariumId != null && aquariumId.isNotEmpty) {
+      filter += ' && aquarium = "$aquariumId"';
+    }
+
+    return getRecords(filter: filter, perPage: 100, sort: '-date');
+  }
+
+  /// 기록 완료 상태 업데이트
+  Future<void> updateRecordCompletion(String id, bool isCompleted) async {
+    try {
+      await _pb
+          .collection(_collection)
+          .update(id, body: {'is_completed': isCompleted});
+      AppLogger.data('Record completion updated: $id -> $isCompleted');
+    } catch (e) {
+      AppLogger.data('Failed to update record completion: $e', isError: true);
+      rethrow;
+    }
+  }
+
   /// 특정 월의 기록이 있는 날짜 목록 조회
   Future<List<DateTime>> getRecordDatesInMonth(DateTime month) async {
     try {
@@ -190,6 +221,7 @@ class RecordService {
       tags: tags,
       content: record.getStringValue('content'),
       isPublic: record.getBoolValue('is_public'),
+      isCompleted: record.getBoolValue('is_completed'),
       created: DateTime.tryParse(record.getStringValue('created')),
       updated: DateTime.tryParse(record.getStringValue('updated')),
     );

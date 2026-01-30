@@ -1,7 +1,6 @@
 import '../../domain/models/record_data.dart';
 import '../services/record_service.dart';
 
-/// 기록 Repository 인터페이스
 abstract class RecordRepository {
   Future<List<RecordData>> getRecords({
     int page = 1,
@@ -10,8 +9,13 @@ abstract class RecordRepository {
     String sort = '-date',
   });
   Future<List<RecordData>> getRecordsByDate(DateTime date);
+  Future<List<RecordData>> getRecordsByDateAndAquarium(
+    DateTime date,
+    String? aquariumId,
+  );
   Future<List<DateTime>> getRecordDatesInMonth(DateTime month);
   Future<RecordData> createRecord(RecordData data);
+  Future<void> updateRecordCompletion(String id, bool isCompleted);
   Future<void> deleteRecord(String id);
 }
 
@@ -60,5 +64,18 @@ class PocketBaseRecordRepository implements RecordRepository {
   @override
   Future<List<DateTime>> getRecordDatesInMonth(DateTime month) async {
     return _service.getRecordDatesInMonth(month);
+  }
+
+  @override
+  Future<List<RecordData>> getRecordsByDateAndAquarium(
+    DateTime date,
+    String? aquariumId,
+  ) async {
+    return _service.getRecordsByDateAndAquarium(date, aquariumId);
+  }
+
+  @override
+  Future<void> updateRecordCompletion(String id, bool isCompleted) async {
+    return _service.updateRecordCompletion(id, isCompleted);
   }
 }
