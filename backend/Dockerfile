@@ -1,20 +1,22 @@
+FROM golang:1.22-alpine AS builder
+
+RUN apk add --no-cache ca-certificates
+
+WORKDIR /build
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY main.go ./
+COPY handlers/ ./handlers/
+COPY hooks/ ./hooks/
+RUN CGO_ENABLED=0 GOOS=linux go build -o pocketbase .
+
 FROM alpine:latest
+RUN apk add --no-cache ca-certificates
 
-ARG PB_VERSION=0.23.4
-
-RUN apk add --no-cache \
-    unzip \
-    ca-certificates
-
-# Download and unzip PocketBase
-ADD https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSION}/pocketbase_${PB_VERSION}_linux_amd64.zip /tmp/pb.zip
-RUN unzip /tmp/pb.zip -d /pb/
-
-# Copy migrations and hooks
-COPY ./pb_migrations /pb/pb_migrations
-COPY ./pb_hooks /pb/pb_hooks
+WORKDIR /pb
+COPY --from=builder /build/pocketbase /pb/pocketbase
+COPY pb_migrations/ /pb/pb_migrations/
 
 EXPOSE 8080
-
-# Start PocketBase with custom hooks directory
-CMD ["/pb/pocketbase", "serve", "--http=0.0.0.0:8080", "--hooksDir=/pb/pb_hooks", "--migrationsDir=/pb/pb_migrations"]
+CMD ["/pb/pocketbase", "serve", "--http=0.0.0.0:8080", "--migrationsDir=/pb/pb_migrations"]

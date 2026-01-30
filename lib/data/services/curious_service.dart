@@ -39,7 +39,6 @@ class CuriousService {
   PocketBase get _pb => PocketBaseService.instance.client;
 
   static const String _collection = 'curious';
-  static const String _questionsCollection = 'questions';
 
   /// 궁금해요 토글
   Future<bool> toggleCurious({
@@ -47,24 +46,18 @@ class CuriousService {
     required String questionId,
   }) async {
     try {
-      // 이미 궁금해요 했는지 확인
-      final existing = await _getCuriousRecord(userId, questionId);
+      final result = await _pb.send(
+        '/api/community/toggle-curious',
+        method: 'POST',
+        body: {'question_id': questionId},
+      );
 
-      if (existing != null) {
-        // 이미 있으면 삭제 (궁금해요 취소)
-        await _pb.collection(_collection).delete(existing.id!);
-        await _updateCuriousCount(questionId, -1);
-        AppLogger.data('Curious removed: $userId -> $questionId');
-        return false;
-      } else {
-        // 없으면 추가 (궁금해요)
-        await _pb
-            .collection(_collection)
-            .create(body: {'user_id': userId, 'question_id': questionId});
-        await _updateCuriousCount(questionId, 1);
-        AppLogger.data('Curious added: $userId -> $questionId');
-        return true;
-      }
+      final curious =
+          (result as Map<String, dynamic>)['curious'] as bool? ?? false;
+      AppLogger.data(
+        'Curious toggled: $userId -> $questionId (curious: $curious)',
+      );
+      return curious;
     } catch (e) {
       AppLogger.data('Failed to toggle curious: $e', isError: true);
       rethrow;
@@ -152,26 +145,6 @@ class CuriousService {
     } catch (e) {
       AppLogger.data('Failed to get curious record: $e', isError: true);
       return null;
-    }
-  }
-
-  /// 질문의 궁금해요 수 업데이트
-  Future<void> _updateCuriousCount(String questionId, int delta) async {
-    try {
-      final record = await _pb
-          .collection(_questionsCollection)
-          .getOne(questionId);
-      final currentCount = record.getIntValue('curious_count');
-      final newCount = (currentCount + delta).clamp(0, double.infinity).toInt();
-
-      await _pb
-          .collection(_questionsCollection)
-          .update(questionId, body: {'curious_count': newCount});
-    } catch (e) {
-      // 궁금해요 수 필드가 없을 수 있음 - 무시
-      AppLogger.data(
-        'Failed to update curious count (field may not exist): $e',
-      );
     }
   }
 }

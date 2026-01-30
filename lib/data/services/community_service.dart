@@ -112,14 +112,13 @@ class CommunityService {
     }
   }
 
-  /// 조회수 증가
   Future<void> incrementViewCount(String id) async {
     try {
-      final record = await _pb.collection(_questionsCollection).getOne(id);
-      final currentCount = record.getIntValue('view_count');
-      await _pb
-          .collection(_questionsCollection)
-          .update(id, body: {'view_count': currentCount + 1});
+      await _pb.send(
+        '/api/community/increment-view',
+        method: 'POST',
+        body: {'id': id, 'type': 'question'},
+      );
     } catch (e) {
       AppLogger.data('Failed to increment view count: $e', isError: true);
     }
@@ -275,52 +274,23 @@ class CommunityService {
 
   Future<void> toggleLike(String postId, bool isLiked) async {
     try {
-      final userId = AuthService.instance.currentUser?.id;
-      if (userId == null) return;
-
-      if (isLiked) {
-        await _pb
-            .collection('likes')
-            .create(
-              body: {
-                'user': userId,
-                'target_id': postId,
-                'target_type': 'post',
-              },
-            );
-      } else {
-        final existing = await _pb
-            .collection('likes')
-            .getList(
-              page: 1,
-              perPage: 1,
-              filter:
-                  'user = "$userId" && target_id = "$postId" && target_type = "post"',
-            );
-        if (existing.items.isNotEmpty) {
-          await _pb.collection('likes').delete(existing.items.first.id);
-        }
-      }
+      await _pb.send(
+        '/api/community/toggle-like',
+        method: 'POST',
+        body: {'target_id': postId, 'target_type': 'post'},
+      );
     } catch (e) {
       AppLogger.data('Failed to toggle like: $e', isError: true);
     }
   }
 
-  /// 북마크 토글
   Future<void> toggleBookmark(String id, bool isBookmarked) async {
     try {
-      final record = await _pb.collection(_postsCollection).getOne(id);
-      final currentCount = record.getIntValue('bookmark_count');
-      await _pb
-          .collection(_postsCollection)
-          .update(
-            id,
-            body: {
-              'bookmark_count': isBookmarked
-                  ? currentCount + 1
-                  : (currentCount > 0 ? currentCount - 1 : 0),
-            },
-          );
+      await _pb.send(
+        '/api/community/toggle-bookmark',
+        method: 'POST',
+        body: {'post_id': id, 'bookmarked': isBookmarked},
+      );
     } catch (e) {
       AppLogger.data('Failed to toggle bookmark: $e', isError: true);
     }

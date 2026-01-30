@@ -169,38 +169,25 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     });
 
     try {
-      if (_isFollowing) {
-        await _followService.unfollow(
-          followerId: currentUser.id,
-          followingId: _authorId!,
-        );
-        setState(() {
-          _isFollowing = false;
-        });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('${_post?.authorName ?? '사용자'}님을 언팔로우했습니다.'),
-              backgroundColor: AppColors.textSubtle,
+      final nowFollowing = await _followService.toggleFollow(
+        followingId: _authorId!,
+      );
+      setState(() {
+        _isFollowing = nowFollowing;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              nowFollowing
+                  ? '${_post?.authorName ?? '사용자'}님을 팔로우합니다.'
+                  : '${_post?.authorName ?? '사용자'}님을 언팔로우했습니다.',
             ),
-          );
-        }
-      } else {
-        await _followService.follow(
-          followerId: currentUser.id,
-          followingId: _authorId!,
+            backgroundColor: nowFollowing
+                ? AppColors.success
+                : AppColors.textSubtle,
+          ),
         );
-        setState(() {
-          _isFollowing = true;
-        });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('${_post?.authorName ?? '사용자'}님을 팔로우합니다.'),
-              backgroundColor: AppColors.success,
-            ),
-          );
-        }
       }
     } catch (e) {
       AppLogger.data('Failed to toggle follow: $e', isError: true);

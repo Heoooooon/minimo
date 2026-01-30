@@ -1,6 +1,5 @@
 import 'package:pocketbase/pocketbase.dart';
 import 'pocketbase_service.dart';
-import 'auth_service.dart';
 import '../../domain/models/answer_data.dart';
 import '../../core/utils/app_logger.dart';
 
@@ -114,32 +113,11 @@ class AnswerService {
 
   Future<void> toggleLike(String answerId, bool isLiked) async {
     try {
-      final userId = AuthService.instance.currentUser?.id;
-      if (userId == null) return;
-
-      if (isLiked) {
-        await _pb
-            .collection('likes')
-            .create(
-              body: {
-                'user': userId,
-                'target_id': answerId,
-                'target_type': 'answer',
-              },
-            );
-      } else {
-        final existing = await _pb
-            .collection('likes')
-            .getList(
-              page: 1,
-              perPage: 1,
-              filter:
-                  'user = "$userId" && target_id = "$answerId" && target_type = "answer"',
-            );
-        if (existing.items.isNotEmpty) {
-          await _pb.collection('likes').delete(existing.items.first.id);
-        }
-      }
+      await _pb.send(
+        '/api/community/toggle-like',
+        method: 'POST',
+        body: {'target_id': answerId, 'target_type': 'answer'},
+      );
     } catch (e) {
       AppLogger.data('Failed to toggle like: $e', isError: true);
     }
@@ -147,14 +125,13 @@ class AnswerService {
 
   // ==================== Helpers ====================
 
-  /// 질문의 comment_count 증가
   Future<void> _incrementQuestionCommentCount(String questionId) async {
     try {
-      final record = await _pb.collection('questions').getOne(questionId);
-      final currentCount = record.getIntValue('comment_count');
-      await _pb
-          .collection('questions')
-          .update(questionId, body: {'comment_count': currentCount + 1});
+      await _pb.send(
+        '/api/community/increment-comment-count',
+        method: 'POST',
+        body: {'id': questionId, 'type': 'question'},
+      );
     } catch (e) {
       AppLogger.data(
         'Failed to increment question comment count: $e',
@@ -163,17 +140,13 @@ class AnswerService {
     }
   }
 
-  /// 질문의 comment_count 감소
   Future<void> _decrementQuestionCommentCount(String questionId) async {
     try {
-      final record = await _pb.collection('questions').getOne(questionId);
-      final currentCount = record.getIntValue('comment_count');
-      await _pb
-          .collection('questions')
-          .update(
-            questionId,
-            body: {'comment_count': currentCount > 0 ? currentCount - 1 : 0},
-          );
+      await _pb.send(
+        '/api/community/decrement-comment-count',
+        method: 'POST',
+        body: {'id': questionId, 'type': 'question'},
+      );
     } catch (e) {
       AppLogger.data(
         'Failed to decrement question comment count: $e',

@@ -51,15 +51,12 @@ class PbNotificationService {
       final userId = AuthService.instance.currentUser?.id;
       if (userId == null) return 0;
 
-      final result = await _pb
-          .collection('notifications')
-          .getList(
-            page: 1,
-            perPage: 1,
-            filter: 'user = "$userId" && is_read = false',
-          );
+      final result = await _pb.send(
+        '/api/notifications/unread-count',
+        method: 'GET',
+      );
 
-      return result.totalItems;
+      return (result as Map<String, dynamic>)['count'] as int? ?? 0;
     } catch (e) {
       AppLogger.data('Failed to get unread count: $e', isError: true);
       return 0;
@@ -80,18 +77,7 @@ class PbNotificationService {
 
   Future<bool> markAllAsRead() async {
     try {
-      final userId = AuthService.instance.currentUser?.id;
-      if (userId == null) return false;
-
-      final unread = await _pb
-          .collection('notifications')
-          .getFullList(filter: 'user = "$userId" && is_read = false');
-
-      for (final notification in unread) {
-        await _pb
-            .collection('notifications')
-            .update(notification.id, body: {'is_read': true});
-      }
+      await _pb.send('/api/notifications/mark-all-read', method: 'POST');
       return true;
     } catch (e) {
       AppLogger.data('Failed to mark all as read: $e', isError: true);

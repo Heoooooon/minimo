@@ -39,48 +39,21 @@ class FollowService {
 
   static const String _collection = 'follows';
 
-  /// 사용자 팔로우
-  Future<FollowData> follow({
-    required String followerId,
-    required String followingId,
-  }) async {
+  /// 팔로우 토글 (팔로우 ↔ 언팔로우)
+  Future<bool> toggleFollow({required String followingId}) async {
     try {
-      // 이미 팔로우 중인지 확인
-      final existing = await _getFollowRecord(followerId, followingId);
-      if (existing != null) {
-        return existing;
-      }
+      final result = await _pb.send(
+        '/api/community/toggle-follow',
+        method: 'POST',
+        body: {'following_id': followingId},
+      );
 
-      final record = await _pb
-          .collection(_collection)
-          .create(body: {'follower': followerId, 'following': followingId});
-
-      AppLogger.data('Followed: $followerId -> $followingId');
-      return FollowData.fromJson({
-        'id': record.id,
-        'follower': followerId,
-        'following': followingId,
-        'created': record.getStringValue('created'),
-      });
+      final following =
+          (result as Map<String, dynamic>)['following'] as bool? ?? false;
+      AppLogger.data('Follow toggled: -> $followingId (following: $following)');
+      return following;
     } catch (e) {
-      AppLogger.data('Failed to follow: $e', isError: true);
-      rethrow;
-    }
-  }
-
-  /// 사용자 언팔로우
-  Future<void> unfollow({
-    required String followerId,
-    required String followingId,
-  }) async {
-    try {
-      final existing = await _getFollowRecord(followerId, followingId);
-      if (existing?.id != null) {
-        await _pb.collection(_collection).delete(existing!.id!);
-        AppLogger.data('Unfollowed: $followerId -> $followingId');
-      }
-    } catch (e) {
-      AppLogger.data('Failed to unfollow: $e', isError: true);
+      AppLogger.data('Failed to toggle follow: $e', isError: true);
       rethrow;
     }
   }

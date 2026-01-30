@@ -46,26 +46,43 @@ routerAdd("POST", "/api/custom/send-code", (e) => {
         // Save
         $app.save(record);
 
-        // Send email
-        const message = new MailerMessage({
-            from: {
-                address: $app.settings().meta.senderAddress,
-                name: $app.settings().meta.senderName || "우물",
+        // Send email via Resend HTTP API
+        const apiKey = $os.getenv("RESEND_API_KEY");
+        if (!apiKey) {
+            throw new Error("RESEND_API_KEY 환경변수가 설정되지 않았습니다.");
+        }
+
+        const fromEmail = $os.getenv("RESEND_FROM_EMAIL") || "우물 <onboarding@resend.dev>";
+
+        const htmlContent =
+            "<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;'>" +
+            "<h1 style='color: #0165FE; font-size: 24px; margin-bottom: 30px;'>우물 이메일 인증</h1>" +
+            "<p style='font-size: 16px; color: #333; margin-bottom: 20px;'>안녕하세요! 우물 회원가입을 위한 인증번호입니다.</p>" +
+            "<div style='background: #F5F7FA; border-radius: 12px; padding: 30px; text-align: center; margin: 30px 0;'>" +
+            "<p style='font-size: 14px; color: #666; margin-bottom: 10px;'>인증번호</p>" +
+            "<p style='font-size: 36px; font-weight: bold; color: #0165FE; letter-spacing: 8px; margin: 0;'>" + code + "</p>" +
+            "</div>" +
+            "<p style='font-size: 14px; color: #999;'>이 인증번호는 3분간 유효합니다.<br>본인이 요청하지 않았다면 이 이메일을 무시해주세요.</p>" +
+            "</div>";
+
+        const res = $http.send({
+            url: "https://api.resend.com/emails",
+            method: "POST",
+            headers: {
+                "Authorization": "Bearer " + apiKey,
+                "Content-Type": "application/json",
             },
-            to: [{ address: email }],
-            subject: "[우물] 이메일 인증번호",
-            html: "<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;'>" +
-                  "<h1 style='color: #0165FE; font-size: 24px; margin-bottom: 30px;'>우물 이메일 인증</h1>" +
-                  "<p style='font-size: 16px; color: #333; margin-bottom: 20px;'>안녕하세요! 우물 회원가입을 위한 인증번호입니다.</p>" +
-                  "<div style='background: #F5F7FA; border-radius: 12px; padding: 30px; text-align: center; margin: 30px 0;'>" +
-                  "<p style='font-size: 14px; color: #666; margin-bottom: 10px;'>인증번호</p>" +
-                  "<p style='font-size: 36px; font-weight: bold; color: #0165FE; letter-spacing: 8px; margin: 0;'>" + code + "</p>" +
-                  "</div>" +
-                  "<p style='font-size: 14px; color: #999;'>이 인증번호는 3분간 유효합니다.<br>본인이 요청하지 않았다면 이 이메일을 무시해주세요.</p>" +
-                  "</div>",
+            body: JSON.stringify({
+                from: fromEmail,
+                to: [email],
+                subject: "[우물] 이메일 인증번호",
+                html: htmlContent,
+            }),
         });
 
-        $app.newMailClient().send(message);
+        if (res.statusCode !== 200) {
+            throw new Error("Resend API 에러 (status " + res.statusCode + "): " + res.raw);
+        }
 
         return e.json(200, {
             success: true,
