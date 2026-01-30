@@ -52,6 +52,11 @@ backend/pb_data/
 # App Icon Package
 Appicon_Package/
 
-# Fastlane secrets
+# Fastlane secrets & artifacts
 ios/fastlane/*.p8
 ios/fastlane/api_key.json
+ios/fastlane/report.xml
+
+# iOS build artifacts
+ios/build/
+ios/ExportOptions.plist
