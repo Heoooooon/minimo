@@ -81,7 +81,7 @@ class HomeStickyTopBar extends StatelessWidget {
                   width: 4,
                   height: 4,
                   decoration: const BoxDecoration(
-                    color: Color(0xFFFE8A24),
+                    color: AppColors.orange500,
                     shape: BoxShape.circle,
                   ),
                 ),

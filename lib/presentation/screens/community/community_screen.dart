@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../../theme/app_spacing.dart';
 import '../../viewmodels/community_viewmodel.dart';
-import '../../widgets/community/post_card.dart';
-import '../../widgets/community/recommendation_card.dart';
-import '../../widgets/community/popular_ranking_card.dart';
-import '../../widgets/community/qna_question_card.dart';
 import '../../widgets/common/empty_state.dart';
-import 'more_list_screen.dart';
+import 'tabs/recommend_tab.dart';
+import 'tabs/following_tab.dart';
+import 'tabs/qna_tab.dart';
 
 /// 커뮤니티 탭 열거형
 enum CommunityTab {
@@ -43,10 +42,23 @@ class _CommunityScreenState extends State<CommunityScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _showScrollToTop = false;
 
+  late final RecommendTab _recommendTab;
+  late final FollowingTab _followingTab;
+
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+
+    _recommendTab = RecommendTab(
+      onPostTap: _navigateToPostDetail,
+      onTagTap: _onTagTap,
+      onPostOptions: _showPostOptions,
+    );
+    _followingTab = FollowingTab(
+      onPostTap: _navigateToPostDetail,
+      onPostOptions: _showPostOptions,
+    );
   }
 
   @override
@@ -93,14 +105,38 @@ class _CommunityScreenState extends State<CommunityScreen> {
     }
   }
 
+  Future<void> _refreshCurrentTab(CommunityViewModel viewModel) {
+    switch (_currentTab) {
+      case CommunityTab.recommend:
+        return viewModel.loadRecommendTab(forceRefresh: true);
+      case CommunityTab.following:
+        return viewModel.loadFollowingTab(forceRefresh: true);
+      case CommunityTab.qna:
+        return viewModel.loadQnaTab(forceRefresh: true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    // QnaTab은 immutable이므로 qnaSubTab이 변경될 때 재생성
+    final qnaTab = QnaTab(
+      qnaSubTab: _qnaSubTab,
+      onQnaSubTabChanged: (tab) {
+        setState(() {
+          _qnaSubTab = tab;
+        });
+      },
+      onQuestionTap: _navigateToQuestionDetail,
+      onCuriousTap: _onCuriousTap,
+      onTagTap: _onTagTap,
+    );
+
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
       body: Consumer<CommunityViewModel>(
         builder: (context, viewModel, child) {
           return RefreshIndicator(
-            onRefresh: () => viewModel.refreshAll(),
+            onRefresh: () => _refreshCurrentTab(viewModel),
             color: AppColors.brand,
             child: Stack(
               children: [
@@ -114,7 +150,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                     if (viewModel.isLoading)
                       const SliverToBoxAdapter(
                         child: Padding(
-                          padding: EdgeInsets.all(32),
+                          padding: EdgeInsets.all(AppSpacing.xxxl),
                           child: Center(
                             child: CircularProgressIndicator(
                               color: AppColors.brand,
@@ -126,12 +162,15 @@ class _CommunityScreenState extends State<CommunityScreen> {
                     // Error Message
                     if (viewModel.errorMessage != null)
                       SliverToBoxAdapter(
-                        child: _buildErrorWidget(viewModel.errorMessage!),
+                        child: EmptyStatePresets.error(
+                          message: viewModel.errorMessage!,
+                          onRetry: () => _refreshCurrentTab(viewModel),
+                        ),
                       ),
 
                     // Content based on tab
                     if (!viewModel.isLoading && viewModel.errorMessage == null)
-                      ..._buildTabContent(viewModel),
+                      ..._buildTabContent(viewModel, qnaTab),
 
                     // Bottom padding for nav bar
                     const SliverToBoxAdapter(child: SizedBox(height: 100)),
@@ -141,7 +180,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                 // Scroll to Top Button
                 if (_showScrollToTop)
                   Positioned(
-                    right: 16,
+                    right: AppSpacing.lg,
                     bottom: 108,
                     child: _buildScrollToTopButton(),
                   ),
@@ -153,534 +192,19 @@ class _CommunityScreenState extends State<CommunityScreen> {
     );
   }
 
-  Widget _buildErrorWidget(String message) {
-    return EmptyStatePresets.error(
-      message: message,
-      onRetry: () => context.read<CommunityViewModel>().refreshAll(),
-    );
-  }
-
-  List<Widget> _buildTabContent(CommunityViewModel viewModel) {
+  List<Widget> _buildTabContent(CommunityViewModel viewModel, QnaTab qnaTab) {
     switch (_currentTab) {
       case CommunityTab.recommend:
-        return _buildRecommendTabContent(viewModel);
+        return _recommendTab.buildSlivers(context, viewModel);
       case CommunityTab.following:
-        return _buildFollowingTabContent(viewModel);
+        return _followingTab.buildSlivers(context, viewModel);
       case CommunityTab.qna:
-        return _buildQnaTabContent(viewModel);
+        return qnaTab.buildSlivers(context, viewModel);
     }
   }
 
   // ============================================
-  // Recommend Tab Content
-  // ============================================
-  List<Widget> _buildRecommendTabContent(CommunityViewModel viewModel) {
-    // 태그 필터링 중인 경우
-    if (viewModel.isFilteringByTag) {
-      return _buildFilteredPostsContent(viewModel);
-    }
-
-    // 데이터가 없는 경우 빈 상태 표시
-    if (viewModel.latestPosts.isEmpty &&
-        viewModel.recommendationItems.isEmpty &&
-        !viewModel.isLoading) {
-      return [
-        SliverToBoxAdapter(
-          child: EmptyStatePresets.noPosts(
-            onAction: () => Navigator.pushNamed(context, '/post-create'),
-          ),
-        ),
-      ];
-    }
-
-    return [
-      // Popular Ranking Section
-      if (viewModel.popularRanking != null)
-        SliverToBoxAdapter(child: _buildPopularRankingSection(viewModel)),
-
-      // Recommendation Section
-      if (viewModel.recommendationItems.isNotEmpty)
-        SliverToBoxAdapter(child: _buildRecommendationSection(viewModel)),
-
-      // Latest Posts Section
-      if (viewModel.latestPosts.isNotEmpty)
-        SliverToBoxAdapter(child: _buildLatestPostsHeader()),
-
-      // Post List
-      if (viewModel.latestPosts.isNotEmpty)
-        SliverList(
-          delegate: SliverChildBuilderDelegate((context, index) {
-            final post = viewModel.latestPosts[index];
-            return PostCard(
-              data: post,
-              onTap: () => _navigateToPostDetail(post.id),
-              onLikeTap: () => viewModel.toggleLike(post.id, !post.isLiked),
-              onCommentTap: () => _navigateToPostDetail(post.id),
-              onBookmarkTap: () =>
-                  viewModel.toggleBookmark(post.id, !post.isBookmarked),
-              onMoreTap: () => _showPostOptions(post.id),
-            );
-          }, childCount: viewModel.latestPosts.length),
-        ),
-    ];
-  }
-
-  // ============================================
-  // Filtered Posts Content (태그 필터링 결과)
-  // ============================================
-  List<Widget> _buildFilteredPostsContent(CommunityViewModel viewModel) {
-    return [
-      // 필터링 헤더
-      SliverToBoxAdapter(child: _buildFilteredPostsHeader(viewModel)),
-
-      // 필터링된 게시글이 없는 경우
-      if (viewModel.filteredPosts.isEmpty && !viewModel.isLoading)
-        SliverToBoxAdapter(
-          child: EmptyState(
-            icon: Icons.tag,
-            message: '#${viewModel.selectedTag} 태그의 게시글이 없습니다',
-            subMessage: '다른 태그를 선택해보세요!',
-            actionLabel: '전체보기',
-            onAction: () => viewModel.clearTagFilter(),
-          ),
-        ),
-
-      // 필터링된 게시글 목록
-      if (viewModel.filteredPosts.isNotEmpty)
-        SliverList(
-          delegate: SliverChildBuilderDelegate((context, index) {
-            final post = viewModel.filteredPosts[index];
-            return PostCard(
-              data: post,
-              onTap: () => _navigateToPostDetail(post.id),
-              onLikeTap: () => viewModel.toggleLike(post.id, !post.isLiked),
-              onCommentTap: () => _navigateToPostDetail(post.id),
-              onBookmarkTap: () =>
-                  viewModel.toggleBookmark(post.id, !post.isBookmarked),
-              onMoreTap: () => _showPostOptions(post.id),
-            );
-          }, childCount: viewModel.filteredPosts.length),
-        ),
-    ];
-  }
-
-  Widget _buildFilteredPostsHeader(CommunityViewModel viewModel) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              // 선택된 태그 표시
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.brand,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '#${viewModel.selectedTag}',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    GestureDetector(
-                      onTap: () => viewModel.clearTagFilter(),
-                      child: const Icon(
-                        Icons.close,
-                        size: 16,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                '${viewModel.filteredPosts.length}개의 게시글',
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.textSubtle,
-                ),
-              ),
-              const Spacer(),
-              // 필터 해제 버튼
-              GestureDetector(
-                onTap: () => viewModel.clearTagFilter(),
-                child: Text(
-                  '전체보기',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.brand,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          const Divider(height: 1, color: AppColors.borderLight),
-        ],
-      ),
-    );
-  }
-
-  // ============================================
-  // Following Tab Content
-  // ============================================
-  List<Widget> _buildFollowingTabContent(CommunityViewModel viewModel) {
-    if (viewModel.followingPosts.isEmpty && !viewModel.isLoading) {
-      return [
-        const SliverToBoxAdapter(child: EmptyStatePresets.noFollowingPosts),
-      ];
-    }
-
-    return [
-      // Post List
-      SliverList(
-        delegate: SliverChildBuilderDelegate((context, index) {
-          final post = viewModel.followingPosts[index];
-          return PostCard(
-            data: post,
-            onTap: () => _navigateToPostDetail(post.id),
-            onLikeTap: () => viewModel.toggleLike(post.id, !post.isLiked),
-            onCommentTap: () => _navigateToPostDetail(post.id),
-            onBookmarkTap: () =>
-                viewModel.toggleBookmark(post.id, !post.isBookmarked),
-            onMoreTap: () => _showPostOptions(post.id),
-          );
-        }, childCount: viewModel.followingPosts.length),
-      ),
-    ];
-  }
-
-  // ============================================
-  // Q&A Tab Content
-  // ============================================
-  List<Widget> _buildQnaTabContent(CommunityViewModel viewModel) {
-    return [
-      // Ask Question Button
-      SliverToBoxAdapter(child: _buildAskQuestionButton()),
-
-      // Sub Tab Selector
-      SliverToBoxAdapter(child: _buildQnaSubTabs()),
-
-      // Popular Tags
-      if (viewModel.qnaTags.isNotEmpty)
-        SliverToBoxAdapter(child: _buildPopularTags(viewModel)),
-
-      // Popular Q&A Section
-      if (viewModel.popularQuestions.isNotEmpty)
-        SliverToBoxAdapter(child: _buildPopularQnaSection(viewModel)),
-
-      // Featured Question Card
-      if (viewModel.featuredQuestion != null)
-        SliverToBoxAdapter(child: _buildFeaturedQuestionCard(viewModel)),
-
-      // Waiting Answer Section
-      if (viewModel.waitingQuestions.isNotEmpty)
-        SliverToBoxAdapter(child: _buildWaitingAnswerSection(viewModel)),
-
-      // Empty State for Q&A
-      if (viewModel.popularQuestions.isEmpty &&
-          viewModel.waitingQuestions.isEmpty &&
-          !viewModel.isLoading)
-        SliverToBoxAdapter(
-          child: EmptyStatePresets.noQuestions(
-            onAction: () => Navigator.pushNamed(context, '/community-question'),
-          ),
-        ),
-    ];
-  }
-
-  Widget _buildAskQuestionButton() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      child: GestureDetector(
-        onTap: () {
-          Navigator.pushNamed(context, '/community-question');
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFDFDFF),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.borderLight),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.edit_outlined,
-                size: 20,
-                color: AppColors.textSubtle,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '질문하기',
-                style: AppTextStyles.bodyMediumMedium.copyWith(
-                  color: AppColors.textSubtle,
-                  fontSize: 16,
-                  height: 24 / 16,
-                  letterSpacing: -0.5,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQnaSubTabs() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      child: Row(
-        children: QnaSubTab.values.map((tab) {
-          final isSelected = _qnaSubTab == tab;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  _qnaSubTab = tab;
-                });
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  color: isSelected ? AppColors.brand : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                  border: isSelected
-                      ? null
-                      : Border.all(color: AppColors.borderLight),
-                ),
-                child: Center(
-                  child: Text(
-                    tab.label,
-                    style: AppTextStyles.bodySmall.copyWith(
-                      color: isSelected ? Colors.white : AppColors.textSubtle,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      height: 20 / 14,
-                      letterSpacing: -0.25,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildPopularTags(CommunityViewModel viewModel) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            '인기 태그',
-            style: AppTextStyles.headlineSmall.copyWith(
-              color: AppColors.textMain,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              height: 20 / 14,
-              letterSpacing: -0.25,
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 32,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: viewModel.qnaTags.length,
-            separatorBuilder: (context, index) => const SizedBox(width: 8),
-            itemBuilder: (context, index) {
-              final tag = viewModel.qnaTags[index];
-              final isSelected =
-                  viewModel.selectedTag == tag.replaceAll('#', '');
-              return GestureDetector(
-                onTap: () => _onTagTap(tag),
-                child: Container(
-                  height: 32,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.brand
-                        : AppColors.chipPrimaryBg,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Center(
-                    child: Text(
-                      tag,
-                      style: AppTextStyles.captionMedium.copyWith(
-                        color: isSelected ? Colors.white : AppColors.brand,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        height: 18 / 12,
-                        letterSpacing: -0.25,
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 24),
-      ],
-    );
-  }
-
-  Widget _buildPopularQnaSection(CommunityViewModel viewModel) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Section Header
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '실시간 인기 Q&A',
-                style: AppTextStyles.headlineSmall.copyWith(
-                  color: AppColors.textMain,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  height: 26 / 18,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              GestureDetector(
-                onTap: () {
-                  Navigator.pushNamed(
-                    context,
-                    '/more-list',
-                    arguments: MoreListType.popular,
-                  );
-                },
-                child: Row(
-                  children: [
-                    Text(
-                      '더보기',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.brand,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        height: 20 / 14,
-                        letterSpacing: -0.25,
-                      ),
-                    ),
-                    const Icon(
-                      Icons.chevron_right,
-                      size: 20,
-                      color: AppColors.brand,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-
-        // Q&A List
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            children: viewModel.popularQuestions.map((item) {
-              return Column(
-                children: [
-                  QnaPopularCard(
-                    data: item,
-                    onTap: () => _navigateToQuestionDetail(item.id),
-                  ),
-                  if (item != viewModel.popularQuestions.last)
-                    const Divider(height: 1, color: AppColors.borderLight),
-                ],
-              );
-            }).toList(),
-          ),
-        ),
-        const SizedBox(height: 24),
-      ],
-    );
-  }
-
-  Widget _buildFeaturedQuestionCard(CommunityViewModel viewModel) {
-    return Column(
-      children: [
-        QnaAskCard(
-          userName: '미니모',
-          question: viewModel.featuredQuestion!,
-          onCuriousTap: () =>
-              _onCuriousTap(viewModel, viewModel.featuredQuestion!.id),
-          onAnswerTap: () =>
-              _navigateToQuestionDetail(viewModel.featuredQuestion!.id),
-        ),
-        const SizedBox(height: 24),
-      ],
-    );
-  }
-
-  Widget _buildWaitingAnswerSection(CommunityViewModel viewModel) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Section Header
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            '답변을 기다려요',
-            style: AppTextStyles.headlineSmall.copyWith(
-              color: AppColors.textMain,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              height: 26 / 18,
-              letterSpacing: -0.5,
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Waiting Answer List
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            children: viewModel.waitingQuestions.map((item) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: QnaWaitingCard(
-                  data: item,
-                  onTap: () => _navigateToQuestionDetail(item.id),
-                  onCuriousTap: () => _onCuriousTap(viewModel, item.id),
-                  onAnswerTap: () => _navigateToQuestionDetail(item.id),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ============================================
-  // Common Widgets
+  // Header
   // ============================================
   Widget _buildHeader() {
     return Container(
@@ -692,18 +216,14 @@ class _CommunityScreenState extends State<CommunityScreen> {
           children: [
             // Title Row
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 4, 0),
+              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.xs, 0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     '커뮤니티',
                     style: AppTextStyles.headlineLarge.copyWith(
-                      color: AppColors.textMain,
                       fontSize: 22,
-                      fontWeight: FontWeight.w600,
-                      height: 32 / 22,
-                      letterSpacing: -0.25,
                     ),
                   ),
                   Row(
@@ -734,7 +254,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
 
             // Tab Row
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+              padding: const EdgeInsets.fromLTRB(AppSpacing.sm, AppSpacing.xs, AppSpacing.sm, 0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -745,7 +265,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                       return GestureDetector(
                         onTap: () => _onTabChanged(tab),
                         child: Container(
-                          padding: const EdgeInsets.all(8),
+                          padding: const EdgeInsets.all(AppSpacing.sm),
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -755,10 +275,6 @@ class _CommunityScreenState extends State<CommunityScreen> {
                                   color: isSelected
                                       ? AppColors.brand
                                       : AppColors.textSubtle,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w500,
-                                  height: 26 / 18,
-                                  letterSpacing: -0.5,
                                 ),
                               ),
                               const SizedBox(height: 3),
@@ -780,10 +296,10 @@ class _CommunityScreenState extends State<CommunityScreen> {
                   Container(
                     width: 32,
                     height: 32,
-                    margin: const EdgeInsets.only(right: 8),
+                    margin: const EdgeInsets.only(right: AppSpacing.sm),
                     decoration: const BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Color(0xFFE8EBF0),
+                      color: AppColors.borderLight,
                     ),
                     child: const Center(
                       child: Icon(
@@ -796,7 +312,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
           ],
         ),
       ),
@@ -818,210 +334,6 @@ class _CommunityScreenState extends State<CommunityScreen> {
     );
   }
 
-  Widget _buildPopularRankingSection(CommunityViewModel viewModel) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Section Header
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '오늘 인기글',
-                style: AppTextStyles.headlineSmall.copyWith(
-                  color: AppColors.textMain,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  height: 26 / 18,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              GestureDetector(
-                onTap: () {
-                  Navigator.pushNamed(
-                    context,
-                    '/more-list',
-                    arguments: MoreListType.posts,
-                  );
-                },
-                child: Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFDFDFF),
-                    borderRadius: BorderRadius.circular(2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
-                        blurRadius: 12,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.chevron_right,
-                    size: 16,
-                    color: AppColors.brand,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Ranking Card
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: PopularRankingCard(
-            data: viewModel.popularRanking!,
-            onTap: () => _navigateToPostDetail(viewModel.popularRanking!.id),
-          ),
-        ),
-        const SizedBox(height: 32),
-      ],
-    );
-  }
-
-  Widget _buildRecommendationSection(CommunityViewModel viewModel) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Section Header
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            '미니모님이 좋아하실 만한 게시글',
-            style: AppTextStyles.headlineSmall.copyWith(
-              color: AppColors.textMain,
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              height: 26 / 18,
-              letterSpacing: -0.5,
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Tags
-        SizedBox(
-          height: 40,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: viewModel.tags.length,
-            separatorBuilder: (context, index) => const SizedBox(width: 8),
-            itemBuilder: (context, index) {
-              final tag = viewModel.tags[index];
-              final isSelected =
-                  viewModel.selectedTag == tag.replaceAll('#', '');
-              return GestureDetector(
-                onTap: () => _onTagTap(tag),
-                child: Container(
-                  height: 40,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.brand
-                        : AppColors.chipPrimaryBg,
-                    borderRadius: BorderRadius.circular(4),
-                    border: isSelected
-                        ? null
-                        : Border.all(
-                            color: AppColors.brand.withValues(alpha: 0.3),
-                          ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      tag,
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: isSelected ? Colors.white : AppColors.brand,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        height: 20 / 14,
-                        letterSpacing: -0.25,
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Recommendation Cards
-        RecommendationCardList(
-          items: viewModel.recommendationItems,
-          onItemTap: (item) => _navigateToPostDetail(item.id),
-        ),
-        const SizedBox(height: 32),
-      ],
-    );
-  }
-
-  Widget _buildLatestPostsHeader() {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '실시간 최신글',
-                style: AppTextStyles.headlineSmall.copyWith(
-                  color: AppColors.textMain,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  height: 26 / 18,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              GestureDetector(
-                onTap: () {
-                  Navigator.pushNamed(
-                    context,
-                    '/more-list',
-                    arguments: MoreListType.posts,
-                  );
-                },
-                child: Row(
-                  children: [
-                    Text(
-                      '더보기',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.brand,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        height: 20 / 14,
-                        letterSpacing: -0.25,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Icon(
-                      Icons.chevron_right,
-                      size: 20,
-                      color: AppColors.brand,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-        Container(height: 1, color: AppColors.borderLight),
-        const SizedBox(height: 24),
-      ],
-    );
-  }
-
   Widget _buildScrollToTopButton() {
     return GestureDetector(
       onTap: _scrollToTop,
@@ -1029,7 +341,7 @@ class _CommunityScreenState extends State<CommunityScreen> {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: const Color(0xFFFDFDFF),
+          color: AppColors.backgroundSurface,
           shape: BoxShape.circle,
           border: Border.all(color: AppColors.borderLight),
           boxShadow: [
@@ -1145,19 +457,26 @@ class _CommunityScreenState extends State<CommunityScreen> {
                   color: AppColors.textSubtle,
                 ),
               ),
-              const SizedBox(height: 16),
-              ...reasons.map(
-                (reason) => RadioListTile<String>(
-                  title: Text(reason),
-                  value: reason,
-                  groupValue: selectedReason,
-                  onChanged: (value) {
-                    setState(() {
-                      selectedReason = value;
-                    });
-                  },
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
+              const SizedBox(height: AppSpacing.lg),
+              RadioGroup<String>(
+                groupValue: selectedReason ?? '',
+                onChanged: (value) {
+                  setState(() {
+                    selectedReason = value;
+                  });
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: reasons
+                      .map(
+                        (reason) => RadioListTile<String>(
+                          title: Text(reason),
+                          value: reason,
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                        ),
+                      )
+                      .toList(),
                 ),
               ),
             ],

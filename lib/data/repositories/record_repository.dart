@@ -13,8 +13,15 @@ abstract class RecordRepository {
     DateTime date,
     String? aquariumId,
   );
+  Future<List<RecordData>> getRecordsByDateAquariumAndCreature(
+    DateTime date,
+    String? aquariumId, {
+    String? creatureId,
+    String? recordType,
+  });
   Future<List<DateTime>> getRecordDatesInMonth(DateTime month);
   Future<RecordData> createRecord(RecordData data);
+  Future<RecordData> updateRecord(String id, RecordData data);
   Future<void> updateRecordCompletion(String id, bool isCompleted);
   Future<void> deleteRecord(String id);
 }
@@ -72,6 +79,26 @@ class PocketBaseRecordRepository implements RecordRepository {
     String? aquariumId,
   ) async {
     return _service.getRecordsByDateAndAquarium(date, aquariumId);
+  }
+
+  @override
+  Future<List<RecordData>> getRecordsByDateAquariumAndCreature(
+    DateTime date,
+    String? aquariumId, {
+    String? creatureId,
+    String? recordType,
+  }) async {
+    return _service.getRecordsByDateAquariumAndCreature(
+      date,
+      aquariumId,
+      creatureId: creatureId,
+      recordType: recordType,
+    );
+  }
+
+  @override
+  Future<RecordData> updateRecord(String id, RecordData data) async {
+    return _service.updateRecord(id, data);
   }
 
   @override

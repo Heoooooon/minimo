@@ -29,14 +29,32 @@ enum RecordTag {
   ];
 }
 
+enum RecordType {
+  todo('할 일', 'todo'),
+  activity('기록', 'activity'),
+  diary('일기', 'diary');
+
+  const RecordType(this.label, this.value);
+  final String label;
+  final String value;
+
+  static RecordType fromValue(String? value) {
+    if (value == null) return RecordType.todo;
+    return RecordType.values.where((e) => e.value == value).firstOrNull ??
+        RecordType.todo;
+  }
+}
+
 class RecordData {
   RecordData({
     this.id,
     this.ownerId,
     this.aquariumId,
+    this.creatureId,
+    this.recordType = RecordType.todo,
     required this.date,
-    required this.tags,
-    required this.content,
+    this.tags = const [],
+    this.content = '',
     this.isPublic = true,
     this.isCompleted = false,
     this.created,
@@ -46,6 +64,8 @@ class RecordData {
   String? id;
   String? ownerId;
   String? aquariumId;
+  String? creatureId;
+  RecordType recordType;
   DateTime date;
   List<RecordTag> tags;
   String content;
@@ -57,6 +77,8 @@ class RecordData {
   Map<String, dynamic> toJson() {
     return {
       'aquarium': aquariumId,
+      'creature': creatureId,
+      'record_type': recordType.value,
       'date': date.toIso8601String(),
       'tags': tags.map((e) => e.value).toList(),
       'content': content,
@@ -65,11 +87,45 @@ class RecordData {
     };
   }
 
+  RecordData copyWith({
+    String? id,
+    String? ownerId,
+    String? aquariumId,
+    String? creatureId,
+    RecordType? recordType,
+    DateTime? date,
+    List<RecordTag>? tags,
+    String? content,
+    bool? isPublic,
+    bool? isCompleted,
+    DateTime? created,
+    DateTime? updated,
+  }) {
+    return RecordData(
+      id: id ?? this.id,
+      ownerId: ownerId ?? this.ownerId,
+      aquariumId: aquariumId ?? this.aquariumId,
+      creatureId: creatureId ?? this.creatureId,
+      recordType: recordType ?? this.recordType,
+      date: date ?? this.date,
+      tags: tags ?? this.tags,
+      content: content ?? this.content,
+      isPublic: isPublic ?? this.isPublic,
+      isCompleted: isCompleted ?? this.isCompleted,
+      created: created ?? this.created,
+      updated: updated ?? this.updated,
+    );
+  }
+
   factory RecordData.fromJson(Map<String, dynamic> json) {
     return RecordData(
       id: json['id'],
       ownerId: json['owner'],
       aquariumId: json['aquarium'],
+      creatureId: json['creature'] is String && (json['creature'] as String).isNotEmpty
+          ? json['creature']
+          : null,
+      recordType: RecordType.fromValue(json['record_type']),
       date: DateTime.parse(json['date']),
       tags:
           (json['tags'] as List<dynamic>?)

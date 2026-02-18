@@ -140,31 +140,35 @@ class _ActivityAddBottomSheetState extends State<ActivityAddBottomSheet> {
   Widget _buildActivityItem(RecordTag tag) {
     final isSelected = _selectedTags.contains(tag);
 
-    return InkWell(
-      onTap: () => _toggleTag(tag),
-      child: Padding(
-        padding: const EdgeInsets.only(left: 16, right: 6, top: 12, bottom: 12),
-        child: Row(
-          children: [
-            // 활동 이름
-            Expanded(
-              child: Text(
-                tag.label,
-                style: AppTextStyles.bodyMediumMedium.copyWith(
-                  color: AppColors.textSubtle,
+    return Semantics(
+      checked: isSelected,
+      label: tag.label,
+      child: InkWell(
+        onTap: () => _toggleTag(tag),
+        child: Padding(
+          padding: const EdgeInsets.only(left: 16, right: 6, top: 12, bottom: 12),
+          child: Row(
+            children: [
+              // 활동 이름
+              Expanded(
+                child: Text(
+                  tag.label,
+                  style: AppTextStyles.bodyMediumMedium.copyWith(
+                    color: AppColors.textSubtle,
+                  ),
                 ),
               ),
-            ),
 
-            // 체크박스
-            SizedBox(
-              width: 40,
-              height: 40,
-              child: Center(
-                child: _buildCheckbox(isSelected),
+              // 체크박스
+              SizedBox(
+                width: 40,
+                height: 40,
+                child: Center(
+                  child: _buildCheckbox(isSelected),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

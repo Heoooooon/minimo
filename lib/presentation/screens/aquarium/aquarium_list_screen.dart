@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
+import '../../../core/di/app_dependencies.dart';
 import '../../../domain/models/aquarium_data.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../../theme/app_spacing.dart';
 import '../../viewmodels/aquarium_list_viewmodel.dart';
 import '../../widgets/common/app_button.dart';
 import '../../widgets/aquarium/aquarium_card.dart';
@@ -25,7 +27,7 @@ class AquariumListScreenState extends State<AquariumListScreen> {
   @override
   void initState() {
     super.initState();
-    _viewModel = AquariumListViewModel();
+    _viewModel = context.read<AppDependencies>().createAquariumListViewModel();
   }
 
   @override
@@ -53,13 +55,8 @@ class AquariumListScreenState extends State<AquariumListScreen> {
       child: Consumer<AquariumListViewModel>(
         builder: (context, viewModel, _) {
           return Scaffold(
-            backgroundColor: const Color(0xFFF9FAFC),
-            body: Stack(
-              children: [
-                _buildBody(viewModel),
-                _buildTopTitleBar(),
-              ],
-            ),
+            backgroundColor: AppColors.backgroundApp,
+            body: Stack(children: [_buildBody(viewModel), _buildTopTitleBar()]),
           );
         },
       ),
@@ -74,15 +71,12 @@ class AquariumListScreenState extends State<AquariumListScreen> {
       right: 0,
       child: Container(
         height: 120,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFF9FAFC),
-              Color(0x00F9FAFC),
-            ],
-            stops: [0.5, 1.0],
+            colors: [AppColors.backgroundApp, AppColors.backgroundApp.withValues(alpha: 0)],
+            stops: const [0.5, 1.0],
           ),
         ),
         child: SafeArea(
@@ -101,14 +95,7 @@ class AquariumListScreenState extends State<AquariumListScreen> {
                       child: Center(
                         child: Text(
                           '어항',
-                          style: const TextStyle(
-                            fontFamily: 'WantedSans',
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF212529),
-                            height: 26 / 18,
-                            letterSpacing: -0.5,
-                          ),
+                          style: AppTextStyles.headlineSmall,
                         ),
                       ),
                     ),
@@ -125,7 +112,7 @@ class AquariumListScreenState extends State<AquariumListScreen> {
                           width: 24,
                           height: 24,
                           colorFilter: const ColorFilter.mode(
-                            Color(0xFF212529),
+                            AppColors.textMain,
                             BlendMode.srcIn,
                           ),
                         ),
@@ -213,7 +200,7 @@ class AquariumListScreenState extends State<AquariumListScreen> {
                 width: screenWidth * 0.6,
                 height: screenWidth * 0.6,
                 colorFilter: const ColorFilter.mode(
-                  Color(0xFFE8EBF0),
+                  AppColors.borderLight,
                   BlendMode.srcIn,
                 ),
               ),
@@ -239,37 +226,27 @@ class AquariumListScreenState extends State<AquariumListScreen> {
                         // 메인 타이틀
                         RichText(
                           textAlign: TextAlign.center,
-                          text: const TextSpan(
-                            style: TextStyle(
-                              fontFamily: 'WantedSans',
-                              fontSize: 24,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF212529),
-                              height: 36 / 24,
-                              letterSpacing: -0.25,
-                            ),
+                          text: TextSpan(
+                            style: AppTextStyles.headlineLarge,
                             children: [
-                              TextSpan(text: '첫 번째 '),
+                              const TextSpan(text: '첫 번째 '),
                               TextSpan(
                                 text: '내 어항',
-                                style: TextStyle(color: Color(0xFF0165FE)),
+                                style: AppTextStyles.headlineLarge.copyWith(
+                                  color: AppColors.brand,
+                                ),
                               ),
-                              TextSpan(text: '을\n등록해 보세요!'),
+                              const TextSpan(text: '을\n등록해 보세요!'),
                             ],
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: AppSpacing.md),
 
                         // 서브 텍스트
-                        const Text(
+                        Text(
                           '기록하는 물생활을 시작해요',
-                          style: TextStyle(
-                            fontFamily: 'WantedSans',
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF666E78),
-                            height: 24 / 16,
-                            letterSpacing: -0.5,
+                          style: AppTextStyles.titleMedium.copyWith(
+                            color: AppColors.textSubtle,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -288,25 +265,21 @@ class AquariumListScreenState extends State<AquariumListScreen> {
                             child: ElevatedButton(
                               onPressed: _navigateToRegister,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF0165FE),
-                                foregroundColor: const Color(0xFFF9FAFC),
+                                backgroundColor: AppColors.brand,
+                                foregroundColor: AppColors.backgroundApp,
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
+                                  borderRadius: AppRadius.smBorderRadius,
                                 ),
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 32,
+                                  horizontal: AppSpacing.xxxl,
                                   vertical: 3,
                                 ),
                               ),
-                              child: const Text(
+                              child: Text(
                                 '어항 등록하기',
-                                style: TextStyle(
-                                  fontFamily: 'WantedSans',
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                  height: 24 / 16,
-                                  letterSpacing: -0.5,
+                                style: AppTextStyles.titleMedium.copyWith(
+                                  color: AppColors.textInverse,
                                 ),
                               ),
                             ),
@@ -332,26 +305,26 @@ class AquariumListScreenState extends State<AquariumListScreen> {
       onRefresh: viewModel.refresh,
       color: AppColors.brand,
       child: ListView(
-        padding: const EdgeInsets.only(top: 136, left: 16, right: 16, bottom: 16),
+        padding: const EdgeInsets.only(
+          top: 136,
+          left: 16,
+          right: 16,
+          bottom: 16,
+        ),
         children: [
           // 어항 개수 헤더
           Padding(
-            padding: const EdgeInsets.only(bottom: 32),
+            padding: const EdgeInsets.only(bottom: AppSpacing.xxxl),
             child: RichText(
               text: TextSpan(
-                style: const TextStyle(
-                  fontFamily: 'WantedSans',
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF212529),
-                  height: 24 / 16,
-                  letterSpacing: -0.5,
-                ),
+                style: AppTextStyles.titleMedium,
                 children: [
                   const TextSpan(text: '총 '),
                   TextSpan(
                     text: '$count',
-                    style: const TextStyle(color: Color(0xFF0165FE)),
+                    style: AppTextStyles.titleMedium.copyWith(
+                      color: AppColors.brand,
+                    ),
                   ),
                   const TextSpan(text: '개의 어항이 있어요'),
                 ],
@@ -360,49 +333,48 @@ class AquariumListScreenState extends State<AquariumListScreen> {
           ),
 
           // 어항 카드 목록
-          ...viewModel.aquariums.map((aquarium) => Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: AquariumCard(
-                  aquarium: aquarium,
-                  onTap: () => _navigateToDetail(aquarium),
-                  onLongPress: () => _showDeleteDialog(aquarium, viewModel),
-                  creatureCount: viewModel.getCreatureCount(aquarium.id),
-                ),
-              )),
+          ...viewModel.aquariums.map(
+            (aquarium) => Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: AquariumCard(
+                aquarium: aquarium,
+                onTap: () => _navigateToDetail(aquarium),
+                onLongPress: () => _showDeleteDialog(aquarium, viewModel),
+                creatureCount: viewModel.getCreatureCount(aquarium.id),
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
   void _navigateToDetail(AquariumData aquarium) {
-    Navigator.pushNamed(
-      context,
-      '/aquarium/detail',
-      arguments: aquarium,
-    );
+    Navigator.pushNamed(context, '/aquarium/detail', arguments: aquarium);
   }
 
   void _showDeleteDialog(
     AquariumData aquarium,
     AquariumListViewModel viewModel,
   ) {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('어항 삭제'),
         content: Text('${aquarium.name}을(를) 삭제하시겠습니까?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('취소'),
           ),
           TextButton(
             onPressed: () async {
-              Navigator.pop(context);
+              Navigator.pop(dialogContext);
               if (aquarium.id != null) {
                 final success = await viewModel.deleteAquarium(aquarium.id!);
                 if (success && mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  scaffoldMessenger.showSnackBar(
                     const SnackBar(
                       content: Text('어항이 삭제되었습니다.'),
                       behavior: SnackBarBehavior.floating,

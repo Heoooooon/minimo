@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../../theme/app_spacing.dart';
 
 /// 홈 화면 Hero 섹션 (배경 + 인사말 + 상태태그/등록버튼)
 ///
@@ -31,7 +32,7 @@ class HomeHeroSection extends StatelessWidget {
     return Container(
       width: double.infinity,
       height: 352 - 86, // Original hero height minus overlap
-      decoration: const BoxDecoration(color: Color(0xFF7E4A4A)),
+      decoration: const BoxDecoration(color: AppColors.brand),
       child: Stack(
         children: [
           // Background gradient
@@ -126,7 +127,7 @@ class HomeHeroSection extends StatelessWidget {
   /// Greeting Text - 어항 유무에 따라 다른 인사말
   Widget _buildGreeting() {
     final textStyle = AppTextStyles.headlineLarge.copyWith(
-      color: Colors.white,
+      color: AppColors.textInverse,
       fontWeight: FontWeight.w600,
       fontSize: 24,
       height: 36 / 24,
@@ -168,15 +169,15 @@ class HomeHeroSection extends StatelessWidget {
 
   Widget _buildStatusTag(String label) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(4),
+        color: AppColors.textInverse.withValues(alpha: 0.5),
+        borderRadius: AppRadius.xsBorderRadius,
       ),
       child: Text(
         label,
         style: AppTextStyles.bodySmall.copyWith(
-          color: Colors.white,
+          color: AppColors.textInverse,
           fontWeight: FontWeight.w500,
           fontSize: 14,
           height: 20 / 14,
@@ -195,19 +196,15 @@ class HomeHeroSection extends StatelessWidget {
         onPressed: onRegisterTap,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.brand,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+          foregroundColor: AppColors.textInverse,
+          shape: RoundedRectangleBorder(borderRadius: AppRadius.xsBorderRadius),
           elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 2),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl, vertical: 2),
         ),
         child: Text(
           '어항 등록하기',
-          style: AppTextStyles.bodySmall.copyWith(
-            color: Colors.white,
-            fontWeight: FontWeight.w500,
-            fontSize: 14,
-            height: 20 / 14,
-            letterSpacing: -0.25,
+          style: AppTextStyles.titleSmall.copyWith(
+            color: AppColors.textInverse,
           ),
         ),
       ),

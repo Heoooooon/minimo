@@ -49,10 +49,13 @@ class MockRecordRepository implements RecordRepository {
     final newRecord = RecordData(
       id: 'record_${_idCounter++}',
       aquariumId: data.aquariumId,
+      creatureId: data.creatureId,
       date: data.date,
       tags: data.tags,
       content: data.content,
       isPublic: data.isPublic,
+      recordType: data.recordType,
+      isCompleted: data.isCompleted,
       created: DateTime.now(),
       updated: DateTime.now(),
     );
@@ -82,6 +85,75 @@ class MockRecordRepository implements RecordRepository {
           r.date.month == date.month &&
           r.date.day == date.day;
     }).toList();
+  }
+
+  @override
+  Future<List<RecordData>> getRecordsByDateAndAquarium(
+    DateTime date,
+    String? aquariumId,
+  ) async {
+    await Future.delayed(const Duration(milliseconds: 200));
+
+    return _records.where((r) {
+      final sameDay = r.date.year == date.year &&
+          r.date.month == date.month &&
+          r.date.day == date.day;
+      if (aquariumId != null && aquariumId.isNotEmpty) {
+        return sameDay && r.aquariumId == aquariumId;
+      }
+      return sameDay;
+    }).toList();
+  }
+
+  @override
+  Future<List<RecordData>> getRecordsByDateAquariumAndCreature(
+    DateTime date,
+    String? aquariumId, {
+    String? creatureId,
+    String? recordType,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 200));
+
+    return _records.where((r) {
+      final sameDay = r.date.year == date.year &&
+          r.date.month == date.month &&
+          r.date.day == date.day;
+      if (!sameDay) return false;
+      if (aquariumId != null && aquariumId.isNotEmpty && r.aquariumId != aquariumId) {
+        return false;
+      }
+      if (creatureId != null && creatureId.isNotEmpty && r.creatureId != creatureId) {
+        return false;
+      }
+      if (recordType != null && recordType.isNotEmpty && r.recordType.value != recordType) {
+        return false;
+      }
+      return true;
+    }).toList();
+  }
+
+  @override
+  Future<RecordData> updateRecord(String id, RecordData data) async {
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    final index = _records.indexWhere((r) => r.id == id);
+    if (index != -1) {
+      final updated = data.copyWith(id: id, updated: DateTime.now());
+      _records[index] = updated;
+      debugPrint('[MockRecordRepository] Updated record: $id');
+      return updated;
+    }
+    throw Exception('Record not found: $id');
+  }
+
+  @override
+  Future<void> updateRecordCompletion(String id, bool isCompleted) async {
+    await Future.delayed(const Duration(milliseconds: 200));
+
+    final index = _records.indexWhere((r) => r.id == id);
+    if (index != -1) {
+      _records[index].isCompleted = isCompleted;
+    }
   }
 
   @override

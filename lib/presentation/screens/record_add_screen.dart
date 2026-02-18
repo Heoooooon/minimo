@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/di/app_dependencies.dart';
 import '../../core/utils/app_logger.dart';
 import '../../domain/models/record_data.dart';
 import '../../domain/models/aquarium_data.dart';
-import '../../data/services/aquarium_service.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_spacing.dart';
 import '../../theme/app_text_styles.dart';
 import '../viewmodels/record_viewmodel.dart';
 import '../widgets/common/app_button.dart';
@@ -36,12 +37,14 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
   // Key: aquariumId, Value: Set of checked RecordTags
   final Map<String, Set<RecordTag>> _checkedTagsByAquarium = {};
 
+  late AppDependencies _dependencies;
   late RecordViewModel _viewModel;
 
   @override
   void initState() {
     super.initState();
-    _viewModel = RecordViewModel();
+    _dependencies = context.read<AppDependencies>();
+    _viewModel = _dependencies.createRecordViewModel();
     if (widget.initialDate != null) {
       _selectedDate = widget.initialDate!;
     }
@@ -50,7 +53,7 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
 
   Future<void> _loadAquariums() async {
     try {
-      final aquariums = await AquariumService.instance.getAllAquariums();
+      final aquariums = await _dependencies.aquariumService.getAllAquariums();
       if (mounted) {
         setState(() {
           _aquariums = aquariums;
@@ -155,8 +158,8 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
             ),
             backgroundColor: AppColors.success,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
+            shape: const RoundedRectangleBorder(
+              borderRadius: AppRadius.smBorderRadius,
             ),
           ),
         );
@@ -226,7 +229,7 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
                         children: [
                           // 날짜 선택
                           Padding(
-                            padding: const EdgeInsets.all(20),
+                            padding: const EdgeInsets.all(AppSpacing.xl),
                             child: _buildDateSelector(),
                           ),
 
@@ -259,21 +262,21 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
 
     return InkWell(
       onTap: _selectDate,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: AppRadius.mdBorderRadius,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         decoration: BoxDecoration(
           color: AppColors.backgroundSurface,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: AppRadius.mdBorderRadius,
           border: Border.all(color: AppColors.borderLight),
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: AppColors.chipPrimaryBg,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: AppRadius.smBorderRadius,
               ),
               child: const Icon(
                 Icons.calendar_today_rounded,
@@ -281,7 +284,7 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
                 size: 20,
               ),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: AppSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -325,14 +328,14 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
               size: 48,
               color: AppColors.textHint,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
             Text(
               '등록된 어항이 없어요',
               style: AppTextStyles.bodyMedium.copyWith(
                 color: AppColors.textSubtle,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             TextButton(
               onPressed: () {
                 Navigator.pushNamed(context, '/aquarium/register');
@@ -363,10 +366,10 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
     final checkedTags = _checkedTagsByAquarium[aquariumId] ?? {};
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.sm),
       decoration: BoxDecoration(
         color: AppColors.backgroundSurface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: AppRadius.lgBorderRadius,
         border: Border.all(color: AppColors.borderLight),
       ),
       child: Column(
@@ -374,15 +377,15 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
         children: [
           // 어항 이름 헤더
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.lg, AppSpacing.lg, AppSpacing.sm),
             child: Row(
               children: [
                 Container(
                   width: 32,
                   height: 32,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: AppColors.chipPrimaryBg,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: AppRadius.smBorderRadius,
                   ),
                   child: const Icon(
                     Icons.water_drop,
@@ -390,7 +393,7 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
                     size: 18,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Text(
                     aquarium.name ?? '이름 없음',
@@ -403,12 +406,12 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
                 if (checkedTags.isNotEmpty)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+                      horizontal: AppSpacing.sm,
+                      vertical: AppSpacing.xs,
                     ),
                     decoration: BoxDecoration(
                       color: AppColors.brand.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: AppRadius.mdBorderRadius,
                     ),
                     child: Text(
                       '${checkedTags.length}개 선택',
@@ -438,7 +441,7 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
 
   Widget _buildEmptyChecklist(String aquariumId) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxl, horizontal: AppSpacing.lg),
       child: Center(
         child: Text(
           '할 일을 추가해주세요',
@@ -452,12 +455,12 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
     return InkWell(
       onTap: () => _toggleTag(aquariumId, tag),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
         child: Row(
           children: [
             // 체크박스
             _buildCheckbox(true),
-            const SizedBox(width: 12),
+            const SizedBox(width: AppSpacing.md),
             // 태그 라벨
             Expanded(
               child: Text(
@@ -491,7 +494,7 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
         border: isChecked
             ? null
             : Border.all(color: AppColors.border, width: 1.5),
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: AppRadius.xsBorderRadius,
       ),
       child: isChecked
           ? const Icon(Icons.check, color: Colors.white, size: 14)
@@ -503,7 +506,7 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
     return InkWell(
       onTap: () => _showAddActivitySheet(aquariumId),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 14),
         decoration: const BoxDecoration(
           border: Border(top: BorderSide(color: AppColors.borderLight)),
         ),
@@ -511,7 +514,7 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.add_circle_outline, size: 18, color: AppColors.brand),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.sm),
             Text(
               '할 일 추가',
               style: AppTextStyles.bodyMediumMedium.copyWith(
@@ -526,7 +529,7 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
 
   Widget _buildBottomButton(RecordViewModel viewModel) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(AppSpacing.xl),
       decoration: BoxDecoration(
         color: AppColors.backgroundSurface,
         boxShadow: [

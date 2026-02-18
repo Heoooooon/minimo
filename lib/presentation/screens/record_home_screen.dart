@@ -1,34 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/di/app_dependencies.dart';
 import '../../core/utils/app_logger.dart';
-import '../../domain/models/record_data.dart';
 import '../../domain/models/aquarium_data.dart';
-import '../../data/services/aquarium_service.dart';
-import '../../data/repositories/record_repository.dart';
+import '../../domain/models/creature_data.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_spacing.dart';
 import '../../theme/app_text_styles.dart';
 import '../viewmodels/record_home_viewmodel.dart';
 import '../viewmodels/record_viewmodel.dart';
-import '../widgets/record/activity_add_bottom_sheet.dart';
-
-/// 기록 탭의 캘린더 뷰 타입
-enum CalendarViewType { weekly, monthly }
-
-/// 체크리스트 아이템 (태그 + 체크 상태 + 저장된 기록 ID)
-class ChecklistItem {
-  final RecordTag tag;
-  bool isChecked;
-  String? recordId; // 저장된 경우 기록 ID
-
-  ChecklistItem({required this.tag, this.isChecked = false, this.recordId});
-}
+import '../widgets/record/aquarium_accordion.dart';
+import '../widgets/record/calendar_view.dart';
 
 /// 기록 홈 화면
 ///
 /// 주요 기능:
 /// - 월간/주간 캘린더 뷰 전환
-/// - 날짜 선택시 어항별 체크리스트 표시 (아코디언)
-/// - 체크 시 즉시 저장, 해제 시 삭제
+/// - 날짜 선택시 어항별 아코디언 표시
+/// - 어항 펼침 → 생물 탭 + 할 일/기록/일기 스와이프 탭
 class RecordHomeScreen extends StatefulWidget {
   const RecordHomeScreen({super.key});
 
@@ -42,6 +31,7 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
   DateTime _currentMonth = DateTime.now();
   DateTime _selectedDate = DateTime.now();
 
+  late AppDependencies _dependencies;
   late RecordHomeViewModel _viewModel;
   late RecordViewModel _recordViewModel;
 
@@ -52,8 +42,11 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
   // 어항별 펼침 상태
   final Map<String, bool> _expandedAquariums = {};
 
-  // 어항별 체크리스트 아이템
-  final Map<String, List<ChecklistItem>> _checklistByAquarium = {};
+  // 어항별 생물 캐시
+  final Map<String, List<CreatureData>> _creaturesByAquarium = {};
+
+  // 어항별 선택 생물 (null = "전체")
+  final Map<String, String?> _selectedCreatureByAquarium = {};
 
   // 드래그 애니메이션 관련
   late AnimationController _animationController;
@@ -66,8 +59,9 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
   @override
   void initState() {
     super.initState();
-    _viewModel = RecordHomeViewModel();
-    _recordViewModel = RecordViewModel();
+    _dependencies = context.read<AppDependencies>();
+    _viewModel = _dependencies.createRecordHomeViewModel();
+    _recordViewModel = _dependencies.createRecordViewModel();
 
     _animationController = AnimationController(
       vsync: this,
@@ -101,14 +95,13 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
 
   Future<void> _loadAquariums() async {
     try {
-      final aquariums = await AquariumService.instance.getAllAquariums();
+      final aquariums = await _dependencies.aquariumService.getAllAquariums();
       if (mounted) {
         setState(() {
           _aquariums = aquariums;
           for (final aquarium in aquariums) {
             final id = aquarium.id ?? '';
             _expandedAquariums[id] = false;
-            _checklistByAquarium[id] = [];
           }
           _isLoadingAquariums = false;
         });
@@ -123,27 +116,38 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
     }
   }
 
+  Future<void> _loadCreaturesForAquarium(String aquariumId) async {
+    if (_creaturesByAquarium.containsKey(aquariumId)) return;
+
+    try {
+      final creatures = await _dependencies.creatureService
+          .getCreaturesByAquarium(aquariumId);
+      if (mounted) {
+        setState(() {
+          _creaturesByAquarium[aquariumId] = creatures;
+        });
+      }
+    } catch (e) {
+      AppLogger.data('Error loading creatures: $e', isError: true);
+      if (mounted) {
+        setState(() {
+          _creaturesByAquarium[aquariumId] = [];
+        });
+      }
+    }
+  }
+
   void refreshData() {
     _viewModel.refresh(_currentMonth, _selectedDate);
     _loadAquariums();
+    _creaturesByAquarium.clear();
   }
 
   void _onDateSelected(DateTime date) {
     setState(() {
       _selectedDate = date;
-      // 날짜 변경 시 체크리스트 초기화
-      for (final key in _checklistByAquarium.keys) {
-        _checklistByAquarium[key] = [];
-      }
     });
     _viewModel.loadRecordsByDate(date);
-
-    // 이미 펼쳐진 어항들의 체크리스트 다시 로드
-    for (final entry in _expandedAquariums.entries) {
-      if (entry.value) {
-        _loadChecklistForAquarium(entry.key);
-      }
-    }
   }
 
   void _onMonthChanged(int delta) {
@@ -237,162 +241,8 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
       _expandedAquariums[aquariumId] = willExpand;
     });
 
-    // 펼칠 때 서버에서 해당 어항의 기록 로드
     if (willExpand) {
-      _loadChecklistForAquarium(aquariumId);
-    }
-  }
-
-  /// 특정 어항의 체크리스트를 서버에서 로드
-  Future<void> _loadChecklistForAquarium(String aquariumId) async {
-    try {
-      final records = await _recordViewModel.getRecordsByDateAndAquarium(
-        _selectedDate,
-        aquariumId,
-      );
-
-      if (mounted) {
-        setState(() {
-          final checklistItems = <ChecklistItem>[];
-          for (final record in records) {
-            // 태그가 없으면 건너뜀
-            if (record.tags.isEmpty) continue;
-            checklistItems.add(
-              ChecklistItem(
-                tag: record.tags.first,
-                isChecked: record.isCompleted,
-                recordId: record.id,
-              ),
-            );
-          }
-          _checklistByAquarium[aquariumId] = checklistItems;
-        });
-      }
-    } catch (e) {
-      AppLogger.data('Error loading checklist for aquarium: $e', isError: true);
-    }
-  }
-
-  /// 할 일 추가 (바텀시트) - 서버에 isCompleted: false로 저장
-  Future<void> _showAddActivitySheet(String aquariumId) async {
-    final selectedTags = await ActivityAddBottomSheet.show(
-      context,
-      selectedDate: _selectedDate,
-    );
-
-    if (selectedTags != null && selectedTags.isNotEmpty && mounted) {
-      final currentList = _checklistByAquarium[aquariumId] ?? [];
-
-      for (final tag in selectedTags) {
-        // 이미 있는 태그는 추가하지 않음
-        if (currentList.any((item) => item.tag == tag)) continue;
-
-        // 서버에 미완료 상태로 저장
-        final savedRecord = await _recordViewModel.saveRecord(
-          date: _selectedDate,
-          tags: [tag],
-          content: tag.label,
-          isPublic: false,
-          aquariumId: aquariumId,
-          isCompleted: false,
-        );
-
-        if (savedRecord != null && mounted) {
-          setState(() {
-            currentList.add(
-              ChecklistItem(
-                tag: tag,
-                isChecked: false,
-                recordId: savedRecord.id,
-              ),
-            );
-            _checklistByAquarium[aquariumId] = currentList;
-          });
-        }
-      }
-
-      _loadData(); // 캘린더 점 업데이트
-    }
-  }
-
-  /// 체크박스 토글 - 체크 시 완료 처리, 해제 시 미완료 처리
-  Future<void> _toggleChecklistItem(
-    String aquariumId,
-    String? aquariumName,
-    int index,
-  ) async {
-    final list = _checklistByAquarium[aquariumId];
-    if (list == null || index >= list.length) return;
-
-    final item = list[index];
-    final newCheckedState = !item.isChecked;
-    final recordId = item.recordId;
-
-    if (recordId == null) {
-      // recordId가 없으면 로컬 상태만 변경 (비정상 상태)
-      setState(() {
-        item.isChecked = newCheckedState;
-      });
-      return;
-    }
-
-    // 서버에 완료 상태 업데이트
-    final success = await _recordViewModel.updateRecordCompletion(
-      recordId,
-      newCheckedState,
-    );
-
-    if (success && mounted) {
-      setState(() {
-        item.isChecked = newCheckedState;
-      });
-
-      if (newCheckedState) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${item.tag.label} 완료!',
-              style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.textInverse,
-              ),
-            ),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 1),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-        );
-      }
-
-      _loadData(); // 캘린더 점 업데이트
-    }
-  }
-
-  /// 체크리스트에서 항목 제거 (X 버튼) - 서버에서도 삭제
-  Future<void> _removeChecklistItem(String aquariumId, int index) async {
-    final list = _checklistByAquarium[aquariumId];
-    if (list == null || index >= list.length) return;
-
-    final item = list[index];
-    final recordId = item.recordId;
-
-    // 서버에서 삭제
-    if (recordId != null) {
-      try {
-        await PocketBaseRecordRepository.instance.deleteRecord(recordId);
-      } catch (e) {
-        AppLogger.data('Error deleting record: $e', isError: true);
-      }
-    }
-
-    // UI에서 제거
-    if (mounted) {
-      setState(() {
-        list.removeAt(index);
-      });
-      _loadData(); // 캘린더 점 업데이트
+      _loadCreaturesForAquarium(aquariumId);
     }
   }
 
@@ -406,6 +256,13 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
     return '${date.day}일 $weekday요일';
   }
 
+  Future<void> _navigateToScheduleAdd() async {
+    final result = await Navigator.pushNamed(context, '/schedule/add');
+    if (result == true && mounted) {
+      _loadData();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider.value(
@@ -416,8 +273,8 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
             backgroundColor: AppColors.backgroundApp,
             body: Column(
               children: [
-                _buildCalendarCard(viewModel),
-                Expanded(child: _buildRecordContent(viewModel)),
+                _buildCalendarSection(viewModel),
+                Expanded(child: _buildRecordContent()),
               ],
             ),
           );
@@ -426,303 +283,42 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
     );
   }
 
-  Widget _buildCalendarCard(RecordHomeViewModel viewModel) {
+  Widget _buildCalendarSection(RecordHomeViewModel viewModel) {
+    final navButtonOpacity =
+        ((_heightAnimation.value - _weeklyHeight) /
+                (_monthlyHeight - _weeklyHeight))
+            .clamp(0.0, 1.0);
+    final showNavButtons =
+        _heightAnimation.value > (_weeklyHeight + _monthlyHeight) / 2;
+
     return AnimatedBuilder(
       animation: _heightAnimation,
       builder: (context, child) {
-        return Container(
-          decoration: BoxDecoration(
-            color: AppColors.backgroundSurface,
-            borderRadius: const BorderRadius.only(
-              bottomLeft: Radius.circular(32),
-              bottomRight: Radius.circular(32),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 12,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.only(top: 16, bottom: 8),
-              child: Column(
-                children: [
-                  _buildMonthHeader(),
-                  const SizedBox(height: 24),
-                  _buildWeekdayHeader(),
-                  const SizedBox(height: 8),
-                  ClipRect(
-                    child: SizedBox(
-                      height: _heightAnimation.value,
-                      child: SingleChildScrollView(
-                        physics: const NeverScrollableScrollPhysics(),
-                        child: _buildMonthlyCalendar(viewModel),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildDragHandle(),
-                ],
-              ),
-            ),
-          ),
+        return CalendarView(
+          currentMonth: _currentMonth,
+          selectedDate: _selectedDate,
+          viewType: _viewType,
+          calendarHeight: _heightAnimation.value,
+          hasRecord: viewModel.hasRecordOnDate,
+          onDateSelected: _onDateSelected,
+          onMonthChanged: _onMonthChanged,
+          onToggleViewType: _toggleViewType,
+          onDragStart: _onDragStart,
+          onDragUpdate: _onDragUpdate,
+          onDragEnd: _onDragEnd,
+          onScheduleAdd: _navigateToScheduleAdd,
+          navButtonOpacity: navButtonOpacity,
+          showNavButtons: showNavButtons,
         );
       },
     );
   }
 
-  Widget _buildMonthHeader() {
-    final showNavButtons =
-        _heightAnimation.value > (_weeklyHeight + _monthlyHeight) / 2;
-    final navButtonOpacity =
-        ((_heightAnimation.value - _weeklyHeight) /
-                (_monthlyHeight - _weeklyHeight))
-            .clamp(0.0, 1.0);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          AnimatedOpacity(
-            opacity: navButtonOpacity,
-            duration: const Duration(milliseconds: 100),
-            child: GestureDetector(
-              onTap: showNavButtons ? () => _onMonthChanged(-1) : null,
-              child: Container(
-                width: 40,
-                height: 40,
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.chevron_left,
-                  color: AppColors.textSubtle,
-                  size: 24,
-                ),
-              ),
-            ),
-          ),
-          Text(
-            '${_currentMonth.month}월',
-            style: AppTextStyles.headlineSmall.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          AnimatedOpacity(
-            opacity: navButtonOpacity,
-            duration: const Duration(milliseconds: 100),
-            child: GestureDetector(
-              onTap: showNavButtons ? () => _onMonthChanged(1) : null,
-              child: Container(
-                width: 40,
-                height: 40,
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.chevron_right,
-                  color: AppColors.textSubtle,
-                  size: 24,
-                ),
-              ),
-            ),
-          ),
-          const Spacer(),
-          GestureDetector(
-            onTap: _navigateToScheduleAdd,
-            child: Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: AppColors.chipPrimaryBg,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(
-                Icons.notifications_outlined,
-                color: AppColors.brand,
-                size: 18,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _navigateToScheduleAdd() async {
-    final result = await Navigator.pushNamed(context, '/schedule/add');
-    if (result == true && mounted) {
-      _loadData();
-    }
-  }
-
-  Widget _buildWeekdayHeader() {
-    const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: weekdays.asMap().entries.map((entry) {
-          final index = entry.key;
-          final day = entry.value;
-          final isSunday = index == 0;
-
-          return SizedBox(
-            width: 40,
-            height: 32,
-            child: Center(
-              child: Text(
-                day,
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: isSunday ? AppColors.error : AppColors.textHint,
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildMonthlyCalendar(RecordHomeViewModel viewModel) {
-    final weeks = _getMonthWeeks(_currentMonth);
-
-    int selectedWeekIndex = 0;
-    for (int i = 0; i < weeks.length; i++) {
-      if (weeks[i].any(
-        (date) =>
-            date != null &&
-            date.year == _selectedDate.year &&
-            date.month == _selectedDate.month &&
-            date.day == _selectedDate.day,
-      )) {
-        selectedWeekIndex = i;
-        break;
-      }
-    }
-
-    final orderedWeeks = <List<DateTime?>>[];
-    for (int i = 0; i < weeks.length; i++) {
-      final index = (selectedWeekIndex + i) % weeks.length;
-      orderedWeeks.add(weeks[index]);
-    }
-
-    final isMonthlyExpanded =
-        _heightAnimation.value > (_weeklyHeight + _monthlyHeight) / 2;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32),
-      child: Column(
-        children: (isMonthlyExpanded ? weeks : orderedWeeks)
-            .map((week) => _buildWeekRow(week, viewModel))
-            .toList(),
-      ),
-    );
-  }
-
-  Widget _buildWeekRow(List<DateTime?> dates, RecordHomeViewModel viewModel) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: dates.map((date) {
-          if (date == null) {
-            return const SizedBox(width: 40, height: 40);
-          }
-          return _buildDateCell(date, viewModel);
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildDateCell(DateTime date, RecordHomeViewModel viewModel) {
-    final isSelected = _isSameDay(date, _selectedDate);
-    final isCurrentMonth = date.month == _currentMonth.month;
-    final isSunday = date.weekday == DateTime.sunday;
-    final hasRecord = viewModel.hasRecordOnDate(date);
-    final isFuture = date.isAfter(DateTime.now());
-
-    Color textColor;
-    if (!isCurrentMonth || isFuture) {
-      textColor = isSunday ? const Color(0xFFFF9F8D) : AppColors.disabledText;
-    } else if (isSunday) {
-      textColor = AppColors.error;
-    } else {
-      textColor = AppColors.textMain;
-    }
-
-    return GestureDetector(
-      onTap: () => _onDateSelected(date),
-      child: SizedBox(
-        width: 40,
-        height: 40,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          children: [
-            Container(
-              width: isSelected ? 22 : 20,
-              height: isSelected ? 22 : 20,
-              decoration: isSelected
-                  ? BoxDecoration(
-                      color: AppColors.brand,
-                      borderRadius: BorderRadius.circular(11),
-                    )
-                  : null,
-              alignment: Alignment.center,
-              child: Text(
-                '${date.day}',
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: isSelected ? AppColors.textInverse : textColor,
-                  fontWeight: FontWeight.w400,
-                ),
-              ),
-            ),
-            const SizedBox(height: 4),
-            if (hasRecord && isCurrentMonth && !isFuture)
-              Container(
-                width: 4,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.brand,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDragHandle() {
-    return GestureDetector(
-      onTap: _toggleViewType,
-      onVerticalDragStart: _onDragStart,
-      onVerticalDragUpdate: _onDragUpdate,
-      onVerticalDragEnd: _onDragEnd,
-      child: Container(
-        width: double.infinity,
-        height: 24,
-        color: Colors.transparent,
-        alignment: Alignment.center,
-        child: Container(
-          width: 40,
-          height: 4,
-          decoration: BoxDecoration(
-            color: AppColors.border,
-            borderRadius: BorderRadius.circular(999),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRecordContent(RecordHomeViewModel viewModel) {
+  Widget _buildRecordContent() {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xxl, AppSpacing.xl, AppSpacing.lg),
           child: Row(
             children: [
               Text(
@@ -751,14 +347,14 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.water_drop_outlined, size: 48, color: AppColors.textHint),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
           Text(
             '등록된 어항이 없어요',
             style: AppTextStyles.bodyMedium.copyWith(
               color: AppColors.textSubtle,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           TextButton(
             onPressed: () {
               Navigator.pushNamed(context, '/aquarium/register');
@@ -777,270 +373,27 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
 
   Widget _buildAquariumAccordionView() {
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
       itemCount: _aquariums.length,
       itemBuilder: (context, index) {
-        return _buildAquariumAccordionItem(_aquariums[index]);
+        final aquarium = _aquariums[index];
+        final aquariumId = aquarium.id ?? '';
+        return AquariumAccordion(
+          aquarium: aquarium,
+          isExpanded: _expandedAquariums[aquariumId] ?? false,
+          creatures: _creaturesByAquarium[aquariumId] ?? [],
+          selectedCreatureId: _selectedCreatureByAquarium[aquariumId],
+          selectedDate: _selectedDate,
+          recordViewModel: _recordViewModel,
+          onToggle: () => _toggleAquariumExpanded(aquariumId),
+          onCreatureSelected: (creatureId) {
+            setState(() {
+              _selectedCreatureByAquarium[aquariumId] = creatureId;
+            });
+          },
+          onDataChanged: _loadData,
+        );
       },
     );
-  }
-
-  Widget _buildAquariumAccordionItem(AquariumData aquarium) {
-    final aquariumId = aquarium.id ?? '';
-    final isExpanded = _expandedAquariums[aquariumId] ?? false;
-    final checklist = _checklistByAquarium[aquariumId] ?? [];
-    final checkedCount = checklist.where((item) => item.isChecked).length;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: AppColors.backgroundSurface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borderLight),
-      ),
-      child: Column(
-        children: [
-          // 어항 헤더
-          InkWell(
-            onTap: () => _toggleAquariumExpanded(aquariumId),
-            borderRadius: BorderRadius.circular(16),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: AppColors.chipPrimaryBg,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.water_drop,
-                      color: AppColors.brand,
-                      size: 18,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      aquarium.name ?? '이름 없음',
-                      style: AppTextStyles.titleSmall.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  if (checkedCount > 0)
-                    Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.success.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '$checkedCount개 완료',
-                        style: AppTextStyles.captionMedium.copyWith(
-                          color: AppColors.success,
-                        ),
-                      ),
-                    ),
-                  AnimatedRotation(
-                    turns: isExpanded ? 0.5 : 0,
-                    duration: const Duration(milliseconds: 200),
-                    child: const Icon(
-                      Icons.keyboard_arrow_down,
-                      color: AppColors.textSubtle,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // 펼쳐진 내용
-          AnimatedCrossFade(
-            firstChild: const SizedBox.shrink(),
-            secondChild: _buildExpandedContent(
-              aquariumId,
-              aquarium.name,
-              checklist,
-            ),
-            crossFadeState: isExpanded
-                ? CrossFadeState.showSecond
-                : CrossFadeState.showFirst,
-            duration: const Duration(milliseconds: 200),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildExpandedContent(
-    String aquariumId,
-    String? aquariumName,
-    List<ChecklistItem> checklist,
-  ) {
-    return Column(
-      children: [
-        const Divider(height: 1, color: AppColors.borderLight),
-
-        // 체크리스트 아이템들
-        if (checklist.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20),
-            child: Text(
-              '할 일을 추가해주세요',
-              style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.textHint,
-              ),
-            ),
-          )
-        else
-          ...checklist.asMap().entries.map((entry) {
-            final index = entry.key;
-            final item = entry.value;
-            return _buildChecklistItemWidget(
-              aquariumId,
-              aquariumName,
-              index,
-              item,
-            );
-          }),
-
-        // 할 일 추가 버튼
-        InkWell(
-          onTap: () => _showAddActivitySheet(aquariumId),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: const BoxDecoration(
-              border: Border(top: BorderSide(color: AppColors.borderLight)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.add_circle_outline,
-                  size: 18,
-                  color: AppColors.brand,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '할 일 추가',
-                  style: AppTextStyles.bodyMediumMedium.copyWith(
-                    color: AppColors.brand,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildChecklistItemWidget(
-    String aquariumId,
-    String? aquariumName,
-    int index,
-    ChecklistItem item,
-  ) {
-    return InkWell(
-      onTap: () => _toggleChecklistItem(aquariumId, aquariumName, index),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            // 체크박스
-            _buildCheckbox(item.isChecked),
-            const SizedBox(width: 12),
-            // 태그 라벨
-            Expanded(
-              child: Text(
-                item.tag.label,
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: item.isChecked
-                      ? AppColors.textSubtle
-                      : AppColors.textMain,
-                  decoration: item.isChecked
-                      ? TextDecoration.lineThrough
-                      : null,
-                ),
-              ),
-            ),
-            // 삭제 버튼
-            GestureDetector(
-              onTap: () => _removeChecklistItem(aquariumId, index),
-              child: const Icon(
-                Icons.close,
-                size: 18,
-                color: AppColors.textHint,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCheckbox(bool isChecked) {
-    return Container(
-      width: 20,
-      height: 20,
-      decoration: BoxDecoration(
-        color: isChecked ? AppColors.success : Colors.transparent,
-        border: isChecked
-            ? null
-            : Border.all(color: AppColors.border, width: 1.5),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: isChecked
-          ? const Icon(Icons.check, color: Colors.white, size: 14)
-          : null,
-    );
-  }
-
-  // 헬퍼 메서드들
-  bool _isSameDay(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
-  }
-
-  List<List<DateTime?>> _getMonthWeeks(DateTime month) {
-    final firstDay = DateTime(month.year, month.month, 1);
-    final lastDay = DateTime(month.year, month.month + 1, 0);
-
-    final List<List<DateTime?>> weeks = [];
-    List<DateTime?> currentWeek = List.filled(7, null);
-
-    final firstWeekday = firstDay.weekday % 7;
-    if (firstWeekday > 0) {
-      for (int i = 0; i < firstWeekday; i++) {
-        final prevDate = firstDay.subtract(Duration(days: firstWeekday - i));
-        currentWeek[i] = prevDate;
-      }
-    }
-
-    for (int day = 1; day <= lastDay.day; day++) {
-      final date = DateTime(month.year, month.month, day);
-      final weekday = date.weekday % 7;
-
-      currentWeek[weekday] = date;
-
-      if (weekday == 6 || day == lastDay.day) {
-        if (day == lastDay.day && weekday < 6) {
-          for (int i = weekday + 1; i <= 6; i++) {
-            final nextDate = lastDay.add(Duration(days: i - weekday));
-            currentWeek[i] = nextDate;
-          }
-        }
-        weeks.add(currentWeek);
-        currentWeek = List.filled(7, null);
-      }
-    }
-
-    return weeks;
   }
 }

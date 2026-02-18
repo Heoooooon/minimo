@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../../theme/app_spacing.dart';
 
 enum AquariumStatus {
   healthy('양호', Color(0xFFD7FFE9), Color(0xFF00B356)),
@@ -55,11 +56,11 @@ class AquariumCard extends StatelessWidget {
           children: [
             // Card Body
             Container(
-              margin: const EdgeInsets.only(top: 32),
-              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.only(top: AppSpacing.xxxl),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
+                color: AppColors.backgroundSurface,
+                borderRadius: AppRadius.lgBorderRadius,
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.05),
@@ -126,7 +127,7 @@ class AquariumCard extends StatelessWidget {
 
   Widget _buildPlaceholderIcon() {
     return Container(
-      color: const Color(0xFFEDF8FF),
+      color: AppColors.blue50,
       child: Center(
         child: Image.asset(
           'assets/images/aquarium_placeholder.png',
@@ -194,10 +195,10 @@ class AquariumCard extends StatelessWidget {
 
   Widget _buildStatusTag() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
       decoration: BoxDecoration(
         color: data.status.bgColor,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: AppRadius.xsBorderRadius,
       ),
       child: Text(
         data.status.label,

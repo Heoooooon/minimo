@@ -59,6 +59,9 @@ class AppColors {
   // Semantic Colors
   // ============================================
 
+  /// 비활성 일요일/에러 라이트 색상
+  static const Color sundayLight = Color(0xFFFF9F8D);
+
   /// Error Color
   static const Color error = Color(0xFFE72A07);
 

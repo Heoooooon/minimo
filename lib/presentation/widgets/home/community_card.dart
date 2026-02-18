@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../../theme/app_spacing.dart';
 
 /// 커뮤니티 콘텐츠 데이터 모델
 class CommunityData {
@@ -64,11 +65,11 @@ class CommunityCard extends StatelessWidget {
         opacity: isActive ? 1.0 : 0.7,
         child: Container(
           width: 311,
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           clipBehavior: Clip.hardEdge,
           decoration: BoxDecoration(
-            color: const Color(0xFFFDFDFF),
-            borderRadius: BorderRadius.circular(16),
+            color: AppColors.backgroundSurface,
+            borderRadius: AppRadius.lgBorderRadius,
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.05),
@@ -111,9 +112,9 @@ class CommunityCard extends StatelessWidget {
         Container(
           width: 32,
           height: 32,
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             shape: BoxShape.circle,
-            color: const Color(0xFFE8EBF0),
+            color: AppColors.borderLight,
           ),
           child: data.authorImageUrl != null
               ? ClipOval(
@@ -212,7 +213,7 @@ class CommunityCard extends StatelessWidget {
 
   Widget _buildImage() {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: AppRadius.mdBorderRadius,
       child: Image.network(
         data.imageUrl!,
         height: 164,

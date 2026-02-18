@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../../theme/app_spacing.dart';
 
 /// 팁 일러스트 타입
 enum TipIllustrationType {
@@ -47,8 +48,8 @@ class TipCard extends StatelessWidget {
         margin: const EdgeInsets.symmetric(horizontal: 16),
         height: 134,
         decoration: BoxDecoration(
-          color: const Color(0xFFFDFDFF),
-          borderRadius: BorderRadius.circular(isFirst ? 12 : 16),
+          color: AppColors.backgroundSurface,
+          borderRadius: BorderRadius.circular(isFirst ? AppRadius.md : AppRadius.lg),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.05),
@@ -136,8 +137,8 @@ class TipCard extends StatelessWidget {
   Widget _buildPlaceholderIllustration() {
     // Fallback decorative element
     final color = data.illustrationType == TipIllustrationType.equipment
-        ? const Color(0xFF0066FF)
-        : const Color(0xFFFF6B6B);
+        ? AppColors.brand
+        : AppColors.error;
 
     return Opacity(
       opacity: 0.15,
@@ -201,8 +202,8 @@ class TipCardHorizontal extends StatelessWidget {
         width: 280,
         height: 134,
         decoration: BoxDecoration(
-          color: const Color(0xFFFDFDFF),
-          borderRadius: BorderRadius.circular(12),
+          color: AppColors.backgroundSurface,
+          borderRadius: AppRadius.mdBorderRadius,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.05),
@@ -288,8 +289,8 @@ class TipCardHorizontal extends StatelessWidget {
 
   Widget _buildPlaceholderIllustration() {
     final color = data.illustrationType == TipIllustrationType.equipment
-        ? const Color(0xFF0066FF)
-        : const Color(0xFFFF6B6B);
+        ? AppColors.brand
+        : AppColors.error;
 
     return Opacity(
       opacity: 0.15,

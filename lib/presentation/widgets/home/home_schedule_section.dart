@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../../theme/app_spacing.dart';
 import '../../../domain/models/record_data.dart';
 import '../common/skeleton_loader.dart';
 
@@ -10,6 +11,7 @@ class HomeScheduleSection extends StatelessWidget {
     required this.recordItems,
     required this.hasAquariums,
     this.isLoading = false,
+    this.isExpanded = false,
     this.onAddRecordTap,
     this.onExpandTap,
   });
@@ -17,6 +19,7 @@ class HomeScheduleSection extends StatelessWidget {
   final List<RecordData> recordItems;
   final bool hasAquariums;
   final bool isLoading;
+  final bool isExpanded;
   final VoidCallback? onAddRecordTap;
   final VoidCallback? onExpandTap;
 
@@ -41,7 +44,8 @@ class HomeScheduleSection extends StatelessWidget {
               _buildEmptyTimeline()
             else
               _buildTimelineItems(),
-            _buildExpandButton(),
+            if (!isLoading && hasAquariums && recordItems.length > 3)
+              _buildExpandButton(),
           ],
         ),
       ),
@@ -74,9 +78,9 @@ class HomeScheduleSection extends StatelessWidget {
               child: Container(
                 width: 32,
                 height: 32,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: AppColors.chipPrimaryBg,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: AppRadius.smBorderRadius,
                 ),
                 child: const Icon(Icons.add, color: AppColors.brand, size: 20),
               ),
@@ -107,11 +111,12 @@ class HomeScheduleSection extends StatelessWidget {
   }
 
   Widget _buildTimelineItems() {
+    final items = isExpanded ? recordItems : recordItems.take(3).toList();
     return Column(
-      children: recordItems.asMap().entries.map((entry) {
+      children: items.asMap().entries.map((entry) {
         final index = entry.key;
         final item = entry.value;
-        final isLast = index == recordItems.length - 1;
+        final isLast = index == items.length - 1;
         return _RecordTimelineItem(item: item, isLast: isLast);
       }).toList(),
     );
@@ -125,7 +130,7 @@ class HomeScheduleSection extends StatelessWidget {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: const Color(0xFFFDFDFF),
+            color: AppColors.backgroundSurface,
             shape: BoxShape.circle,
             border: Border.all(color: AppColors.borderLight),
             boxShadow: [
@@ -136,8 +141,8 @@ class HomeScheduleSection extends StatelessWidget {
               ),
             ],
           ),
-          child: const Icon(
-            Icons.keyboard_arrow_down,
+          child: Icon(
+            isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
             color: AppColors.textHint,
             size: 24,
           ),

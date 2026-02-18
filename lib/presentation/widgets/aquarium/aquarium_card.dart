@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../../domain/models/aquarium_data.dart';
 import '../../../theme/app_colors.dart';
+import '../../../theme/app_text_styles.dart';
+import '../../../theme/app_spacing.dart';
 
 /// 어항 카드 위젯
 ///
@@ -28,8 +30,8 @@ class AquariumCard extends StatelessWidget {
     return Container(
       height: 102,
       decoration: BoxDecoration(
-        color: const Color(0xFFFDFDFF),
-        borderRadius: BorderRadius.circular(12),
+        color: AppColors.backgroundSurface,
+        borderRadius: AppRadius.mdBorderRadius,
         boxShadow: const [
           BoxShadow(
             color: Color(0x0D846EFF),
@@ -41,7 +43,7 @@ class AquariumCard extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: AppRadius.mdBorderRadius,
           onTap: onTap,
           onLongPress: onLongPress,
           child: Stack(
@@ -114,14 +116,7 @@ class AquariumCard extends StatelessWidget {
                           children: [
                             Text(
                               aquarium.name ?? '이름 없음',
-                              style: const TextStyle(
-                                fontFamily: 'WantedSans',
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF212529),
-                                height: 26 / 18,
-                                letterSpacing: -0.5,
-                              ),
+                              style: AppTextStyles.headlineSmall,
                             ),
                             const SizedBox(width: 8),
                             _buildTag(aquarium, isTreatment),
@@ -136,20 +131,15 @@ class AquariumCard extends StatelessWidget {
                               width: 20,
                               height: 20,
                               colorFilter: const ColorFilter.mode(
-                                Color(0xFF666E78),
+                                AppColors.textSubtle,
                                 BlendMode.srcIn,
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: AppSpacing.sm),
                             Text(
                               '$creatureCount',
-                              style: const TextStyle(
-                                fontFamily: 'WantedSans',
-                                fontSize: 14,
-                                fontWeight: FontWeight.w400,
-                                color: Color(0xFF666E78),
-                                height: 20 / 14,
-                                letterSpacing: -0.25,
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.textSubtle,
                               ),
                             ),
                           ],
@@ -165,15 +155,10 @@ class AquariumCard extends StatelessWidget {
                         // D+ 카운트
                         Text(
                           'D+$daysCount',
-                          style: TextStyle(
-                            fontFamily: 'WantedSans',
-                            fontSize: 18,
-                            fontWeight: FontWeight.w500,
+                          style: AppTextStyles.titleLarge.copyWith(
                             color: isTreatment
                                 ? AppColors.orange700
                                 : AppColors.brand,
-                            height: 26 / 18,
-                            letterSpacing: -0.5,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -185,20 +170,15 @@ class AquariumCard extends StatelessWidget {
                               width: 16,
                               height: 16,
                               colorFilter: const ColorFilter.mode(
-                                Color(0xFF666E78),
+                                AppColors.textSubtle,
                                 BlendMode.srcIn,
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: AppSpacing.sm),
                             Text(
                               _formatDate(aquarium.settingDate),
-                              style: const TextStyle(
-                                fontFamily: 'WantedSans',
-                                fontSize: 14,
-                                fontWeight: FontWeight.w400,
-                                color: Color(0xFF666E78),
-                                height: 20 / 14,
-                                letterSpacing: -0.25,
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.textSubtle,
                               ),
                             ),
                           ],
@@ -239,20 +219,15 @@ class AquariumCard extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: AppRadius.xsBorderRadius,
       ),
       child: Text(
         label,
-        style: TextStyle(
-          fontFamily: 'WantedSans',
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
+        style: AppTextStyles.labelMedium.copyWith(
           color: textColor,
-          height: 18 / 12,
-          letterSpacing: -0.25,
         ),
       ),
     );

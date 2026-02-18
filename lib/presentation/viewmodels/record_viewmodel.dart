@@ -3,7 +3,12 @@ import '../../domain/models/record_data.dart';
 import 'base_viewmodel.dart';
 
 class RecordViewModel extends BaseViewModel {
-  final RecordRepository _repository = PocketBaseRecordRepository.instance;
+  RecordViewModel() : _repository = PocketBaseRecordRepository.instance;
+
+  /// 테스트용 생성자 (Repository 주입)
+  RecordViewModel.withRepository(this._repository);
+
+  final RecordRepository _repository;
 
   Future<RecordData?> saveRecord({
     required DateTime date,
@@ -11,6 +16,8 @@ class RecordViewModel extends BaseViewModel {
     required String content,
     required bool isPublic,
     String? aquariumId,
+    String? creatureId,
+    RecordType recordType = RecordType.todo,
     bool isCompleted = false,
   }) async {
     RecordData? created;
@@ -21,6 +28,8 @@ class RecordViewModel extends BaseViewModel {
         content: content,
         isPublic: isPublic,
         aquariumId: aquariumId,
+        creatureId: creatureId,
+        recordType: recordType,
         isCompleted: isCompleted,
       );
 
@@ -28,6 +37,15 @@ class RecordViewModel extends BaseViewModel {
     }, errorPrefix: '기록 저장 중 오류가 발생했습니다');
 
     return success ? created : null;
+  }
+
+  Future<RecordData?> updateRecord(RecordData record) async {
+    if (record.id == null) return null;
+    RecordData? updated;
+    final success = await runAsyncBool(() async {
+      updated = await _repository.updateRecord(record.id!, record);
+    }, errorPrefix: '기록 수정 중 오류가 발생했습니다');
+    return success ? updated : null;
   }
 
   Future<bool> updateRecordCompletion(String recordId, bool isCompleted) async {
@@ -43,7 +61,25 @@ class RecordViewModel extends BaseViewModel {
     try {
       return await _repository.getRecordsByDateAndAquarium(date, aquariumId);
     } catch (e) {
-      return [];
+      rethrow;
+    }
+  }
+
+  Future<List<RecordData>> getRecordsByCreature(
+    DateTime date,
+    String? aquariumId, {
+    String? creatureId,
+    RecordType? recordType,
+  }) async {
+    try {
+      return await _repository.getRecordsByDateAquariumAndCreature(
+        date,
+        aquariumId,
+        creatureId: creatureId,
+        recordType: recordType?.name,
+      );
+    } catch (e) {
+      rethrow;
     }
   }
 }

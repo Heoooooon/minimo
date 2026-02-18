@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../core/utils/app_logger.dart';
+import '../../core/di/app_dependencies.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_text_styles.dart';
 import '../widgets/home/aquarium_card.dart';
 import '../widgets/home/qna_card.dart';
 import '../widgets/home/tip_card.dart';
@@ -46,12 +49,12 @@ class HomeContentState extends State<HomeContent> {
   List<AquariumData> _aquariums = [];
   List<domain.AquariumData> _domainAquariums = [];
 
-  final ScheduleRepository _scheduleRepository =
-      PocketBaseScheduleRepository.instance;
-  final RecordRepository _recordRepository =
-      PocketBaseRecordRepository.instance;
-  final AquariumRepository _aquariumRepository =
-      PocketBaseAquariumRepository.instance;
+  late final AppDependencies _dependencies;
+  late final ScheduleRepository _scheduleRepository;
+  late final RecordRepository _recordRepository;
+  late final AquariumRepository _aquariumRepository;
+  late final AuthService _authService;
+  late final CommunityService _communityService;
   List<ScheduleData> _scheduleItems = [];
   List<RecordData> _recordItems = [];
 
@@ -69,6 +72,8 @@ class HomeContentState extends State<HomeContent> {
   bool _isLoadingRecords = true;
   bool _isLoadingAquariums = true;
   bool _isLoadingCommunity = true;
+  bool _isTimelineExpanded = false;
+  bool _hasAquariumError = false;
 
   DateTime? _lastAquariumFetchTime;
   DateTime? _lastScheduleFetchTime;
@@ -77,19 +82,34 @@ class HomeContentState extends State<HomeContent> {
   static const Duration _cacheValidDuration = Duration(minutes: 5);
 
   // 커뮤니티 데이터
-  final CommunityService _communityService = CommunityService.instance;
   List<CommunityData> _communityItems = [];
   QnAData? _qnaItem;
+  bool _isDependenciesReady = false;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_isDependenciesReady) return;
+
+    _dependencies = context.read<AppDependencies>();
+    _scheduleRepository = _dependencies.scheduleRepository;
+    _recordRepository = _dependencies.recordRepository;
+    _aquariumRepository = _dependencies.aquariumRepository;
+    _authService = _dependencies.authService;
+    _communityService = _dependencies.communityService;
+    _isDependenciesReady = true;
+
     _loadUserInfo();
     _loadSchedule();
     _loadRecords();
     _loadAquariums();
     _loadCommunityData();
-    _scrollController.addListener(_onScroll);
   }
 
   @override
@@ -100,6 +120,9 @@ class HomeContentState extends State<HomeContent> {
   }
 
   void refreshData() {
+    setState(() {
+      _hasAquariumError = false;
+    });
     _loadAquariums(forceRefresh: true);
     _loadSchedule(forceRefresh: true);
     _loadRecords(forceRefresh: true);
@@ -107,13 +130,17 @@ class HomeContentState extends State<HomeContent> {
   }
 
   void _onScroll() {
-    setState(() {
-      _scrollOffset = _scrollController.offset;
-    });
+    final newOffset = _scrollController.offset;
+    // 의미있는 변화가 있을 때만 리빌드 (5px 이상 차이)
+    if ((newOffset - _scrollOffset).abs() > 5) {
+      setState(() {
+        _scrollOffset = newOffset;
+      });
+    }
   }
 
   void _loadUserInfo() {
-    final user = AuthService.instance.currentUser;
+    final user = _authService.currentUser;
     if (user != null) {
       final name = user.getStringValue('name');
       if (name.isNotEmpty && mounted) {
@@ -131,8 +158,7 @@ class HomeContentState extends State<HomeContent> {
   bool _isAquariumCacheValid() {
     return _lastAquariumFetchTime != null &&
         DateTime.now().difference(_lastAquariumFetchTime!) <
-            _cacheValidDuration &&
-        _domainAquariums.isNotEmpty;
+            _cacheValidDuration;
   }
 
   Future<void> _loadAquariums({bool forceRefresh = false}) async {
@@ -160,10 +186,6 @@ class HomeContentState extends State<HomeContent> {
                   id: a.id ?? '',
                   name: a.name ?? '이름 없음',
                   imageUrl: a.photoUrl,
-                  status: AquariumStatus.healthy,
-                  temperature: 27,
-                  ph: 7.2,
-                  fishCount: 0,
                 ),
               )
               .toList();
@@ -181,6 +203,7 @@ class HomeContentState extends State<HomeContent> {
       } else if (mounted) {
         setState(() {
           _isLoadingAquariums = false;
+          _hasAquariumError = true;
         });
       }
     }
@@ -189,15 +212,12 @@ class HomeContentState extends State<HomeContent> {
   bool _isScheduleCacheValid() {
     return _lastScheduleFetchTime != null &&
         DateTime.now().difference(_lastScheduleFetchTime!) <
-            _cacheValidDuration &&
-        _scheduleItems.isNotEmpty;
+            _cacheValidDuration;
   }
 
   bool _isRecordCacheValid() {
     return _lastRecordFetchTime != null &&
-        DateTime.now().difference(_lastRecordFetchTime!) <
-            _cacheValidDuration &&
-        _recordItems.isNotEmpty;
+        DateTime.now().difference(_lastRecordFetchTime!) < _cacheValidDuration;
   }
 
   Future<void> _loadRecords({bool forceRefresh = false}) async {
@@ -327,10 +347,10 @@ class HomeContentState extends State<HomeContent> {
     return QnAData(
       id: q.id ?? '',
       authorName: '익명',
-      title: q.title ?? '',
-      content: q.content ?? '',
+      title: q.title,
+      content: q.content,
       tags: [],
-      viewCount: q.viewCount ?? 0,
+      viewCount: q.viewCount,
       timeAgo: timeAgo,
       curiousCount: 0,
     );
@@ -361,24 +381,10 @@ class HomeContentState extends State<HomeContent> {
     return tags;
   }
 
-  void _toggleTimeline(String id, bool value) async {
+  void _toggleTimelineExpand() {
     setState(() {
-      final index = _scheduleItems.indexWhere((item) => item.id == id);
-      if (index != -1) {
-        _scheduleItems[index] = _scheduleItems[index].copyWith(
-          isCompleted: value,
-        );
-      }
+      _isTimelineExpanded = !_isTimelineExpanded;
     });
-
-    await _scheduleRepository.toggleComplete(id, value);
-  }
-
-  Future<void> _navigateToScheduleAdd() async {
-    final result = await Navigator.pushNamed(context, '/schedule/add');
-    if (result == true && mounted) {
-      _loadSchedule(forceRefresh: true);
-    }
   }
 
   Future<void> _navigateToAquariumRegister() async {
@@ -389,7 +395,7 @@ class HomeContentState extends State<HomeContent> {
   }
 
   Future<void> _navigateToRecordAdd() async {
-    final result = await Navigator.pushNamed(context, '/record/add');
+    final result = await Navigator.pushNamed(context, '/record');
     if (result == true && mounted) {
       _loadRecords(forceRefresh: true);
     }
@@ -449,12 +455,24 @@ class HomeContentState extends State<HomeContent> {
                         HomeSectionHeader(
                           title: '추천 컨텐츠',
                           showMore: true,
-                          onMoreTap: () {},
+                          onMoreTap: () {
+                            Navigator.pushNamed(
+                              context,
+                              '/more-list',
+                              arguments: {'type': 'posts', 'title': '추천 컨텐츠'},
+                            );
+                          },
                         ),
                         const SizedBox(height: 11),
                         HomeContentCarousel(
                           items: _communityItems,
-                          onItemTap: (_) {},
+                          onItemTap: (item) {
+                            Navigator.pushNamed(
+                              context,
+                              '/post-detail',
+                              arguments: item.id,
+                            );
+                          },
                         ),
                         const SizedBox(height: 32),
                       ],
@@ -464,13 +482,34 @@ class HomeContentState extends State<HomeContent> {
                         HomeSectionHeader(
                           title: '답변을 기다리고 있어요',
                           showMore: true,
-                          onMoreTap: () {},
+                          onMoreTap: () {
+                            Navigator.pushNamed(
+                              context,
+                              '/more-list',
+                              arguments: {
+                                'type': 'questions',
+                                'title': '답변을 기다리고 있어요',
+                              },
+                            );
+                          },
                         ),
                         const SizedBox(height: 11),
                         QnACard(
                           data: _qnaItem!,
-                          onTap: () {},
-                          onCuriousTap: () {},
+                          onTap: () {
+                            Navigator.pushNamed(
+                              context,
+                              '/question-detail',
+                              arguments: _qnaItem!.id,
+                            );
+                          },
+                          onCuriousTap: () {
+                            Navigator.pushNamed(
+                              context,
+                              '/question-detail',
+                              arguments: _qnaItem!.id,
+                            );
+                          },
                           onAnswerTap: () {
                             Navigator.pushNamed(context, '/community-question');
                           },
@@ -479,13 +518,21 @@ class HomeContentState extends State<HomeContent> {
                       ],
 
                       // Tips Section
-                      HomeSectionHeader(
-                        title: '오늘의 사육 꿀팁',
-                        showMore: true,
-                        onMoreTap: () {},
-                      ),
+                      HomeSectionHeader(title: '오늘의 사육 꿀팁', showMore: false),
                       const SizedBox(height: 11),
-                      TipList(tips: _tips, onTipTap: (tip) {}),
+                      TipList(
+                        tips: _tips,
+                        onTipTap: (tip) {
+                          // 팁은 현재 정적 데이터이므로 SnackBar로 안내
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                '${tip.title.replaceAll('\n', ' ')} - 상세 기능 준비 중',
+                              ),
+                            ),
+                          );
+                        },
+                      ),
 
                       const SizedBox(height: 100),
                     ],
@@ -506,7 +553,11 @@ class HomeContentState extends State<HomeContent> {
               onNotificationTap: () {
                 Navigator.pushNamed(context, '/notifications');
               },
-              onGuideTap: () {},
+              onGuideTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('사육 가이드 기능은 준비 중입니다.')),
+                );
+              },
             ),
           ),
         ],
@@ -534,8 +585,9 @@ class HomeContentState extends State<HomeContent> {
           recordItems: _recordItems,
           hasAquariums: _hasAquariums,
           isLoading: _isLoadingRecords,
+          isExpanded: _isTimelineExpanded,
           onAddRecordTap: _navigateToRecordAdd,
-          onExpandTap: () {},
+          onExpandTap: _toggleTimelineExpand,
         ),
       ],
     );
@@ -550,6 +602,49 @@ class HomeContentState extends State<HomeContent> {
           HomeSectionHeader(title: '나의 어항', showMore: false),
           const SizedBox(height: 16),
           const AquariumCardSkeleton(),
+          const SizedBox(height: 32),
+        ],
+      );
+    }
+
+    if (_hasAquariumError) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          HomeSectionHeader(title: '나의 어항', showMore: false),
+          const SizedBox(height: 16),
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Column(
+                children: [
+                  Icon(Icons.wifi_off, size: 32, color: AppColors.textHint),
+                  const SizedBox(height: 8),
+                  Text(
+                    '데이터를 불러오지 못했습니다',
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textSubtle,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  GestureDetector(
+                    onTap: () {
+                      setState(() => _hasAquariumError = false);
+                      _aquariumRetryCount = 0;
+                      _loadAquariums(forceRefresh: true);
+                    },
+                    child: Text(
+                      '다시 시도',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.brand,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           const SizedBox(height: 32),
         ],
       );

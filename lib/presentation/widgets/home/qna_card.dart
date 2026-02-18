@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
+import '../../../theme/app_spacing.dart';
 
 /// Q&A 데이터 모델
 class QnAData {
@@ -52,11 +53,11 @@ class QnACard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16),
-        padding: const EdgeInsets.all(16),
+        margin: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         decoration: BoxDecoration(
-          color: const Color(0xFFFDFDFF),
-          borderRadius: BorderRadius.circular(16),
+          color: AppColors.backgroundSurface,
+          borderRadius: AppRadius.lgBorderRadius,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.05),
@@ -106,7 +107,7 @@ class QnACard extends StatelessWidget {
           width: 32,
           height: 32,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: AppRadius.lgBorderRadius,
             gradient: const LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
@@ -181,8 +182,8 @@ class QnACard extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
-            color: const Color(0xFFEDF8FF), // blue/50
-            borderRadius: BorderRadius.circular(4),
+            color: AppColors.blue50,
+            borderRadius: AppRadius.xsBorderRadius,
           ),
           child: Text(
             tag,
@@ -266,7 +267,7 @@ class QnACard extends StatelessWidget {
             child: Container(
               height: 40,
               decoration: BoxDecoration(
-                color: data.isCurious ? AppColors.brand : const Color(0xFFFDFDFF),
+                color: data.isCurious ? AppColors.brand : AppColors.backgroundSurface,
                 borderRadius: BorderRadius.circular(999),
                 border: Border.all(
                   color: AppColors.brand,
@@ -279,13 +280,13 @@ class QnACard extends StatelessWidget {
                   Icon(
                     data.isCurious ? Icons.favorite : Icons.favorite_border,
                     size: 16,
-                    color: data.isCurious ? Colors.white : AppColors.brand,
+                    color: data.isCurious ? AppColors.textInverse : AppColors.brand,
                   ),
                   const SizedBox(width: 8),
                   Text(
                     '궁금해요',
                     style: AppTextStyles.bodySmall.copyWith(
-                      color: data.isCurious ? Colors.white : AppColors.brand,
+                      color: data.isCurious ? AppColors.textInverse : AppColors.brand,
                       fontWeight: FontWeight.w500,
                       fontSize: 14,
                       height: 20 / 14,
@@ -315,13 +316,13 @@ class QnACard extends StatelessWidget {
                   const Icon(
                     Icons.edit_outlined,
                     size: 16,
-                    color: Colors.white,
+                    color: AppColors.textInverse,
                   ),
                   const SizedBox(width: 8),
                   Text(
                     '답변하기',
                     style: AppTextStyles.bodySmall.copyWith(
-                      color: Colors.white,
+                      color: AppColors.textInverse,
                       fontWeight: FontWeight.w500,
                       fontSize: 14,
                       height: 20 / 14,

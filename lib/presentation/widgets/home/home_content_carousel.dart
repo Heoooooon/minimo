@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../theme/app_colors.dart';
+import '../../../theme/app_spacing.dart';
 import 'community_card.dart';
 
 /// 홈 화면 추천 콘텐츠 캐러셀
@@ -78,8 +79,8 @@ class _HomeContentCarouselState extends State<HomeContentCarousel> {
           width: isActive ? 20 : 8,
           height: 8,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(4),
-            color: isActive ? AppColors.brand : const Color(0xFFE8EBF0),
+            borderRadius: AppRadius.xsBorderRadius,
+            color: isActive ? AppColors.brand : AppColors.borderLight,
           ),
         );
       }),
