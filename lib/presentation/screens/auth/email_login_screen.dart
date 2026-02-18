@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../data/services/auth_service.dart';
+import '../../../core/di/app_dependencies.dart';
 import '../../../data/services/pocketbase_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../widgets/common/app_button.dart';
 import '../main_shell.dart';
 import 'sign_up_screen.dart';
+import 'password_reset_screen.dart';
 
 /// 이메일 로그인 화면
 class EmailLoginScreen extends StatefulWidget {
@@ -21,6 +24,17 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
   bool _obscurePassword = true;
   bool _autoLogin = false;
   bool _isLoading = false;
+  late final AuthService _authService;
+  bool _isDependenciesReady = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_isDependenciesReady) return;
+
+    _authService = context.read<AppDependencies>().authService;
+    _isDependenciesReady = true;
+  }
 
   @override
   void dispose() {
@@ -29,8 +43,11 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
     super.dispose();
   }
 
+  static final _emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+
   bool get _isFormValid {
     return _emailController.text.isNotEmpty &&
+        _emailRegex.hasMatch(_emailController.text.trim()) &&
         _passwordController.text.isNotEmpty;
   }
 
@@ -43,7 +60,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
       // 자동 로그인 설정 먼저 저장
       await PocketBaseService.instance.setAutoLogin(_autoLogin);
 
-      await AuthService.instance.loginWithEmail(
+      await _authService.loginWithEmail(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
@@ -240,7 +257,12 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
                                 Expanded(
                                   child: TextButton(
                                     onPressed: () {
-                                      // TODO: 비밀번호 찾기
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              const PasswordResetScreen(),
+                                        ),
+                                      );
                                     },
                                     child: Text(
                                       '이메일/비밀번호 찾기',

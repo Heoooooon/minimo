@@ -140,40 +140,40 @@ class _TankRegisterScreenState extends State<TankRegisterScreen> {
   }
 
   Widget _buildTankSizeSelector() {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.backgroundSurface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borderLight),
-      ),
-      child: Column(
-        children: TankSize.values.map((size) {
-          final isSelected = _selectedTankSize == size;
-          final isLast = size == TankSize.values.last;
+    return RadioGroup<TankSize>(
+      groupValue: _selectedTankSize ?? TankSize.values.first,
+      onChanged: (value) => setState(() => _selectedTankSize = value),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.backgroundSurface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.borderLight),
+        ),
+        child: Column(
+          children: TankSize.values.map((size) {
+            final isSelected = _selectedTankSize == size;
+            final isLast = size == TankSize.values.last;
 
-          return Column(
-            children: [
-              InkWell(
-                onTap: () => setState(() => _selectedTankSize = size),
-                borderRadius: BorderRadius.vertical(
-                  top: size == TankSize.values.first
-                      ? const Radius.circular(12)
-                      : Radius.zero,
-                  bottom: isLast ? const Radius.circular(12) : Radius.zero,
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
+            return Column(
+              children: [
+                InkWell(
+                  onTap: () => setState(() => _selectedTankSize = size),
+                  borderRadius: BorderRadius.vertical(
+                    top: size == TankSize.values.first
+                        ? const Radius.circular(12)
+                        : Radius.zero,
+                    bottom: isLast ? const Radius.circular(12) : Radius.zero,
                   ),
-                  child: Row(
-                    children: [
-                      Radio<TankSize>(
-                        value: size,
-                        groupValue: _selectedTankSize,
-                        onChanged: (value) =>
-                            setState(() => _selectedTankSize = value),
-                      ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    child: Row(
+                      children: [
+                        Radio<TankSize>(
+                          value: size,
+                        ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Column(
@@ -204,7 +204,8 @@ class _TankRegisterScreenState extends State<TankRegisterScreen> {
               if (!isLast) const Divider(height: 1, indent: 16, endIndent: 16),
             ],
           );
-        }).toList(),
+          }).toList(),
+        ),
       ),
     );
   }

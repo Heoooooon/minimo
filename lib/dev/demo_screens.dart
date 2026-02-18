@@ -334,21 +334,17 @@ class _DesignSystemScreenState extends State<DesignSystemScreen> {
         const SizedBox(height: 8),
 
         // Radio
-        Row(
-          children: [
-            Radio<int>(
-              value: 1,
-              groupValue: _radioValue,
-              onChanged: (v) => setState(() => _radioValue = v),
-            ),
-            Text('Option 1', style: AppTextStyles.bodyMedium),
-            Radio<int>(
-              value: 2,
-              groupValue: _radioValue,
-              onChanged: (v) => setState(() => _radioValue = v),
-            ),
-            Text('Option 2', style: AppTextStyles.bodyMedium),
-          ],
+        RadioGroup<int>(
+          groupValue: _radioValue ?? 1,
+          onChanged: (v) => setState(() => _radioValue = v),
+          child: Row(
+            children: [
+              Radio<int>(value: 1),
+              Text('Option 1', style: AppTextStyles.bodyMedium),
+              Radio<int>(value: 2),
+              Text('Option 2', style: AppTextStyles.bodyMedium),
+            ],
+          ),
         ),
         const SizedBox(height: 8),
 

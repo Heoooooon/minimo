@@ -6,14 +6,21 @@ import 'base_viewmodel.dart';
 
 /// 어항 목록 ViewModel
 class AquariumListViewModel extends CachingViewModel {
-  AquariumListViewModel() {
-    loadAquariums();
+  AquariumListViewModel({
+    AquariumRepository? repository,
+    CreatureService? creatureService,
+    bool autoLoad = true,
+  }) : _repository = repository ?? PocketBaseAquariumRepository.instance,
+       _creatureService = creatureService ?? CreatureService.instance {
+    if (autoLoad) {
+      loadAquariums();
+    }
   }
 
   static const String _cacheKeyAquariums = 'aquariums';
 
-  // PocketBase Repository 사용
-  final AquariumRepository _repository = PocketBaseAquariumRepository.instance;
+  final AquariumRepository _repository;
+  final CreatureService _creatureService;
 
   /// 어항 목록
   List<AquariumData> _aquariums = [];
@@ -71,8 +78,9 @@ class AquariumListViewModel extends CachingViewModel {
     for (final aquarium in _aquariums) {
       if (aquarium.id != null) {
         try {
-          final creatures = await CreatureService.instance
-              .getCreaturesByAquarium(aquarium.id!);
+          final creatures = await _creatureService.getCreaturesByAquarium(
+            aquarium.id!,
+          );
           // quantity 합계 계산
           final totalCount = creatures.fold<int>(
             0,

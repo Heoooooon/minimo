@@ -31,9 +31,9 @@ class MockScheduleRepository implements ScheduleRepository {
 
     // 실제로는 날짜 필터링을 해야 하나, Mock에서는 오늘 날짜만 반환
     return _mockData.where((item) {
-      return item.date?.year == date.year &&
-          item.date?.month == date.month &&
-          item.date?.day == date.day;
+      return item.date.year == date.year &&
+          item.date.month == date.month &&
+          item.date.day == date.day;
     }).toList();
   }
 

@@ -1,11 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../core/di/app_dependencies.dart';
+import '../../../data/services/auth_service.dart';
+import '../../../data/services/onboarding_service.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
+import '../main_shell.dart';
+import '../onboarding/onboarding_survey_screen.dart';
 import 'email_login_screen.dart';
 
 /// 소셜 로그인 화면
-class SocialLoginScreen extends StatelessWidget {
+class SocialLoginScreen extends StatefulWidget {
   const SocialLoginScreen({super.key});
+
+  @override
+  State<SocialLoginScreen> createState() => _SocialLoginScreenState();
+}
+
+class _SocialLoginScreenState extends State<SocialLoginScreen> {
+  bool _isLoading = false;
+  String? _loadingProvider;
+  late final AuthService _authService;
+  late final OnboardingService _onboardingService;
+  bool _isDependenciesReady = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_isDependenciesReady) return;
+
+    final dependencies = context.read<AppDependencies>();
+    _authService = dependencies.authService;
+    _onboardingService = dependencies.onboardingService;
+    _isDependenciesReady = true;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -23,10 +51,7 @@ class SocialLoginScreen extends StatelessWidget {
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [
-                        Color(0xFF0A3D62),
-                        Color(0xFF001529),
-                      ],
+                      colors: [Color(0xFF0A3D62), Color(0xFF001529)],
                     ),
                   ),
                 );
@@ -51,9 +76,7 @@ class SocialLoginScreen extends StatelessWidget {
           ),
           // 그라데이션 오버레이 2: 전체 어두운 오버레이
           Positioned.fill(
-            child: Container(
-              color: Colors.black.withValues(alpha: 0.52),
-            ),
+            child: Container(color: Colors.black.withValues(alpha: 0.52)),
           ),
           // 콘텐츠
           SafeArea(
@@ -72,7 +95,10 @@ class SocialLoginScreen extends StatelessWidget {
                     backgroundColor: const Color(0xFFFAE300),
                     textColor: AppColors.textMain,
                     iconPath: 'assets/icons/kakao.png',
-                    onPressed: () => _handleSocialLogin(context, 'kakao'),
+                    isLoading: _loadingProvider == 'kakao',
+                    onPressed: _isLoading
+                        ? null
+                        : () => _handleSocialLogin('kakao'),
                   ),
                   const SizedBox(height: 16),
                   _SocialLoginButton(
@@ -80,7 +106,10 @@ class SocialLoginScreen extends StatelessWidget {
                     backgroundColor: Colors.black,
                     textColor: Colors.white,
                     iconPath: 'assets/icons/apple.png',
-                    onPressed: () => _handleSocialLogin(context, 'apple'),
+                    isLoading: _loadingProvider == 'apple',
+                    onPressed: _isLoading
+                        ? null
+                        : () => _handleSocialLogin('apple'),
                   ),
                   const SizedBox(height: 16),
                   _SocialLoginButton(
@@ -88,7 +117,10 @@ class SocialLoginScreen extends StatelessWidget {
                     backgroundColor: const Color(0xFF00BF18),
                     textColor: Colors.white,
                     iconPath: 'assets/icons/naver.png',
-                    onPressed: () => _handleSocialLogin(context, 'naver'),
+                    isLoading: _loadingProvider == 'naver',
+                    onPressed: _isLoading
+                        ? null
+                        : () => _handleSocialLogin('naver'),
                   ),
                   const SizedBox(height: 16),
                   _SocialLoginButton(
@@ -96,7 +128,10 @@ class SocialLoginScreen extends StatelessWidget {
                     backgroundColor: Colors.white,
                     textColor: AppColors.textMain,
                     iconPath: 'assets/icons/google.png',
-                    onPressed: () => _handleSocialLogin(context, 'google'),
+                    isLoading: _loadingProvider == 'google',
+                    onPressed: _isLoading
+                        ? null
+                        : () => _handleSocialLogin('google'),
                   ),
                   const SizedBox(height: 16),
                   // 이메일 로그인 링크
@@ -181,17 +216,46 @@ class SocialLoginScreen extends StatelessWidget {
     );
   }
 
-  void _handleSocialLogin(BuildContext context, String provider) {
-    // TODO: 소셜 로그인 구현
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$provider 로그인은 준비 중입니다')),
-    );
+  Future<void> _handleSocialLogin(String provider) async {
+    setState(() {
+      _isLoading = true;
+      _loadingProvider = provider;
+    });
+
+    try {
+      await _authService.loginWithOAuth2(provider);
+
+      if (!mounted) return;
+
+      final isOnboardingCompleted = _onboardingService.isOnboardingCompleted;
+
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => isOnboardingCompleted
+              ? const MainShell()
+              : const OnboardingSurveyScreen(),
+        ),
+        (route) => false,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$provider 로그인에 실패했습니다. 다시 시도해주세요.')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _loadingProvider = null;
+        });
+      }
+    }
   }
 
   void _navigateToEmailLogin(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const EmailLoginScreen()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const EmailLoginScreen()));
   }
 }
 
@@ -202,6 +266,7 @@ class _SocialLoginButton extends StatelessWidget {
     required this.backgroundColor,
     required this.textColor,
     required this.iconPath,
+    this.isLoading = false,
     required this.onPressed,
   });
 
@@ -209,50 +274,64 @@ class _SocialLoginButton extends StatelessWidget {
   final Color backgroundColor;
   final Color textColor;
   final String iconPath;
-  final VoidCallback onPressed;
+  final bool isLoading;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 52,
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(999),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.35),
-            blurRadius: 60,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
+    return Opacity(
+      opacity: onPressed == null && !isLoading ? 0.5 : 1.0,
+      child: Container(
+        height: 52,
+        decoration: BoxDecoration(
+          color: backgroundColor,
           borderRadius: BorderRadius.circular(999),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Image.asset(
-                  iconPath,
-                  width: 24,
-                  height: 24,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const SizedBox(width: 24, height: 24);
-                  },
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  text,
-                  style: AppTextStyles.bodyMediumMedium.copyWith(
-                    color: textColor,
-                    letterSpacing: -0.5,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.35),
+              blurRadius: 60,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onPressed,
+            borderRadius: BorderRadius.circular(999),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (isLoading)
+                    SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: textColor,
+                      ),
+                    )
+                  else
+                    Image.asset(
+                      iconPath,
+                      width: 24,
+                      height: 24,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const SizedBox(width: 24, height: 24);
+                      },
+                    ),
+                  const SizedBox(width: 8),
+                  Text(
+                    isLoading ? '로그인 중...' : text,
+                    style: AppTextStyles.bodyMediumMedium.copyWith(
+                      color: textColor,
+                      letterSpacing: -0.5,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

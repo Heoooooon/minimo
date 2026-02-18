@@ -1,5 +1,7 @@
 import 'package:pocketbase/pocketbase.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'pocketbase_service.dart';
+import 'fcm_service.dart';
 import '../../core/exceptions/app_exceptions.dart';
 import '../../core/utils/app_logger.dart';
 
@@ -117,9 +119,153 @@ class AuthService {
   }
 
   /// 로그아웃
-  void logout() {
+  Future<void> logout() async {
+    // 서버에서 FCM 토큰 제거 (로그아웃 전에 호출해야 userId 접근 가능)
+    await FcmService.instance.clearTokenOnLogout();
     _pb.authStore.clear();
     AppLogger.auth('Logged out');
+  }
+
+  /// 현재 비밀번호 검증 (재인증)
+  Future<bool> verifyCurrentPassword(String password) async {
+    final user = currentUser;
+    if (user == null) {
+      throw AuthException.unauthorized();
+    }
+
+    try {
+      final email = user.getStringValue('email');
+      await _pb.collection('users').authWithPassword(email, password);
+      AppLogger.auth('Password verification successful');
+      return true;
+    } on ClientException catch (e) {
+      AppLogger.auth('Password verification failed: $e', isError: true);
+      if (e.statusCode == 400) {
+        return false;
+      }
+      throw NetworkException.clientError(
+        message: '비밀번호 확인에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
+    } catch (e) {
+      AppLogger.auth('Password verification failed: $e', isError: true);
+      throw NetworkException(
+        message: '비밀번호 확인 중 오류가 발생했습니다.',
+        originalError: e,
+      );
+    }
+  }
+
+  /// 비밀번호 변경
+  Future<void> changePassword({
+    required String oldPassword,
+    required String newPassword,
+    required String newPasswordConfirm,
+  }) async {
+    final user = currentUser;
+    if (user == null) {
+      throw AuthException.unauthorized();
+    }
+
+    // 유효성 검사
+    if (newPassword.length < 8 || newPassword.length > 16) {
+      throw AuthException.weakPassword();
+    }
+    if (newPassword != newPasswordConfirm) {
+      throw AuthException.passwordMismatch();
+    }
+
+    try {
+      await _pb
+          .collection('users')
+          .update(
+            user.id,
+            body: {
+              'oldPassword': oldPassword,
+              'password': newPassword,
+              'passwordConfirm': newPasswordConfirm,
+            },
+          );
+      AppLogger.auth('Password changed successfully');
+
+      // 비밀번호 변경 후 새 비밀번호로 재인증
+      final email = user.getStringValue('email');
+      await _pb.collection('users').authWithPassword(email, newPassword);
+      AppLogger.auth('Re-authenticated with new password');
+    } on ClientException catch (e) {
+      AppLogger.auth('Password change failed: $e', isError: true);
+      if (e.statusCode == 400) {
+        throw const AuthException(
+          message: '현재 비밀번호가 올바르지 않습니다.',
+          code: 'INVALID_OLD_PASSWORD',
+        );
+      }
+      throw NetworkException.clientError(
+        message: '비밀번호 변경에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
+    } catch (e) {
+      AppLogger.auth('Password change failed: $e', isError: true);
+      throw NetworkException(
+        message: '비밀번호 변경 중 오류가 발생했습니다.',
+        originalError: e,
+      );
+    }
+  }
+
+  /// 닉네임(이름) 변경
+  Future<RecordModel> updateName(String newName) async {
+    final user = currentUser;
+    if (user == null) {
+      throw AuthException.unauthorized();
+    }
+
+    try {
+      final updated = await _pb
+          .collection('users')
+          .update(user.id, body: {'name': newName});
+      AppLogger.auth('Name updated to: $newName');
+
+      // authStore 갱신
+      await _pb.collection('users').authRefresh();
+      return updated;
+    } on ClientException catch (e) {
+      AppLogger.auth('Name update failed: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '닉네임 변경에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
+    } catch (e) {
+      AppLogger.auth('Name update failed: $e', isError: true);
+      throw NetworkException(message: '닉네임 변경 중 오류가 발생했습니다.', originalError: e);
+    }
+  }
+
+  /// 회원 탈퇴
+  Future<void> deleteAccount() async {
+    final user = currentUser;
+    if (user == null) {
+      throw AuthException.unauthorized();
+    }
+
+    try {
+      await _pb.collection('users').delete(user.id);
+      _pb.authStore.clear();
+      AppLogger.auth('Account deleted: ${user.id}');
+    } on ClientException catch (e) {
+      AppLogger.auth('Account deletion failed: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '회원 탈퇴에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
+    } catch (e) {
+      AppLogger.auth('Account deletion failed: $e', isError: true);
+      throw NetworkException(message: '회원 탈퇴 중 오류가 발생했습니다.', originalError: e);
+    }
   }
 
   /// 비밀번호 재설정 요청
@@ -149,10 +295,18 @@ class AuthService {
       final authData = await _pb.collection('users').authWithOAuth2(provider, (
         url,
       ) async {
-        // URL을 열어서 OAuth2 인증 진행
         AppLogger.auth('OAuth2 URL: $url');
+        if (await canLaunchUrl(url)) {
+          await launchUrl(url, mode: LaunchMode.externalApplication);
+        } else {
+          throw Exception('OAuth2 URL을 열 수 없습니다.');
+        }
       });
       AppLogger.auth('OAuth2 login successful: ${authData.record.id}');
+
+      // 로그인 성공 후 토큰 저장
+      await PocketBaseService.instance.onLoginSuccess();
+
       return authData.record;
     } on ClientException catch (e) {
       AppLogger.auth('OAuth2 login failed: $e', isError: true);

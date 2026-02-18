@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../data/services/auth_service.dart';
+import '../../../core/di/app_dependencies.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
 import '../../widgets/common/app_button.dart';
@@ -56,6 +58,8 @@ class _SignUpScreenState extends State<SignUpScreen>
 
   bool _isLoading = false;
   bool _isCompleted = false;
+  late final AuthService _authService;
+  bool _isDependenciesReady = false;
 
   // 애니메이션 컨트롤러
   late AnimationController _emailAnimController;
@@ -68,6 +72,15 @@ class _SignUpScreenState extends State<SignUpScreen>
   late Animation<double> _verificationFadeAnim;
   late Animation<double> _passwordSlideAnim;
   late Animation<double> _passwordFadeAnim;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_isDependenciesReady) return;
+
+    _authService = context.read<AppDependencies>().authService;
+    _isDependenciesReady = true;
+  }
 
   @override
   void initState() {
@@ -229,7 +242,7 @@ class _SignUpScreenState extends State<SignUpScreen>
 
     setState(() => _isLoading = true);
     try {
-      await AuthService.instance.sendVerificationCode(_fullEmail);
+      await _authService.sendVerificationCode(_fullEmail);
       _startVerificationTimer();
       setState(() {
         _codeSent = true;
@@ -254,7 +267,7 @@ class _SignUpScreenState extends State<SignUpScreen>
 
     setState(() => _isLoading = true);
     try {
-      final success = await AuthService.instance.verifyCode(
+      final success = await _authService.verifyCode(
         _fullEmail,
         _verificationCodeController.text,
       );
@@ -290,7 +303,7 @@ class _SignUpScreenState extends State<SignUpScreen>
     setState(() => _isLoading = true);
 
     try {
-      await AuthService.instance.signUpWithEmail(
+      await _authService.signUpWithEmail(
         email: _fullEmail,
         password: _passwordController.text,
         passwordConfirm: _passwordConfirmController.text,
@@ -526,9 +539,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                   onPressed: () async {
                     setState(() => _isLoading = true);
                     try {
-                      await AuthService.instance.sendVerificationCode(
-                        _fullEmail,
-                      );
+                      await _authService.sendVerificationCode(_fullEmail);
                       _startVerificationTimer();
                       _verificationCodeController.clear();
                     } catch (e) {

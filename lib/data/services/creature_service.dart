@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:http/http.dart' as http;
+import '../../core/utils/pb_filter.dart';
 import '../../domain/models/creature_data.dart';
 import 'pocketbase_service.dart';
-import 'auth_service.dart';
 import '../../core/utils/app_logger.dart';
 
 /// 생물 관리 서비스
@@ -17,6 +17,7 @@ class CreatureService {
 
   PocketBase get _client => PocketBaseService.instance.client;
   String get _baseUrl => PocketBaseService.serverUrl;
+  String? get _currentUserId => _client.authStore.record?.id;
 
   static const String _collection = 'creatures';
 
@@ -25,7 +26,7 @@ class CreatureService {
     try {
       final records = await _client
           .collection(_collection)
-          .getFullList(filter: 'aquarium_id = "$aquariumId"');
+          .getFullList(filter: PbFilter.eq('aquarium_id', aquariumId));
 
       return records
           .map((r) => CreatureData.fromJson(r.toJson(), baseUrl: _baseUrl))
@@ -59,7 +60,7 @@ class CreatureService {
       // 메모 조회
       final memoRecords = await _client
           .collection('creature_memos')
-          .getFullList(filter: 'creature_id = "$id"');
+          .getFullList(filter: PbFilter.eq('creature_id', id));
 
       final memos = memoRecords
           .map((r) => CreatureMemoData.fromJson(r.toJson()))
@@ -73,7 +74,7 @@ class CreatureService {
   }
 
   Future<CreatureData> createCreature(CreatureData creature) async {
-    final userId = AuthService.instance.currentUser?.id;
+    final userId = _currentUserId;
     if (userId == null) {
       throw Exception('로그인이 필요합니다.');
     }
@@ -183,7 +184,11 @@ class CreatureService {
     try {
       final result = await _client
           .collection(_collection)
-          .getList(page: 1, perPage: 1, filter: 'aquarium_id = "$aquariumId"');
+          .getList(
+            page: 1,
+            perPage: 1,
+            filter: PbFilter.eq('aquarium_id', aquariumId),
+          );
       return result.totalItems;
     } catch (e) {
       AppLogger.data('Failed to get creature count: $e', isError: true);

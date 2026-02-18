@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
+import 'core/di/app_dependencies.dart';
 import 'config/app_config.dart';
 import 'theme/app_theme.dart';
 import 'data/services/pocketbase_service.dart';
-import 'data/services/auth_service.dart';
 import 'data/services/notification_service.dart';
-import 'data/services/onboarding_service.dart';
 import 'data/services/fcm_service.dart';
+import 'data/services/data_backup_service.dart';
 import 'presentation/screens/main_shell.dart';
 import 'presentation/screens/tank_register_screen.dart';
 import 'presentation/screens/record_add_screen.dart';
@@ -30,6 +30,9 @@ import 'presentation/screens/community/post_create_screen.dart';
 import 'presentation/screens/community/search_screen.dart';
 import 'presentation/screens/community/notification_screen.dart';
 import 'presentation/screens/community/more_list_screen.dart';
+import 'presentation/screens/settings/account_info_screen.dart';
+import 'presentation/screens/settings/data_backup_screen.dart';
+import 'presentation/screens/settings/password_verify_screen.dart';
 import 'presentation/viewmodels/community_viewmodel.dart';
 import 'domain/models/creature_data.dart';
 
@@ -38,6 +41,7 @@ import 'dev/demo_screens.dart' as dev;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  final dependencies = AppDependencies();
 
   // 앱 설정 출력 (디버그 모드에서만)
   AppConfig.printConfig();
@@ -52,10 +56,13 @@ void main() async {
   await NotificationService.instance.initialize();
 
   // OnboardingService 초기화
-  await OnboardingService.instance.initialize();
+  await dependencies.onboardingService.initialize();
 
   // FCM 서비스 초기화
   await FcmService.instance.initialize();
+
+  // 자동 백업 체크 (비동기, 앱 시작을 블록하지 않음)
+  DataBackupService.instance.performAutoBackupIfNeeded();
 
   // 상태바 스타일 설정
   SystemChrome.setSystemUIOverlayStyle(
@@ -66,19 +73,25 @@ void main() async {
     ),
   );
 
-  runApp(const OomoolApp());
+  runApp(OomoolApp(dependencies: dependencies));
 }
+
+/// 글로벌 네비게이터 키 (알림 탭 딥링크 등에서 사용)
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 /// 우물(Oomool) 앱 루트 위젯
 class OomoolApp extends StatelessWidget {
-  const OomoolApp({super.key});
+  OomoolApp({super.key, AppDependencies? dependencies})
+    : dependencies = dependencies ?? AppDependencies();
+
+  final AppDependencies dependencies;
 
   @override
   Widget build(BuildContext context) {
     // 로그인 상태 및 온보딩 완료 여부에 따라 시작 화면 결정
-    final isLoggedIn = AuthService.instance.isLoggedIn;
+    final isLoggedIn = dependencies.authService.isLoggedIn;
     final isOnboardingCompleted =
-        OnboardingService.instance.isOnboardingCompleted;
+        dependencies.onboardingService.isOnboardingCompleted;
 
     debugPrint(
       '🚀 App Start - isLoggedIn: $isLoggedIn, isOnboardingCompleted: $isOnboardingCompleted',
@@ -94,8 +107,14 @@ class OomoolApp extends StatelessWidget {
     }
 
     return MultiProvider(
-      providers: [ChangeNotifierProvider(create: (_) => CommunityViewModel())],
+      providers: [
+        Provider<AppDependencies>.value(value: dependencies),
+        ChangeNotifierProvider<CommunityViewModel>(
+          create: (_) => dependencies.createCommunityViewModel(),
+        ),
+      ],
       child: MaterialApp(
+        navigatorKey: navigatorKey,
         title: '우물 - 반려어 관리',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
@@ -121,6 +140,9 @@ class OomoolApp extends StatelessWidget {
           '/search': (context) => const SearchScreen(),
           '/notifications': (context) => const NotificationScreen(),
           '/more-list': (context) => const MoreListScreen(),
+          '/settings/account': (context) => const AccountInfoScreen(),
+          '/settings/password': (context) => const PasswordVerifyScreen(),
+          '/settings/backup': (context) => const DataBackupScreen(),
           // 개발용 라우트 (디버그 모드에서만 접근 권장)
           '/design-system': (context) => const dev.DesignSystemScreen(),
           '/demo': (context) => const dev.DemoHomeScreen(),

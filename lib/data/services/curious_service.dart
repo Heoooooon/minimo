@@ -1,6 +1,7 @@
 import 'package:pocketbase/pocketbase.dart';
 import 'pocketbase_service.dart';
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/pb_filter.dart';
 
 /// 궁금해요 데이터 모델
 class CuriousData {
@@ -83,7 +84,7 @@ class CuriousService {
     try {
       final result = await _pb
           .collection(_collection)
-          .getList(page: 1, perPage: 1, filter: 'question_id = "$questionId"');
+          .getList(page: 1, perPage: 1, filter: PbFilter.eq('question_id', questionId));
       return result.totalItems;
     } catch (e) {
       AppLogger.data('Failed to get curious count: $e', isError: true);
@@ -103,7 +104,7 @@ class CuriousService {
           .getList(
             page: page,
             perPage: perPage,
-            filter: 'user_id = "$userId"',
+            filter: PbFilter.eq('user_id', userId),
             sort: '-created',
           );
 
@@ -129,7 +130,7 @@ class CuriousService {
           .getList(
             page: 1,
             perPage: 1,
-            filter: 'user_id = "$userId" && question_id = "$questionId"',
+            filter: '${PbFilter.eq('user_id', userId)} && ${PbFilter.eq('question_id', questionId)}',
           );
 
       if (result.items.isNotEmpty) {

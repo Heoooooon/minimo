@@ -56,6 +56,60 @@ class AppConfig {
     defaultValue: 30,
   );
 
+  /// 갤러리 다중 업로드/삭제 동시 처리 개수
+  ///
+  /// 환경변수 GALLERY_BATCH_CONCURRENCY로 오버라이드 가능
+  /// 기본값: 3
+  static const int galleryBatchConcurrency = int.fromEnvironment(
+    'GALLERY_BATCH_CONCURRENCY',
+    defaultValue: 3,
+  );
+
+  /// 알림 전체 삭제 배치 동시 처리 개수
+  ///
+  /// 환경변수 NOTIFICATION_DELETE_CONCURRENCY로 오버라이드 가능
+  /// 기본값: 10
+  static const int notificationDeleteConcurrency = int.fromEnvironment(
+    'NOTIFICATION_DELETE_CONCURRENCY',
+    defaultValue: 10,
+  );
+
+  /// 커뮤니티 탭 캐시 TTL(초)
+  ///
+  /// 환경변수 COMMUNITY_TAB_CACHE_TTL_SECONDS로 오버라이드 가능
+  /// 기본값: 60초
+  static const int communityTabCacheTtlSeconds = int.fromEnvironment(
+    'COMMUNITY_TAB_CACHE_TTL_SECONDS',
+    defaultValue: 60,
+  );
+
+  /// 커뮤니티 추천 탭 캐시 TTL(초)
+  ///
+  /// 환경변수 COMMUNITY_RECOMMEND_TAB_CACHE_TTL_SECONDS로 오버라이드 가능
+  /// 기본값: communityTabCacheTtlSeconds
+  static const int communityRecommendTabCacheTtlSeconds = int.fromEnvironment(
+    'COMMUNITY_RECOMMEND_TAB_CACHE_TTL_SECONDS',
+    defaultValue: communityTabCacheTtlSeconds,
+  );
+
+  /// 커뮤니티 팔로잉 탭 캐시 TTL(초)
+  ///
+  /// 환경변수 COMMUNITY_FOLLOWING_TAB_CACHE_TTL_SECONDS로 오버라이드 가능
+  /// 기본값: communityTabCacheTtlSeconds
+  static const int communityFollowingTabCacheTtlSeconds = int.fromEnvironment(
+    'COMMUNITY_FOLLOWING_TAB_CACHE_TTL_SECONDS',
+    defaultValue: communityTabCacheTtlSeconds,
+  );
+
+  /// 커뮤니티 Q&A 탭 캐시 TTL(초)
+  ///
+  /// 환경변수 COMMUNITY_QNA_TAB_CACHE_TTL_SECONDS로 오버라이드 가능
+  /// 기본값: communityTabCacheTtlSeconds
+  static const int communityQnaTabCacheTtlSeconds = int.fromEnvironment(
+    'COMMUNITY_QNA_TAB_CACHE_TTL_SECONDS',
+    defaultValue: communityTabCacheTtlSeconds,
+  );
+
   /// 앱 버전 (빌드 시 주입)
   static const String appVersion = String.fromEnvironment(
     'APP_VERSION',
@@ -70,6 +124,20 @@ class AppConfig {
       _debugLog('Environment: $appEnv');
       _debugLog('Cache Duration: ${cacheDurationMinutes}m');
       _debugLog('API Timeout: ${apiTimeoutSeconds}s');
+      _debugLog('Gallery Batch Concurrency: $galleryBatchConcurrency');
+      _debugLog(
+        'Notification Delete Concurrency: $notificationDeleteConcurrency',
+      );
+      _debugLog('Community Tab Cache TTL: ${communityTabCacheTtlSeconds}s');
+      _debugLog(
+        'Community Recommend Tab Cache TTL: ${communityRecommendTabCacheTtlSeconds}s',
+      );
+      _debugLog(
+        'Community Following Tab Cache TTL: ${communityFollowingTabCacheTtlSeconds}s',
+      );
+      _debugLog(
+        'Community QnA Tab Cache TTL: ${communityQnaTabCacheTtlSeconds}s',
+      );
       _debugLog('App Version: $appVersion');
       _debugLog('==================');
     }

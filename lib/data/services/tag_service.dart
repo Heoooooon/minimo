@@ -1,6 +1,7 @@
 import 'package:pocketbase/pocketbase.dart';
 import 'pocketbase_service.dart';
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/pb_filter.dart';
 
 /// 태그 데이터 모델
 class TagData {
@@ -54,7 +55,7 @@ class TagService {
     try {
       String filter = '';
       if (category != null && category.isNotEmpty) {
-        filter = 'category = "$category"';
+        filter = PbFilter.eq('category', category);
       }
 
       final result = await _pb
@@ -84,7 +85,7 @@ class TagService {
           .getList(
             page: 1,
             perPage: limit,
-            filter: 'name ~ "$query"',
+            filter: 'name ~ "${PbFilter.sanitize(query)}"',
             sort: '-usage_count',
           );
 
@@ -100,7 +101,7 @@ class TagService {
     try {
       final result = await _pb
           .collection(_collection)
-          .getList(page: 1, perPage: 1, filter: 'name = "$name"');
+          .getList(page: 1, perPage: 1, filter: PbFilter.eq('name', name));
 
       if (result.items.isNotEmpty) {
         return _recordToTagData(result.items.first);

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../core/di/app_dependencies.dart';
 import '../../../data/services/onboarding_service.dart';
 import '../../../domain/models/onboarding_data.dart';
 import '../../../theme/app_colors.dart';
@@ -143,8 +145,8 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
                 color: isCurrent
                     ? Colors.white
                     : isCompleted
-                        ? AppColors.brand
-                        : AppColors.textHint,
+                    ? AppColors.brand
+                    : AppColors.textHint,
               ),
             ),
           ),
@@ -234,7 +236,8 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
               Expanded(
                 child: _buildGridOptionCard(
                   label: FishKeepingDifficulty.healthManagement.label,
-                  isSelected: _data.fishKeepingDifficulty ==
+                  isSelected:
+                      _data.fishKeepingDifficulty ==
                       FishKeepingDifficulty.healthManagement,
                   onTap: () {
                     setState(() {
@@ -250,7 +253,8 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
               Expanded(
                 child: _buildGridOptionCard(
                   label: FishKeepingDifficulty.fishBehavior.label,
-                  isSelected: _data.fishKeepingDifficulty ==
+                  isSelected:
+                      _data.fishKeepingDifficulty ==
                       FishKeepingDifficulty.fishBehavior,
                   onTap: () {
                     setState(() {
@@ -270,7 +274,8 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
               Expanded(
                 child: _buildGridOptionCard(
                   label: FishKeepingDifficulty.tankSetup.label,
-                  isSelected: _data.fishKeepingDifficulty ==
+                  isSelected:
+                      _data.fishKeepingDifficulty ==
                       FishKeepingDifficulty.tankSetup,
                   onTap: () {
                     setState(() {
@@ -285,7 +290,8 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
               Expanded(
                 child: _buildGridOptionCard(
                   label: FishKeepingDifficulty.informationSearch.label,
-                  isSelected: _data.fishKeepingDifficulty ==
+                  isSelected:
+                      _data.fishKeepingDifficulty ==
                       FishKeepingDifficulty.informationSearch,
                   onTap: () {
                     setState(() {
@@ -324,22 +330,14 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
     );
   }
 
-  Widget _buildStepContent({
-    required String title,
-    required Widget child,
-  }) {
+  Widget _buildStepContent({required String title, required Widget child}) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 24),
-          Text(
-            title,
-            style: AppTextStyles.headlineLarge.copyWith(
-              height: 1.5,
-            ),
-          ),
+          Text(title, style: AppTextStyles.headlineLarge.copyWith(height: 1.5)),
           const SizedBox(height: 120),
           child,
         ],
@@ -434,10 +432,7 @@ class _OnboardingSurveyScreenState extends State<OnboardingSurveyScreen> {
 class OnboardingAnalyzingScreen extends StatefulWidget {
   final OnboardingData data;
 
-  const OnboardingAnalyzingScreen({
-    super.key,
-    required this.data,
-  });
+  const OnboardingAnalyzingScreen({super.key, required this.data});
 
   @override
   State<OnboardingAnalyzingScreen> createState() =>
@@ -447,6 +442,9 @@ class OnboardingAnalyzingScreen extends StatefulWidget {
 class _OnboardingAnalyzingScreenState extends State<OnboardingAnalyzingScreen>
     with TickerProviderStateMixin {
   late AnimationController _dotAnimationController;
+  late final OnboardingService _onboardingService;
+  bool _isNavigationStarted = false;
+  bool _isDependenciesReady = false;
 
   @override
   void initState() {
@@ -456,14 +454,25 @@ class _OnboardingAnalyzingScreenState extends State<OnboardingAnalyzingScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1200),
     )..repeat();
+  }
 
-    // 온보딩 완료 저장 및 결과 화면으로 이동
-    _saveAndNavigate();
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_isDependenciesReady) {
+      _onboardingService = context.read<AppDependencies>().onboardingService;
+      _isDependenciesReady = true;
+    }
+
+    if (!_isNavigationStarted) {
+      _isNavigationStarted = true;
+      _saveAndNavigate();
+    }
   }
 
   Future<void> _saveAndNavigate() async {
     // 온보딩 완료 저장
-    await OnboardingService.instance.completeOnboarding(widget.data);
+    await _onboardingService.completeOnboarding(widget.data);
 
     // 3초 후 결과 화면으로 이동
     await Future.delayed(const Duration(seconds: 3));

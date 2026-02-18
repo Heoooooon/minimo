@@ -6,7 +6,6 @@ import 'package:pocketbase/pocketbase.dart';
 import '../../core/utils/app_logger.dart';
 import '../../domain/models/creature_catalog_data.dart';
 import '../../domain/utils/creature_catalog_text.dart';
-import 'auth_service.dart';
 import 'pocketbase_service.dart';
 
 class CreatureCatalogService {
@@ -18,6 +17,7 @@ class CreatureCatalogService {
 
   PocketBase get _pb => PocketBaseService.instance.client;
   String get _baseUrl => PocketBaseService.serverUrl;
+  String? get _currentUserId => _pb.authStore.record?.id;
 
   static const String _collection = 'creature_catalog';
   static const String _reportsCollection = 'creature_catalog_reports';
@@ -84,7 +84,7 @@ class CreatureCatalogService {
     String name, {
     String? imageFilePath,
   }) async {
-    final userId = AuthService.instance.currentUser?.id;
+    final userId = _currentUserId;
     if (userId == null || userId.isEmpty) {
       throw StateError('Login required');
     }
@@ -152,7 +152,7 @@ class CreatureCatalogService {
     required String catalogId,
     String? reason,
   }) async {
-    final userId = AuthService.instance.currentUser?.id;
+    final userId = _currentUserId;
     if (userId == null || userId.isEmpty) {
       throw StateError('Login required');
     }

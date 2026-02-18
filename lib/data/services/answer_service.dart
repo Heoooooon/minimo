@@ -2,6 +2,7 @@ import 'package:pocketbase/pocketbase.dart';
 import 'pocketbase_service.dart';
 import '../../domain/models/answer_data.dart';
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/pb_filter.dart';
 
 /// 답변 서비스
 ///
@@ -28,7 +29,7 @@ class AnswerService {
           .getList(
             page: page,
             perPage: perPage,
-            filter: 'question = "$questionId"',
+            filter: PbFilter.eq('question', questionId),
             expand: 'author',
           );
 
@@ -100,11 +101,15 @@ class AnswerService {
     }
   }
 
-  /// 답변 채택
-  Future<void> acceptAnswer(String id) async {
+  /// 답변 채택 (질문 작성자만 가능, 본인 답변 채택 불가)
+  Future<void> acceptAnswer(String answerId) async {
     try {
-      await _pb.collection(_collection).update(id, body: {'is_accepted': true});
-      AppLogger.data('Answer accepted: $id');
+      await _pb.send(
+        '/api/community/accept-answer',
+        method: 'POST',
+        body: {'answer_id': answerId},
+      );
+      AppLogger.data('Answer accepted: $answerId');
     } catch (e) {
       AppLogger.data('Failed to accept answer: $e', isError: true);
       rethrow;

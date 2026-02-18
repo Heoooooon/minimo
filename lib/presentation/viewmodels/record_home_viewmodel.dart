@@ -6,7 +6,10 @@ import 'base_viewmodel.dart';
 ///
 /// 캘린더와 기록 목록 데이터를 관리
 class RecordHomeViewModel extends CachingViewModel {
-  final RecordRepository _repository = PocketBaseRecordRepository.instance;
+  RecordHomeViewModel({RecordRepository? repository})
+    : _repository = repository ?? PocketBaseRecordRepository.instance;
+
+  final RecordRepository _repository;
 
   // 현재 월에서 기록이 있는 날짜들
   Set<DateTime> _datesWithRecords = {};

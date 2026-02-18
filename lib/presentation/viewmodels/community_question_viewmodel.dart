@@ -6,11 +6,16 @@ import '../../domain/models/record_data.dart';
 import 'base_viewmodel.dart';
 
 class CommunityQuestionViewModel extends BaseViewModel {
-  // PocketBase Repository 사용
-  final CommunityRepository _communityRepository =
-      PocketBaseCommunityRepository.instance;
-  final RecordRepository _recordRepository =
-      PocketBaseRecordRepository.instance;
+  CommunityQuestionViewModel({
+    CommunityRepository? communityRepository,
+    RecordRepository? recordRepository,
+  }) : _communityRepository =
+           communityRepository ?? PocketBaseCommunityRepository.instance,
+       _recordRepository =
+           recordRepository ?? PocketBaseRecordRepository.instance;
+
+  final CommunityRepository _communityRepository;
+  final RecordRepository _recordRepository;
 
   /// 내 기록 목록
   List<RecordData> _myRecords = [];

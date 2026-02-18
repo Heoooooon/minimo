@@ -1,6 +1,7 @@
 import 'package:pocketbase/pocketbase.dart';
 import 'pocketbase_service.dart';
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/pb_filter.dart';
 import '../../domain/models/comment_data.dart';
 
 /// 댓글 서비스
@@ -28,7 +29,7 @@ class CommentService {
           .getList(
             page: page,
             perPage: perPage,
-            filter: 'post = "$postId"',
+            filter: PbFilter.eq('post', postId),
             expand: 'author',
           );
 

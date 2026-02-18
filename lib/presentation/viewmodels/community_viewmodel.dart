@@ -1,4 +1,6 @@
+import '../../config/app_config.dart';
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/pb_filter.dart';
 import '../../data/services/auth_service.dart';
 import '../../data/services/community_service.dart';
 import '../../data/services/curious_service.dart';
@@ -15,15 +17,36 @@ import 'base_viewmodel.dart';
 ///
 /// 추천/팔로잉/Q&A 탭의 데이터를 관리
 class CommunityViewModel extends BaseViewModel {
-  CommunityViewModel() {
-    _init();
+  CommunityViewModel({
+    CommunityService? service,
+    CuriousService? curiousService,
+    FollowService? followService,
+    TagService? tagService,
+    required AuthService authService,
+    bool autoLoad = true,
+  }) : _service = service ?? CommunityService.instance,
+       _curiousService = curiousService ?? CuriousService.instance,
+       _followService = followService ?? FollowService.instance,
+       _tagService = tagService ?? TagService.instance,
+       _authService = authService {
+    if (autoLoad) {
+      _init();
+    }
   }
 
-  final CommunityService _service = CommunityService.instance;
-  final CuriousService _curiousService = CuriousService.instance;
-  final FollowService _followService = FollowService.instance;
-  final TagService _tagService = TagService.instance;
-  final AuthService _authService = AuthService.instance;
+  final CommunityService _service;
+  final CuriousService _curiousService;
+  final FollowService _followService;
+  final TagService _tagService;
+  final AuthService _authService;
+  static const List<String> _defaultRecommendTags = [
+    '#베타',
+    '#25큐브',
+    '#초보자',
+    '#구피',
+    '#안시',
+  ];
+  static const List<String> _defaultQnaTags = ['#25큐브', '#구피초보', '#물잡이', '#이끼'];
 
   // ==================== State ====================
 
@@ -71,190 +94,357 @@ class CommunityViewModel extends BaseViewModel {
   bool _isFilteringByTag = false;
   bool get isFilteringByTag => _isFilteringByTag;
 
+  // 탭 로드 캐시 (불필요한 재호출 방지)
+  bool _recommendLoaded = false;
+  bool _followingLoaded = false;
+  String? _followingLoadedUserId;
+  bool _qnaLoaded = false;
+  DateTime? _recommendLoadedAt;
+  DateTime? _followingLoadedAt;
+  DateTime? _qnaLoadedAt;
+  Future<void>? _recommendLoadInFlight;
+  Future<void>? _followingLoadInFlight;
+  Future<void>? _qnaLoadInFlight;
+
+  Duration get _recommendTabCacheTtl => Duration(
+    seconds: AppConfig.communityRecommendTabCacheTtlSeconds > 0
+        ? AppConfig.communityRecommendTabCacheTtlSeconds
+        : 60,
+  );
+  Duration get _followingTabCacheTtl => Duration(
+    seconds: AppConfig.communityFollowingTabCacheTtlSeconds > 0
+        ? AppConfig.communityFollowingTabCacheTtlSeconds
+        : 60,
+  );
+  Duration get _qnaTabCacheTtl => Duration(
+    seconds: AppConfig.communityQnaTabCacheTtlSeconds > 0
+        ? AppConfig.communityQnaTabCacheTtlSeconds
+        : 60,
+  );
+
   // ==================== Initialization ====================
   Future<void> _init() async {
     await loadRecommendTab();
   }
 
   // ==================== Recommend Tab ====================
-  Future<void> loadRecommendTab() async {
+  Future<void> loadRecommendTab({bool forceRefresh = false}) async {
+    if (!forceRefresh &&
+        _recommendLoaded &&
+        _isCacheFresh(_recommendLoadedAt, _recommendTabCacheTtl)) {
+      return;
+    }
+    if (_recommendLoadInFlight != null) {
+      await _recommendLoadInFlight;
+      return;
+    }
+
+    final inFlight = _loadRecommendTabInternal();
+    _recommendLoadInFlight = inFlight;
+    try {
+      await inFlight;
+    } finally {
+      if (identical(_recommendLoadInFlight, inFlight)) {
+        _recommendLoadInFlight = null;
+      }
+    }
+  }
+
+  Future<void> _loadRecommendTabInternal() async {
     await runAsync(() async {
-      // 커뮤니티 포스트 로딩 (sort 파라미터 임시 제거)
-      final posts = await _service.getPosts(perPage: 10);
+      final stopwatch = Stopwatch()..start();
+      int postsCount = 0;
+      int tagsCount = 0;
 
-      // 최신 게시글 변환
-      _latestPosts = posts
-          .map(
-            (post) => PostData(
-              id: post.id,
-              authorId: post.authorId,
-              authorName: post.authorName,
-              authorImageUrl: post.authorImageUrl,
-              timeAgo: post.timeAgo,
-              title: post.content.length > 30
-                  ? '${post.content.substring(0, 30)}...'
-                  : post.content,
-              content: post.content,
-              imageUrls: post.imageUrl != null ? [post.imageUrl!] : [],
-              tags: post.tags,
-              likeCount: post.likeCount,
-              commentCount: post.commentCount,
-              bookmarkCount: post.bookmarkCount,
-              isLiked: post.isLiked,
-              isBookmarked: post.isBookmarked,
-            ),
-          )
-          .toList();
+      try {
+        final postsFuture = _service.getPosts(perPage: 10);
+        final tagsFuture = _fetchPopularTagLabels(
+          fallback: _defaultRecommendTags,
+        );
 
-      // 추천 게시글 변환 (최신 3개)
-      final recommendPosts = posts.take(3);
-      _recommendationItems = recommendPosts
-          .map(
-            (post) => RecommendationData(
-              id: post.id,
-              title: post.content.length > 30
-                  ? '${post.content.substring(0, 30)}...'
-                  : post.content,
-              content: post.content,
-              authorName: post.authorName,
-              timeAgo: post.timeAgo,
-              imageUrl: post.imageUrl,
-            ),
-          )
-          .toList();
+        // 커뮤니티 포스트 로딩 (sort 파라미터 임시 제거)
+        final posts = await postsFuture;
+        _tags = await tagsFuture;
+        postsCount = posts.length;
+        tagsCount = _tags.length;
 
-      // 인기 랭킹 (첫 번째 게시글)
-      if (posts.isNotEmpty) {
-        final topPost = posts.first;
-        _popularRanking = PopularRankingData(
-          rank: 1,
-          title: topPost.content.length > 40
-              ? '${topPost.content.substring(0, 40)}...'
-              : topPost.content,
-          id: topPost.id,
+        // 최신 게시글 변환
+        _latestPosts = posts
+            .map(
+              (post) => PostData(
+                id: post.id,
+                authorId: post.authorId,
+                authorName: post.authorName,
+                authorImageUrl: post.authorImageUrl,
+                timeAgo: post.timeAgo,
+                title: post.content.length > 30
+                    ? '${post.content.substring(0, 30)}...'
+                    : post.content,
+                content: post.content,
+                imageUrls: post.imageUrl != null ? [post.imageUrl!] : [],
+                tags: post.tags,
+                likeCount: post.likeCount,
+                commentCount: post.commentCount,
+                bookmarkCount: post.bookmarkCount,
+                isLiked: post.isLiked,
+                isBookmarked: post.isBookmarked,
+              ),
+            )
+            .toList();
+
+        // 추천 게시글 변환 (최신 3개)
+        final recommendPosts = posts.take(3);
+        _recommendationItems = recommendPosts
+            .map(
+              (post) => RecommendationData(
+                id: post.id,
+                title: post.content.length > 30
+                    ? '${post.content.substring(0, 30)}...'
+                    : post.content,
+                content: post.content,
+                authorName: post.authorName,
+                timeAgo: post.timeAgo,
+                imageUrl: post.imageUrl,
+              ),
+            )
+            .toList();
+
+        // 인기 랭킹 (첫 번째 게시글)
+        if (posts.isNotEmpty) {
+          final topPost = posts.first;
+          _popularRanking = PopularRankingData(
+            rank: 1,
+            title: topPost.content.length > 40
+                ? '${topPost.content.substring(0, 40)}...'
+                : topPost.content,
+            id: topPost.id,
+          );
+        }
+
+        _recommendLoaded = true;
+        _recommendLoadedAt = DateTime.now();
+        return posts;
+      } finally {
+        stopwatch.stop();
+        AppLogger.perf(
+          'Community.loadRecommendTab',
+          stopwatch.elapsed,
+          fields: {'posts': postsCount, 'tags': tagsCount},
         );
       }
-
-      // 인기 태그 로딩 (TagService 연동)
-      await _loadPopularTags();
-
-      return posts;
     }, errorPrefix: '게시글을 불러오는데 실패했습니다');
   }
 
   // ==================== Following Tab ====================
-  Future<void> loadFollowingTab() async {
+  Future<void> loadFollowingTab({bool forceRefresh = false}) async {
+    final currentUserId = _authService.currentUser?.id;
+    if (!forceRefresh &&
+        _followingLoaded &&
+        _followingLoadedUserId == currentUserId &&
+        _isCacheFresh(_followingLoadedAt, _followingTabCacheTtl)) {
+      return;
+    }
+    if (_followingLoadInFlight != null) {
+      await _followingLoadInFlight;
+      return;
+    }
+
+    final inFlight = _loadFollowingTabInternal();
+    _followingLoadInFlight = inFlight;
+    try {
+      await inFlight;
+    } finally {
+      if (identical(_followingLoadInFlight, inFlight)) {
+        _followingLoadInFlight = null;
+      }
+    }
+  }
+
+  Future<void> _loadFollowingTabInternal() async {
     await runAsync(() async {
-      // 로그인 여부 확인
-      final currentUser = _authService.currentUser;
-      if (currentUser == null) {
-        _followingPosts = [];
-        return [];
+      final stopwatch = Stopwatch()..start();
+      int followingCount = 0;
+      int postsCount = 0;
+
+      try {
+        // 로그인 여부 확인
+        final currentUser = _authService.currentUser;
+        if (currentUser == null) {
+          _followingPosts = [];
+          _followingLoaded = true;
+          _followingLoadedUserId = null;
+          _followingLoadedAt = DateTime.now();
+          return [];
+        }
+
+        // 팔로잉 목록 조회
+        final followingIds = await _followService.getFollowing(
+          userId: currentUser.id,
+        );
+        followingCount = followingIds.length;
+
+        if (followingIds.isEmpty) {
+          _followingPosts = [];
+          _followingLoaded = true;
+          _followingLoadedUserId = currentUser.id;
+          _followingLoadedAt = DateTime.now();
+          return [];
+        }
+
+        // 팔로잉 사용자들의 게시글만 필터링
+        // PocketBase 필터: author_id IN (...)
+        final filterParts = followingIds
+            .map((id) => PbFilter.eq('author_id', id))
+            .toList();
+        final filter = filterParts.join(' || ');
+
+        final posts = await _service.getPosts(perPage: 20, filter: filter);
+        postsCount = posts.length;
+
+        _followingPosts = posts
+            .map(
+              (post) => PostData(
+                id: post.id,
+                authorId: post.authorId,
+                authorName: post.authorName,
+                authorImageUrl: post.authorImageUrl,
+                timeAgo: post.timeAgo,
+                title: post.content.length > 30
+                    ? '${post.content.substring(0, 30)}...'
+                    : post.content,
+                content: post.content,
+                imageUrls: post.imageUrl != null ? [post.imageUrl!] : [],
+                tags: post.tags,
+                likeCount: post.likeCount,
+                commentCount: post.commentCount,
+                bookmarkCount: post.bookmarkCount,
+                isLiked: post.isLiked,
+                isBookmarked: post.isBookmarked,
+              ),
+            )
+            .toList();
+
+        _followingLoaded = true;
+        _followingLoadedUserId = currentUser.id;
+        _followingLoadedAt = DateTime.now();
+        return posts;
+      } finally {
+        stopwatch.stop();
+        AppLogger.perf(
+          'Community.loadFollowingTab',
+          stopwatch.elapsed,
+          fields: {'following': followingCount, 'posts': postsCount},
+        );
       }
-
-      // 팔로잉 목록 조회
-      final followingIds = await _followService.getFollowing(
-        userId: currentUser.id,
-      );
-
-      if (followingIds.isEmpty) {
-        _followingPosts = [];
-        return [];
-      }
-
-      // 팔로잉 사용자들의 게시글만 필터링
-      // PocketBase 필터: author_id IN (...)
-      final filterParts = followingIds
-          .map((id) => 'author_id = "$id"')
-          .toList();
-      final filter = filterParts.join(' || ');
-
-      final posts = await _service.getPosts(perPage: 20, filter: filter);
-
-      _followingPosts = posts
-          .map(
-            (post) => PostData(
-              id: post.id,
-              authorId: post.authorId,
-              authorName: post.authorName,
-              authorImageUrl: post.authorImageUrl,
-              timeAgo: post.timeAgo,
-              title: post.content.length > 30
-                  ? '${post.content.substring(0, 30)}...'
-                  : post.content,
-              content: post.content,
-              imageUrls: post.imageUrl != null ? [post.imageUrl!] : [],
-              tags: post.tags,
-              likeCount: post.likeCount,
-              commentCount: post.commentCount,
-              bookmarkCount: post.bookmarkCount,
-              isLiked: post.isLiked,
-              isBookmarked: post.isBookmarked,
-            ),
-          )
-          .toList();
-
-      return posts;
     }, errorPrefix: '팔로잉 게시글을 불러오는데 실패했습니다');
   }
 
   // ==================== Q&A Tab ====================
-  Future<void> loadQnaTab() async {
+  Future<void> loadQnaTab({bool forceRefresh = false}) async {
+    if (!forceRefresh &&
+        _qnaLoaded &&
+        _isCacheFresh(_qnaLoadedAt, _qnaTabCacheTtl)) {
+      return;
+    }
+    if (_qnaLoadInFlight != null) {
+      await _qnaLoadInFlight;
+      return;
+    }
+
+    final inFlight = _loadQnaTabInternal();
+    _qnaLoadInFlight = inFlight;
+    try {
+      await inFlight;
+    } finally {
+      if (identical(_qnaLoadInFlight, inFlight)) {
+        _qnaLoadInFlight = null;
+      }
+    }
+  }
+
+  Future<void> _loadQnaTabInternal() async {
     await runAsync(() async {
-      // 질문 목록 로딩 (sort 파라미터 임시 제거)
-      final questions = await _service.getQuestions(perPage: 20);
+      final stopwatch = Stopwatch()..start();
+      int questionsCount = 0;
+      int tagsCount = 0;
 
-      // 인기 질문 (view_count 순 또는 최신)
-      final popularQuestions = List<QuestionData>.from(questions);
-      popularQuestions.sort((a, b) => b.viewCount.compareTo(a.viewCount));
+      try {
+        final questionsFuture = _service.getQuestions(perPage: 20);
+        final tagsFuture = _fetchPopularTagLabels(
+          category: 'qna',
+          fallback: _defaultQnaTags,
+        );
 
-      _popularQuestions = popularQuestions.take(3).toList().asMap().entries.map(
-        (entry) {
-          final index = entry.key;
-          final q = entry.value;
-          return QnaQuestionData(
-            id: q.id ?? '',
-            rank: index + 1,
-            title: q.title,
-            content: q.content,
-            answerCount: q.commentCount,
-            timeAgo: _formatTimeAgo(q.created),
+        // 질문 목록 로딩 (sort 파라미터 임시 제거)
+        final questions = await questionsFuture;
+        _qnaTags = await tagsFuture;
+        questionsCount = questions.length;
+        tagsCount = _qnaTags.length;
+
+        // 인기 질문 (view_count 순 또는 최신)
+        final popularQuestions = List<QuestionData>.from(questions);
+        popularQuestions.sort((a, b) => b.viewCount.compareTo(a.viewCount));
+
+        _popularQuestions = popularQuestions
+            .take(3)
+            .toList()
+            .asMap()
+            .entries
+            .map((entry) {
+              final index = entry.key;
+              final q = entry.value;
+              return QnaQuestionData(
+                id: q.id ?? '',
+                rank: index + 1,
+                title: q.title,
+                content: q.content,
+                answerCount: q.commentCount,
+                timeAgo: _formatTimeAgo(q.created),
+              );
+            })
+            .toList();
+
+        // Featured Question (랜덤 또는 최신)
+        if (questions.isNotEmpty) {
+          final featured = questions.first;
+          _featuredQuestion = QnaQuestionData(
+            id: featured.id ?? '',
+            title: featured.title,
+            content: featured.content,
+            tags: [featured.category],
           );
-        },
-      ).toList();
+        }
 
-      // Featured Question (랜덤 또는 최신)
-      if (questions.isNotEmpty) {
-        final featured = questions.first;
-        _featuredQuestion = QnaQuestionData(
-          id: featured.id ?? '',
-          title: featured.title,
-          content: featured.content,
-          tags: [featured.category],
+        // 답변 대기 질문 (댓글이 적은 순)
+        final waitingQuestions = List<QuestionData>.from(questions);
+        waitingQuestions.sort(
+          (a, b) => a.commentCount.compareTo(b.commentCount),
+        );
+
+        _waitingQuestions = waitingQuestions
+            .take(5)
+            .map(
+              (q) => QnaQuestionData(
+                id: q.id ?? '',
+                title: q.title,
+                content: q.content,
+                answerCount: q.commentCount,
+                timeAgo: _formatTimeAgo(q.created),
+              ),
+            )
+            .toList();
+
+        _qnaLoaded = true;
+        _qnaLoadedAt = DateTime.now();
+        return questions;
+      } finally {
+        stopwatch.stop();
+        AppLogger.perf(
+          'Community.loadQnaTab',
+          stopwatch.elapsed,
+          fields: {'questions': questionsCount, 'tags': tagsCount},
         );
       }
-
-      // 답변 대기 질문 (댓글이 적은 순)
-      final waitingQuestions = List<QuestionData>.from(questions);
-      waitingQuestions.sort((a, b) => a.commentCount.compareTo(b.commentCount));
-
-      _waitingQuestions = waitingQuestions
-          .take(5)
-          .map(
-            (q) => QnaQuestionData(
-              id: q.id ?? '',
-              title: q.title,
-              content: q.content,
-              answerCount: q.commentCount,
-              timeAgo: _formatTimeAgo(q.created),
-            ),
-          )
-          .toList();
-
-      // Q&A 인기 태그 로딩 (TagService 연동)
-      await _loadQnaTags();
-
-      return questions;
     }, errorPrefix: 'Q&A를 불러오는데 실패했습니다');
   }
 
@@ -271,7 +461,7 @@ class CommunityViewModel extends BaseViewModel {
 
       final questions = await _service.getQuestions(
         perPage: 20,
-        filter: 'author_id = "${currentUser.id}"',
+        filter: PbFilter.eq('author_id', currentUser.id),
       );
       _myQuestions = questions;
       notifyListeners();
@@ -319,7 +509,7 @@ class CommunityViewModel extends BaseViewModel {
 
   /// 새로고침
   Future<void> refreshAll() async {
-    await loadRecommendTab();
+    await loadRecommendTab(forceRefresh: true);
   }
 
   // ==================== Curious (궁금해요) ====================
@@ -380,7 +570,7 @@ class CommunityViewModel extends BaseViewModel {
       // JSON 배열 필터링: tags ~ "tagName"
       final posts = await _service.getPosts(
         perPage: 50,
-        filter: 'tags ~ "$cleanTag"',
+        filter: 'tags ~ "${PbFilter.sanitize(cleanTag)}"',
       );
 
       _filteredPosts = posts
@@ -420,38 +610,28 @@ class CommunityViewModel extends BaseViewModel {
 
   // ==================== Helpers ====================
 
-  /// 인기 태그 로딩 (TagService 연동)
-  Future<void> _loadPopularTags() async {
-    try {
-      final popularTags = await _tagService.getPopularTags(limit: 5);
-      if (popularTags.isNotEmpty) {
-        _tags = popularTags.map((tag) => '#${tag.name}').toList();
-      } else {
-        // 태그가 없으면 기본값 유지
-        _tags = ['#베타', '#25큐브', '#초보자', '#구피', '#안시'];
-      }
-    } catch (e) {
-      AppLogger.data('Failed to load popular tags: $e', isError: true);
-      // 에러 시 기본값 유지
-      _tags = ['#베타', '#25큐브', '#초보자', '#구피', '#안시'];
-    }
+  bool _isCacheFresh(DateTime? loadedAt, Duration ttl) {
+    if (loadedAt == null) return false;
+    return DateTime.now().difference(loadedAt) < ttl;
   }
 
-  /// Q&A 인기 태그 로딩
-  Future<void> _loadQnaTags() async {
+  /// 태그 목록 조회 + 폴백 적용
+  Future<List<String>> _fetchPopularTagLabels({
+    String? category,
+    required List<String> fallback,
+  }) async {
     try {
       final popularTags = await _tagService.getPopularTags(
         limit: 5,
-        category: 'qna',
+        category: category,
       );
       if (popularTags.isNotEmpty) {
-        _qnaTags = popularTags.map((tag) => '#${tag.name}').toList();
-      } else {
-        _qnaTags = ['#25큐브', '#구피초보', '#물잡이', '#이끼'];
+        return popularTags.map((tag) => '#${tag.name}').toList();
       }
+      return fallback;
     } catch (e) {
-      AppLogger.data('Failed to load QnA tags: $e', isError: true);
-      _qnaTags = ['#25큐브', '#구피초보', '#물잡이', '#이끼'];
+      AppLogger.data('Failed to load popular tags: $e', isError: true);
+      return fallback;
     }
   }
 

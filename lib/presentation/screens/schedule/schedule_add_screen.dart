@@ -183,7 +183,7 @@ class _ScheduleAddScreenState extends State<ScheduleAddScreen> {
                     '${_aquarium?.name ?? '어항'} - ${_selectedAlarmType.label}',
                 scheduledTime: scheduledDateTime,
                 repeatCycle: _selectedRepeatCycle,
-                payload: created.id,
+                payload: 'schedule:${created.id}:aquarium:${_aquarium?.id ?? ''}',
               );
             } catch (notificationError) {
               AppLogger.data(

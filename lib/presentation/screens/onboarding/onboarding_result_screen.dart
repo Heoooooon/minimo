@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../core/di/app_dependencies.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../data/services/onboarding_service.dart';
 import '../../../domain/models/onboarding_data.dart';
@@ -12,10 +14,7 @@ import '../main_shell.dart';
 class OnboardingResultScreen extends StatefulWidget {
   final OnboardingData data;
 
-  const OnboardingResultScreen({
-    super.key,
-    required this.data,
-  });
+  const OnboardingResultScreen({super.key, required this.data});
 
   @override
   State<OnboardingResultScreen> createState() => _OnboardingResultScreenState();
@@ -25,6 +24,9 @@ class _OnboardingResultScreenState extends State<OnboardingResultScreen> {
   late final ScrollController _scrollController;
   late final Timer _autoScrollTimer;
   late final UserLevel _userLevel;
+  late final AuthService _authService;
+  late final OnboardingService _onboardingService;
+  bool _isDependenciesReady = false;
 
   double _scrollOffset = 0;
   static const double _cardWidth = 136.8;
@@ -35,13 +37,24 @@ class _OnboardingResultScreenState extends State<OnboardingResultScreen> {
   void initState() {
     super.initState();
     _scrollController = ScrollController();
-    _userLevel = OnboardingService.instance.calculateUserLevel(widget.data);
 
     // 자동 스크롤 타이머
     _autoScrollTimer = Timer.periodic(
       const Duration(milliseconds: 16),
       (_) => _autoScroll(),
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_isDependenciesReady) return;
+
+    final dependencies = context.read<AppDependencies>();
+    _authService = dependencies.authService;
+    _onboardingService = dependencies.onboardingService;
+    _userLevel = _onboardingService.calculateUserLevel(widget.data);
+    _isDependenciesReady = true;
   }
 
   @override
@@ -65,7 +78,7 @@ class _OnboardingResultScreenState extends State<OnboardingResultScreen> {
   }
 
   String get _userName {
-    final user = AuthService.instance.currentUser;
+    final user = _authService.currentUser;
     return user?.getStringValue('name') ?? '사용자';
   }
 
@@ -99,10 +112,7 @@ class _OnboardingResultScreenState extends State<OnboardingResultScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Colors.white,
-              AppColors.backgroundApp,
-            ],
+            colors: [Colors.white, AppColors.backgroundApp],
             stops: const [0.0, 0.91],
           ),
         ),
@@ -116,9 +126,7 @@ class _OnboardingResultScreenState extends State<OnboardingResultScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: RichText(
                   text: TextSpan(
-                    style: AppTextStyles.headlineLarge.copyWith(
-                      height: 1.5,
-                    ),
+                    style: AppTextStyles.headlineLarge.copyWith(height: 1.5),
                     children: [
                       TextSpan(
                         text: _userName,
@@ -282,11 +290,7 @@ class _ResultCard extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            icon,
-            size: 62,
-            color: iconColor,
-          ),
+          Icon(icon, size: 62, color: iconColor),
           const SizedBox(height: 16),
           Text(
             text,

@@ -1,5 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../../data/services/creature_catalog_service.dart';
 import '../../../domain/models/aquarium_data.dart';
+import '../../../domain/models/creature_catalog_data.dart';
 import '../../../theme/app_colors.dart';
 import 'creature_register_screen.dart';
 
@@ -16,65 +21,20 @@ class CreatureSearchItem {
     required this.category,
     this.imageUrl,
   });
-}
 
-/// 하드코딩된 생물 데이터
-class CreatureDatabase {
-  static const List<CreatureSearchItem> suggestedCreatures = [
-    CreatureSearchItem(id: '1', name: '하프문 베타', category: '베타'),
-    CreatureSearchItem(id: '2', name: '니모', category: '해수어'),
-    CreatureSearchItem(id: '3', name: '구피', category: '구피'),
-    CreatureSearchItem(id: '4', name: '플라캣 베타', category: '베타'),
-    CreatureSearchItem(id: '5', name: '네온테트라', category: '테트라'),
-  ];
-
-  static const List<CreatureSearchItem> allCreatures = [
-    // 구피 종류
-    CreatureSearchItem(id: '3', name: '구피', category: '구피'),
-    CreatureSearchItem(id: '10', name: '알비노 풀레드', category: '구피'),
-    CreatureSearchItem(id: '11', name: '몽키 바나나', category: '구피'),
-    CreatureSearchItem(id: '12', name: '풀블랙', category: '구피'),
-    CreatureSearchItem(id: '13', name: '코이 글라스벨리', category: '구피'),
-    CreatureSearchItem(id: '14', name: '시크릿 바이올렛', category: '구피'),
-    CreatureSearchItem(id: '15', name: '블루 모자이크', category: '구피'),
-    CreatureSearchItem(id: '16', name: '레드 코브라', category: '구피'),
-
-    // 베타 종류
-    CreatureSearchItem(id: '1', name: '하프문 베타', category: '베타'),
-    CreatureSearchItem(id: '4', name: '플라캣 베타', category: '베타'),
-    CreatureSearchItem(id: '20', name: '크라운테일 베타', category: '베타'),
-    CreatureSearchItem(id: '21', name: '덤보 베타', category: '베타'),
-
-    // 테트라 종류
-    CreatureSearchItem(id: '5', name: '네온테트라', category: '테트라'),
-    CreatureSearchItem(id: '30', name: '카디날 테트라', category: '테트라'),
-    CreatureSearchItem(id: '31', name: '블랙 네온 테트라', category: '테트라'),
-
-    // 해수어
-    CreatureSearchItem(id: '2', name: '니모', category: '해수어'),
-    CreatureSearchItem(id: '40', name: '블루탱', category: '해수어'),
-    CreatureSearchItem(id: '41', name: '옐로우탱', category: '해수어'),
-
-    // 기타
-    CreatureSearchItem(id: '50', name: '금붕어', category: '금붕어'),
-    CreatureSearchItem(id: '51', name: '코리도라스', category: '코리도라스'),
-    CreatureSearchItem(id: '52', name: '플레코', category: '플레코'),
-  ];
-
-  static List<CreatureSearchItem> search(String query) {
-    if (query.isEmpty) return [];
-    final lowerQuery = query.toLowerCase();
-    return allCreatures
-        .where((c) =>
-            c.name.toLowerCase().contains(lowerQuery) ||
-            c.category.toLowerCase().contains(lowerQuery))
-        .toList();
+  factory CreatureSearchItem.fromCatalog(CreatureCatalogData catalog) {
+    return CreatureSearchItem(
+      id: catalog.id ?? '',
+      name: catalog.name,
+      category: catalog.category,
+      imageUrl: catalog.imageUrl,
+    );
   }
 }
 
 /// 생물 검색 화면
 ///
-/// Figma 디자인 기반 - 생물 검색 및 선택
+/// creature_catalog API를 사용하여 생물을 검색하고 선택합니다.
 class CreatureSearchScreen extends StatefulWidget {
   const CreatureSearchScreen({super.key});
 
@@ -83,18 +43,25 @@ class CreatureSearchScreen extends StatefulWidget {
 }
 
 class _CreatureSearchScreenState extends State<CreatureSearchScreen> {
-  final TextEditingController _searchController = TextEditingController();
-  List<CreatureSearchItem> _searchResults = [];
-  bool _isSearching = false;
-  AquariumData? _aquarium;
+  static const String _recentSearchesKey = 'creature_recent_searches';
 
-  // 최근 검색어 목록
-  final List<String> _recentSearches = ['청소 물고기', '구피', '니모', '플라캣 베타'];
+  final TextEditingController _searchController = TextEditingController();
+  final _catalogService = CreatureCatalogService.instance;
+
+  List<CreatureSearchItem> _searchResults = [];
+  List<CreatureSearchItem> _suggestions = [];
+  List<String> _recentSearches = [];
+  bool _isSearching = false;
+  bool _isLoading = false;
+  AquariumData? _aquarium;
+  Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
     _searchController.addListener(_onSearchChanged);
+    _loadRecentSearches();
+    _loadSuggestions();
   }
 
   @override
@@ -108,17 +75,72 @@ class _CreatureSearchScreenState extends State<CreatureSearchScreen> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     super.dispose();
   }
 
+  Future<void> _loadRecentSearches() async {
+    final prefs = await SharedPreferences.getInstance();
+    final searches = prefs.getStringList(_recentSearchesKey) ?? [];
+    if (mounted) {
+      setState(() => _recentSearches = searches);
+    }
+  }
+
+  Future<void> _saveRecentSearches() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_recentSearchesKey, _recentSearches);
+  }
+
+  Future<void> _loadSuggestions() async {
+    try {
+      final catalogs = await _catalogService.getSuggested(limit: 5);
+      if (mounted) {
+        setState(() {
+          _suggestions = catalogs
+              .map((c) => CreatureSearchItem.fromCatalog(c))
+              .toList();
+        });
+      }
+    } catch (_) {
+      // 추천 로딩 실패 시 무시
+    }
+  }
+
   void _onSearchChanged() {
     final query = _searchController.text;
-    setState(() {
-      _isSearching = query.isNotEmpty;
-      _searchResults = CreatureDatabase.search(query);
+    setState(() => _isSearching = query.isNotEmpty);
+
+    _debounce?.cancel();
+    if (query.isEmpty) {
+      setState(() => _searchResults = []);
+      return;
+    }
+
+    _debounce = Timer(const Duration(milliseconds: 300), () {
+      _performSearch(query);
     });
+  }
+
+  Future<void> _performSearch(String query) async {
+    setState(() => _isLoading = true);
+    try {
+      final catalogs = await _catalogService.search(query);
+      if (mounted) {
+        setState(() {
+          _searchResults = catalogs
+              .map((c) => CreatureSearchItem.fromCatalog(c))
+              .toList();
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   void _onSuggestionTap(CreatureSearchItem creature) {
@@ -128,14 +150,13 @@ class _CreatureSearchScreenState extends State<CreatureSearchScreen> {
 
   void _addToRecentSearches(String searchTerm) {
     setState(() {
-      // 이미 있으면 제거 후 맨 앞에 추가
       _recentSearches.remove(searchTerm);
       _recentSearches.insert(0, searchTerm);
-      // 최대 10개까지만 유지
       if (_recentSearches.length > 10) {
         _recentSearches.removeLast();
       }
     });
+    _saveRecentSearches();
   }
 
   void _onRecentSearchTap(String searchTerm) {
@@ -143,30 +164,30 @@ class _CreatureSearchScreenState extends State<CreatureSearchScreen> {
   }
 
   void _onRemoveRecentSearch(String searchTerm) {
-    setState(() {
-      _recentSearches.remove(searchTerm);
-    });
+    setState(() => _recentSearches.remove(searchTerm));
+    _saveRecentSearches();
   }
 
   void _onClearAllRecentSearches() {
-    setState(() {
-      _recentSearches.clear();
-    });
+    setState(() => _recentSearches.clear());
+    _saveRecentSearches();
   }
 
-  void _onCreatureSelect(CreatureSearchItem creature) async {
+  void _onCreatureSelect(CreatureSearchItem creature) {
     _addToRecentSearches(creature.name);
-    // 등록 화면으로 이동
+    Navigator.pop(context, creature);
+  }
+
+  void _onAddCreature() async {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => CreatureRegisterScreen(
           aquariumId: _aquarium?.id,
-          selectedCreature: creature,
+          creatureName: _searchController.text,
         ),
       ),
     );
-    // 등록 완료 시 이전 화면으로 돌아감
     if (result == true && mounted) {
       Navigator.pop(context, true);
     }
@@ -182,10 +203,8 @@ class _CreatureSearchScreenState extends State<CreatureSearchScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 24),
-            // 검색 입력 필드
             _buildSearchField(),
             const SizedBox(height: 24),
-            // 검색 결과 또는 기본 화면
             if (_isSearching)
               _buildSearchResults()
             else
@@ -238,7 +257,7 @@ class _CreatureSearchScreenState extends State<CreatureSearchScreen> {
               child: TextField(
                 controller: _searchController,
                 decoration: const InputDecoration(
-                  hintText: 'Text Area',
+                  hintText: '생물 이름을 검색하세요',
                   hintStyle: TextStyle(
                     fontFamily: 'WantedSans',
                     fontSize: 16,
@@ -262,11 +281,13 @@ class _CreatureSearchScreenState extends State<CreatureSearchScreen> {
             ),
             Padding(
               padding: const EdgeInsets.only(right: 16),
-              child: Icon(
-                Icons.search,
-                color: AppColors.textMain,
-                size: 24,
-              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.search, color: AppColors.textMain, size: 24),
             ),
           ],
         ),
@@ -278,13 +299,11 @@ class _CreatureSearchScreenState extends State<CreatureSearchScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 최근 검색어 섹션
         if (_recentSearches.isNotEmpty) ...[
           _buildRecentSearchSection(),
           const SizedBox(height: 32),
         ],
-        // 추천 생물 섹션
-        _buildSuggestions(),
+        if (_suggestions.isNotEmpty) _buildSuggestions(),
       ],
     );
   }
@@ -293,7 +312,6 @@ class _CreatureSearchScreenState extends State<CreatureSearchScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 헤더
         Padding(
           padding: const EdgeInsets.only(left: 16),
           child: Row(
@@ -331,7 +349,6 @@ class _CreatureSearchScreenState extends State<CreatureSearchScreen> {
           ),
         ),
         const SizedBox(height: 24),
-        // 최근 검색어 칩들
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Wrap(
@@ -411,7 +428,7 @@ class _CreatureSearchScreenState extends State<CreatureSearchScreen> {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: CreatureDatabase.suggestedCreatures
+            children: _suggestions
                 .map((creature) => _buildSuggestionChip(creature))
                 .toList(),
           ),
@@ -432,7 +449,6 @@ class _CreatureSearchScreenState extends State<CreatureSearchScreen> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 생물 이미지 (원형)
             Container(
               width: 32,
               height: 32,
@@ -440,11 +456,21 @@ class _CreatureSearchScreenState extends State<CreatureSearchScreen> {
                 color: const Color(0xFF3D5A80),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.pets,
-                color: Colors.white,
-                size: 18,
-              ),
+              child: creature.imageUrl != null
+                  ? ClipOval(
+                      child: Image.network(
+                        creature.imageUrl!,
+                        fit: BoxFit.cover,
+                        width: 32,
+                        height: 32,
+                        errorBuilder: (_, _, _) => const Icon(
+                          Icons.pets,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                      ),
+                    )
+                  : const Icon(Icons.pets, color: Colors.white, size: 18),
             ),
             const SizedBox(width: 8),
             Text(
@@ -464,24 +490,16 @@ class _CreatureSearchScreenState extends State<CreatureSearchScreen> {
     );
   }
 
-  void _onAddCreature() async {
-    // 검색어를 기반으로 새 생물 등록 화면으로 이동
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => CreatureRegisterScreen(
-          aquariumId: _aquarium?.id,
-          creatureName: _searchController.text,
-        ),
-      ),
-    );
-    // 등록 완료 시 이전 화면으로 돌아감
-    if (result == true && mounted) {
-      Navigator.pop(context, true);
-    }
-  }
-
   Widget _buildSearchResults() {
+    if (_isLoading && _searchResults.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(40),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     if (_searchResults.isEmpty) {
       return _buildEmptySearchResult();
     }
@@ -507,7 +525,6 @@ class _CreatureSearchScreenState extends State<CreatureSearchScreen> {
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Row(
         children: [
-          // 생물 이미지
           Container(
             width: 48,
             height: 48,
@@ -515,15 +532,23 @@ class _CreatureSearchScreenState extends State<CreatureSearchScreen> {
               color: const Color(0xFF3D5A80),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.pets,
-              color: Colors.white,
-              size: 24,
-            ),
+            child: creature.imageUrl != null
+                ? ClipOval(
+                    child: Image.network(
+                      creature.imageUrl!,
+                      fit: BoxFit.cover,
+                      width: 48,
+                      height: 48,
+                      errorBuilder: (_, _, _) => const Icon(
+                        Icons.pets,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                  )
+                : const Icon(Icons.pets, color: Colors.white, size: 24),
           ),
           const SizedBox(width: 12),
-
-          // 생물 정보
           Expanded(
             child: Row(
               children: [
@@ -553,8 +578,6 @@ class _CreatureSearchScreenState extends State<CreatureSearchScreen> {
               ],
             ),
           ),
-
-          // 선택 버튼
           GestureDetector(
             onTap: () => _onCreatureSelect(creature),
             child: Text(
@@ -602,15 +625,11 @@ class _CreatureSearchScreenState extends State<CreatureSearchScreen> {
                 color: AppColors.brand,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Row(
+              child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(
-                    Icons.add,
-                    color: Colors.white,
-                    size: 24,
-                  ),
+                children: [
+                  Icon(Icons.add, color: Colors.white, size: 24),
                   SizedBox(width: 8),
                   Text(
                     '생물 추가하기',

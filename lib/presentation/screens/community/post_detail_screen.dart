@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../../core/di/app_dependencies.dart';
 import '../../../data/services/comment_service.dart';
 import '../../../data/services/community_service.dart';
 import '../../../data/services/auth_service.dart';
@@ -21,9 +22,11 @@ class PostDetailScreen extends StatefulWidget {
 }
 
 class _PostDetailScreenState extends State<PostDetailScreen> {
-  final CommentService _commentService = CommentService.instance;
-  final CommunityService _communityService = CommunityService.instance;
-  final FollowService _followService = FollowService.instance;
+  late final AppDependencies _dependencies;
+  late final CommentService _commentService;
+  late final CommunityService _communityService;
+  late final FollowService _followService;
+  late final AuthService _authService;
   final TextEditingController _commentController = TextEditingController();
   final FocusNode _commentFocusNode = FocusNode();
 
@@ -40,13 +43,26 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   bool _isFollowLoading = false;
   int _currentImageIndex = 0;
   final PageController _pageController = PageController();
+  bool _isDependenciesReady = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadPost();
-    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_isDependenciesReady) return;
+
+    _dependencies = context.read<AppDependencies>();
+    _commentService = _dependencies.commentService;
+    _communityService = _dependencies.communityService;
+    _followService = _dependencies.followService;
+    _authService = _dependencies.authService;
+    _isDependenciesReady = true;
+
+    _loadPost();
   }
 
   @override
@@ -120,7 +136,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   Future<void> _checkFollowStatus() async {
     if (_authorId == null || _authorId!.isEmpty) return;
 
-    final currentUser = AuthService.instance.currentUser;
+    final currentUser = _authService.currentUser;
     if (currentUser == null) return;
 
     // 자기 자신은 팔로우 불가
@@ -142,7 +158,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   Future<void> _toggleFollow() async {
     if (_authorId == null || _authorId!.isEmpty) return;
 
-    final currentUser = AuthService.instance.currentUser;
+    final currentUser = _authService.currentUser;
     if (currentUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -244,7 +260,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
     try {
       // 현재 사용자 이름 가져오기
-      final currentUser = AuthService.instance.currentUser;
+      final currentUser = _authService.currentUser;
       final userName = currentUser?.getStringValue('name') ?? '익명';
 
       final commentData = CommentData(
@@ -473,8 +489,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           ),
 
           // 팔로우 버튼 (자기 자신이 아닌 경우에만 표시)
-          if (_authorId != null &&
-              _authorId != AuthService.instance.currentUser?.id)
+          if (_authorId != null && _authorId != _authService.currentUser?.id)
             TextButton(
               onPressed: _isFollowLoading ? null : _toggleFollow,
               style: TextButton.styleFrom(
@@ -950,7 +965,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   }
 
   void _showOptions() {
-    final currentUser = AuthService.instance.currentUser;
+    final currentUser = _authService.currentUser;
     final isAuthor = currentUser != null && _authorId == currentUser.id;
 
     showModalBottomSheet(
@@ -1214,18 +1229,25 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              ...reasons.map(
-                (reason) => RadioListTile<String>(
-                  title: Text(reason),
-                  value: reason,
-                  groupValue: selectedReason,
-                  onChanged: (value) {
-                    setState(() {
-                      selectedReason = value;
-                    });
-                  },
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
+              RadioGroup<String>(
+                groupValue: selectedReason ?? '',
+                onChanged: (value) {
+                  setState(() {
+                    selectedReason = value;
+                  });
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: reasons
+                      .map(
+                        (reason) => RadioListTile<String>(
+                          title: Text(reason),
+                          value: reason,
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                        ),
+                      )
+                      .toList(),
                 ),
               ),
             ],

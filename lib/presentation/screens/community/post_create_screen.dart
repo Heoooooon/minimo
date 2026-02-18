@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import '../../../core/di/app_dependencies.dart';
 import '../../../data/services/community_service.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../data/services/tag_service.dart';
@@ -18,8 +19,10 @@ class PostCreateScreen extends StatefulWidget {
 }
 
 class _PostCreateScreenState extends State<PostCreateScreen> {
-  final CommunityService _service = CommunityService.instance;
-  final TagService _tagService = TagService.instance;
+  late final AppDependencies _dependencies;
+  late final CommunityService _service;
+  late final TagService _tagService;
+  late final AuthService _authService;
   final TextEditingController _contentController = TextEditingController();
   final TextEditingController _tagController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
@@ -31,12 +34,26 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
   bool _isSubmitting = false;
   bool _isLoadingTags = false;
   bool _showTagSearch = false;
+  bool _isDependenciesReady = false;
   static const int _maxImages = 5;
   static const int _maxTags = 5;
 
   @override
   void initState() {
     super.initState();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_isDependenciesReady) return;
+
+    _dependencies = context.read<AppDependencies>();
+    _service = _dependencies.communityService;
+    _tagService = _dependencies.tagService;
+    _authService = _dependencies.authService;
+    _isDependenciesReady = true;
+
     _loadPopularTags();
   }
 
@@ -202,7 +219,7 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
 
     try {
       // 현재 사용자 정보 가져오기 (없으면 익명)
-      final currentUser = AuthService.instance.currentUser;
+      final currentUser = _authService.currentUser;
       final userId = currentUser?.id ?? '';
       final userName = currentUser?.getStringValue('name') ?? '익명';
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/di/app_dependencies.dart';
 import '../../domain/models/record_data.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_text_styles.dart';
@@ -34,7 +35,9 @@ class _CommunityQuestionScreenState extends State<CommunityQuestionScreen> {
   @override
   void initState() {
     super.initState();
-    _viewModel = CommunityQuestionViewModel();
+    _viewModel = context
+        .read<AppDependencies>()
+        .createCommunityQuestionViewModel();
     // 내 기록 불러오기
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _viewModel.loadMyRecords();
@@ -143,7 +146,9 @@ class _CommunityQuestionScreenState extends State<CommunityQuestionScreen> {
                   child: Text(
                     '등록',
                     style: AppTextStyles.bodyMediumMedium.copyWith(
-                      color: _isFormValid ? AppColors.brand : AppColors.disabledText,
+                      color: _isFormValid
+                          ? AppColors.brand
+                          : AppColors.disabledText,
                     ),
                   ),
                 ),
@@ -383,93 +388,92 @@ class _CommunityQuestionScreenState extends State<CommunityQuestionScreen> {
             Expanded(
               child: viewModel.isLoading
                   ? const Center(
-                      child: CircularProgressIndicator(color: AppColors.brand))
+                      child: CircularProgressIndicator(color: AppColors.brand),
+                    )
                   : viewModel.myRecords.isEmpty
-                      ? Center(
-                          child: Text(
-                            '저장된 기록이 없습니다.',
-                            style: AppTextStyles.bodyMedium.copyWith(
-                              color: AppColors.textSubtle,
-                            ),
-                          ),
-                        )
-                      : ListView.separated(
-                          controller: scrollController,
-                          padding: const EdgeInsets.all(20),
-                          itemCount: viewModel.myRecords.length,
-                          separatorBuilder: (context, index) =>
-                              const SizedBox(height: 12),
-                          itemBuilder: (context, index) {
-                            final record = viewModel.myRecords[index];
-                            final isAttached = _attachedRecords.any(
-                              (r) => r.id == record.id,
-                            );
+                  ? Center(
+                      child: Text(
+                        '저장된 기록이 없습니다.',
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.textSubtle,
+                        ),
+                      ),
+                    )
+                  : ListView.separated(
+                      controller: scrollController,
+                      padding: const EdgeInsets.all(20),
+                      itemCount: viewModel.myRecords.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        final record = viewModel.myRecords[index];
+                        final isAttached = _attachedRecords.any(
+                          (r) => r.id == record.id,
+                        );
 
-                            return InkWell(
-                              onTap: isAttached
-                                  ? null
-                                  : () => _attachRecord(record),
+                        return InkWell(
+                          onTap: isAttached
+                              ? null
+                              : () => _attachRecord(record),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: isAttached
+                                  ? AppColors.chipPrimaryBg
+                                  : AppColors.backgroundSurface,
                               borderRadius: BorderRadius.circular(12),
-                              child: Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: isAttached
-                                      ? AppColors.chipPrimaryBg
-                                      : AppColors.backgroundSurface,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: isAttached
-                                        ? AppColors.brand
-                                        : AppColors.border,
+                              border: Border.all(
+                                color: isAttached
+                                    ? AppColors.brand
+                                    : AppColors.border,
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _formatDate(record.date),
+                                  style: AppTextStyles.captionRegular.copyWith(
+                                    color: AppColors.textSubtle,
                                   ),
                                 ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                const SizedBox(height: 4),
+                                Row(
                                   children: [
-                                    Text(
-                                      _formatDate(record.date),
-                                      style: AppTextStyles.captionRegular
-                                          .copyWith(
-                                        color: AppColors.textSubtle,
+                                    Expanded(
+                                      child: Text(
+                                        record.content,
+                                        style: AppTextStyles.bodyMediumMedium,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: Text(
-                                            record.content,
-                                            style:
-                                                AppTextStyles.bodyMediumMedium,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        if (isAttached)
-                                          const Icon(
-                                            Icons.check_circle,
-                                            color: AppColors.brand,
-                                            size: 20,
-                                          ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Wrap(
-                                      spacing: 6,
-                                      runSpacing: 4,
-                                      children: record.tags.map((tag) {
-                                        return AppChip(
-                                          label: tag.label,
-                                          type: AppChipType.primary,
-                                        );
-                                      }).toList(),
-                                    ),
+                                    if (isAttached)
+                                      const Icon(
+                                        Icons.check_circle,
+                                        color: AppColors.brand,
+                                        size: 20,
+                                      ),
                                   ],
                                 ),
-                              ),
-                            );
-                          },
-                        ),
+                                const SizedBox(height: 8),
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 4,
+                                  children: record.tags.map((tag) {
+                                    return AppChip(
+                                      label: tag.label,
+                                      type: AppChipType.primary,
+                                    );
+                                  }).toList(),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
             ),
           ],
         );

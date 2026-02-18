@@ -1,7 +1,6 @@
 import 'package:pocketbase/pocketbase.dart';
 import 'package:http/http.dart' as http;
 import 'pocketbase_service.dart';
-import 'auth_service.dart';
 import '../../domain/models/question_data.dart';
 import '../../presentation/widgets/home/community_card.dart';
 import '../../core/utils/app_logger.dart';
@@ -19,6 +18,8 @@ class CommunityService {
 
   static const String _questionsCollection = 'questions';
   static const String _postsCollection = 'community_posts';
+
+  String? get _currentUserId => _pb.authStore.record?.id;
 
   // ==================== Questions (Q&A) ====================
 
@@ -63,7 +64,7 @@ class CommunityService {
   }
 
   Future<QuestionData> createQuestion(QuestionData data) async {
-    final userId = AuthService.instance.currentUser?.id;
+    final userId = _currentUserId;
     if (userId == null) {
       throw Exception('로그인이 필요합니다.');
     }
@@ -121,6 +122,7 @@ class CommunityService {
       );
     } catch (e) {
       AppLogger.data('Failed to increment view count: $e', isError: true);
+      rethrow;
     }
   }
 
@@ -160,7 +162,7 @@ class CommunityService {
     String? imagePath,
     List<String>? tags,
   }) async {
-    final userId = AuthService.instance.currentUser?.id;
+    final userId = _currentUserId;
     if (userId == null) {
       throw Exception('로그인이 필요합니다.');
     }
@@ -281,6 +283,7 @@ class CommunityService {
       );
     } catch (e) {
       AppLogger.data('Failed to toggle like: $e', isError: true);
+      rethrow;
     }
   }
 
@@ -293,6 +296,7 @@ class CommunityService {
       );
     } catch (e) {
       AppLogger.data('Failed to toggle bookmark: $e', isError: true);
+      rethrow;
     }
   }
 

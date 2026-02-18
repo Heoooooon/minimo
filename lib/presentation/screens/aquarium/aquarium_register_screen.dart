@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/di/app_dependencies.dart';
 import '../../../domain/models/aquarium_data.dart';
 import '../../../theme/app_colors.dart';
 import '../../../theme/app_text_styles.dart';
@@ -52,7 +53,9 @@ class _AquariumRegisterScreenState extends State<AquariumRegisterScreen> {
     // Step 3
     _notesController = TextEditingController();
     // ViewModel
-    _viewModel = AquariumRegisterViewModel();
+    _viewModel = context
+        .read<AppDependencies>()
+        .createAquariumRegisterViewModel();
   }
 
   @override

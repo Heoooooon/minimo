@@ -1,5 +1,6 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../../core/utils/app_logger.dart';
+import '../../main.dart' show navigatorKey;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:permission_handler/permission_handler.dart';
@@ -54,10 +55,24 @@ class NotificationService {
     AppLogger.ui('NotificationService initialized');
   }
 
-  /// 알림 탭 시 콜백
+  /// 알림 탭 시 콜백 - 해당 어항 상세 화면으로 이동
   void _onNotificationTap(NotificationResponse response) {
     AppLogger.ui('Notification tapped: ${response.payload}');
-    // TODO: 알림 탭 시 해당 일정 상세 화면으로 이동
+
+    final payload = response.payload;
+    if (payload == null || payload.isEmpty) return;
+
+    final navigator = navigatorKey.currentState;
+    if (navigator == null) return;
+
+    // payload 형식: "schedule:<scheduleId>:aquarium:<aquariumId>"
+    if (payload.startsWith('schedule:')) {
+      final parts = payload.split(':');
+      if (parts.length >= 4 && parts[2] == 'aquarium') {
+        final aquariumId = parts[3];
+        navigator.pushNamed('/aquarium/detail', arguments: aquariumId);
+      }
+    }
   }
 
   /// 알림 권한 요청

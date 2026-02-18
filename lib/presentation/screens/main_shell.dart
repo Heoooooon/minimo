@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import '../../data/services/data_backup_service.dart';
 import '../widgets/common/bottom_nav_bar.dart';
 import 'home_screen.dart';
 import 'aquarium/aquarium_list_screen.dart';
 import 'record_home_screen.dart';
 import 'community/community_screen.dart';
-import '../../theme/app_colors.dart';
-import '../../theme/app_text_styles.dart';
+import 'settings/settings_screen.dart';
 
 /// 메인 셸 화면
 ///
@@ -17,7 +17,7 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   int _currentTabIndex = 0;
   // ignore: unused_field - 탭 전환 애니메이션 방향 결정용 (추후 활용)
   int _previousTabIndex = 0;
@@ -34,13 +34,27 @@ class _MainShellState extends State<MainShell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _screens = [
       HomeContent(key: _homeKey),
       AquariumListScreen(key: _aquariumListKey),
       RecordHomeScreen(key: _recordHomeKey),
       const CommunityScreen(),
-      const _PlaceholderScreen(title: '설정'),
+      const SettingsScreen(),
     ];
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      DataBackupService.instance.performAutoBackupIfNeeded();
+    }
   }
 
   void _onTabSelected(NavTab tab) {
@@ -82,33 +96,6 @@ class _MainShellState extends State<MainShell> {
       bottomNavigationBar: AppBottomNavBar(
         currentTab: NavTab.values[_currentTabIndex],
         onTabSelected: _onTabSelected,
-      ),
-    );
-  }
-}
-
-/// 플레이스홀더 화면 (추후 구현 예정)
-class _PlaceholderScreen extends StatelessWidget {
-  const _PlaceholderScreen({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.backgroundSurface,
-      appBar: AppBar(
-        backgroundColor: AppColors.backgroundSurface,
-        elevation: 0,
-        centerTitle: true,
-        title: Text(title, style: AppTextStyles.bodyMediumMedium),
-      ),
-      body: Center(
-        child: Text(
-          '$title 화면\n(추후 구현)',
-          textAlign: TextAlign.center,
-          style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSubtle),
-        ),
       ),
     );
   }

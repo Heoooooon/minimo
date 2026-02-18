@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import '../../../core/utils/app_logger.dart';
+import '../../../core/di/app_dependencies.dart';
 import '../../../data/services/community_service.dart';
 import '../../../data/services/answer_service.dart';
 import '../../../data/services/auth_service.dart';
@@ -18,8 +21,10 @@ class QuestionDetailScreen extends StatefulWidget {
 }
 
 class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
-  final CommunityService _service = CommunityService.instance;
-  final AnswerService _answerService = AnswerService.instance;
+  late final AppDependencies _dependencies;
+  late final CommunityService _service;
+  late final AnswerService _answerService;
+  late final AuthService _authService;
   final TextEditingController _answerController = TextEditingController();
   final FocusNode _answerFocusNode = FocusNode();
 
@@ -30,13 +35,25 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
   bool _isLoadingAnswers = false;
   String? _errorMessage;
   bool _isSubmitting = false;
+  bool _isDependenciesReady = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadQuestion();
-    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_isDependenciesReady) return;
+
+    _dependencies = context.read<AppDependencies>();
+    _service = _dependencies.communityService;
+    _answerService = _dependencies.answerService;
+    _authService = _dependencies.authService;
+    _isDependenciesReady = true;
+
+    _loadQuestion();
   }
 
   @override
@@ -114,7 +131,7 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
 
     try {
       // 현재 사용자 이름 가져오기
-      final currentUser = AuthService.instance.currentUser;
+      final currentUser = _authService.currentUser;
       final userName = currentUser?.getStringValue('name') ?? '익명';
 
       final answerData = AnswerData(
@@ -587,22 +604,48 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
           ),
           const SizedBox(height: 12),
 
-          // 좋아요 버튼
+          // 좋아요 + 채택 버튼
           Row(
             children: [
               GestureDetector(
                 onTap: () async {
                   if (answer.id != null) {
-                    await _answerService.toggleLike(answer.id!, true);
-                    _loadAnswers();
+                    // 낙관적 업데이트
+                    final newCount = answer.likeCount + 1;
+                    setState(() {
+                      final idx = _answers.indexWhere((a) => a.id == answer.id);
+                      if (idx != -1) {
+                        _answers[idx] = AnswerData(
+                          id: answer.id,
+                          questionId: answer.questionId,
+                          authorId: answer.authorId,
+                          authorName: answer.authorName,
+                          content: answer.content,
+                          likeCount: newCount,
+                          isAccepted: answer.isAccepted,
+                          created: answer.created,
+                        );
+                      }
+                    });
+                    try {
+                      await _answerService.toggleLike(answer.id!, true);
+                      _loadAnswers();
+                    } catch (e) {
+                      // 실패 시 롤백
+                      _loadAnswers();
+                    }
                   }
                 },
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.favorite_border,
+                    Icon(
+                      answer.likeCount > 0
+                          ? Icons.favorite
+                          : Icons.favorite_border,
                       size: 18,
-                      color: AppColors.textHint,
+                      color: answer.likeCount > 0
+                          ? AppColors.error
+                          : AppColors.textHint,
                     ),
                     const SizedBox(width: 4),
                     Text(
@@ -614,6 +657,30 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
                   ],
                 ),
               ),
+              // 채택 버튼: 질문 작성자만 보이고, 본인 답변은 제외, 아직 채택 안된 경우만
+              if (_canAcceptAnswer(answer)) ...[
+                const SizedBox(width: 16),
+                GestureDetector(
+                  onTap: () => _acceptAnswer(answer),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: AppColors.brand),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '채택하기',
+                      style: AppTextStyles.captionMedium.copyWith(
+                        color: AppColors.brand,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
         ],
@@ -673,7 +740,9 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: AppColors.brand,
+                color: _isSubmitting
+                    ? AppColors.brand.withValues(alpha: 0.5)
+                    : AppColors.brand,
                 shape: BoxShape.circle,
               ),
               child: _isSubmitting
@@ -719,6 +788,71 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
         ),
       ),
     );
+  }
+
+  /// 현재 사용자가 이 답변을 채택할 수 있는지 확인
+  bool _canAcceptAnswer(AnswerData answer) {
+    final currentUserId = _authService.currentUser?.id;
+    if (currentUserId == null || _question == null) return false;
+
+    // 질문 작성자만 채택 가능
+    if (_question!.ownerId != currentUserId) return false;
+
+    // 본인 답변은 채택 불가
+    if (answer.authorId == currentUserId) return false;
+
+    // 이미 채택된 답변이 있으면 채택 버튼 숨김
+    if (_answers.any((a) => a.isAccepted)) return false;
+
+    return true;
+  }
+
+  Future<void> _acceptAnswer(AnswerData answer) async {
+    if (answer.id == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('답변 채택'),
+        content: const Text('이 답변을 채택하시겠습니까?\n채택 후에는 변경할 수 없습니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('취소', style: TextStyle(color: AppColors.textSubtle)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.brand),
+            child: const Text('채택', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await _answerService.acceptAnswer(answer.id!);
+      await _loadAnswers();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('답변이 채택되었습니다.'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('답변 채택에 실패했습니다.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
   }
 
   String _formatTimeAgo(DateTime? dateTime) {
@@ -774,18 +908,25 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              ...reasons.map(
-                (reason) => RadioListTile<String>(
-                  title: Text(reason),
-                  value: reason,
-                  groupValue: selectedReason,
-                  onChanged: (value) {
-                    setState(() {
-                      selectedReason = value;
-                    });
-                  },
-                  contentPadding: EdgeInsets.zero,
-                  dense: true,
+              RadioGroup<String>(
+                groupValue: selectedReason ?? '',
+                onChanged: (value) {
+                  setState(() {
+                    selectedReason = value;
+                  });
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: reasons
+                      .map(
+                        (reason) => RadioListTile<String>(
+                          title: Text(reason),
+                          value: reason,
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                        ),
+                      )
+                      .toList(),
                 ),
               ),
             ],
@@ -819,18 +960,13 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
   void _shareQuestion() {
     if (_questionId == null) return;
 
-    // 딥링크 또는 앱 링크 생성 (실제 구현 시 share_plus 패키지 사용)
     final shareUrl = 'minimo://question/$_questionId';
+    Clipboard.setData(ClipboardData(text: shareUrl));
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('링크가 복사되었습니다: $shareUrl'),
+      const SnackBar(
+        content: Text('링크가 클립보드에 복사되었습니다.'),
         backgroundColor: AppColors.success,
-        action: SnackBarAction(
-          label: '확인',
-          textColor: Colors.white,
-          onPressed: () {},
-        ),
       ),
     );
   }

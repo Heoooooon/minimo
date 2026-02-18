@@ -1,8 +1,8 @@
 import 'package:pocketbase/pocketbase.dart';
 import 'pocketbase_service.dart';
-import 'auth_service.dart';
 import '../../domain/models/record_data.dart';
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/pb_filter.dart';
 
 /// 기록 관리 서비스
 ///
@@ -16,6 +16,10 @@ class RecordService {
   PocketBase get _pb => PocketBaseService.instance.client;
 
   static const String _collection = 'records';
+  static const int _dailyMaxRecords = 200;
+  static const int _monthlyMaxRecords = 500;
+
+  String? get _currentUserId => _pb.authStore.record?.id;
 
   /// 기록 목록 조회
   Future<List<RecordData>> getRecords({
@@ -46,19 +50,9 @@ class RecordService {
     return getRecords(
       page: page,
       perPage: perPage,
-      filter: 'aquarium = "$aquariumId"',
+      filter: PbFilter.eq('aquarium', aquariumId),
       sort: sort,
     );
-  }
-
-  /// PocketBase용 날짜 포맷 (YYYY-MM-DD HH:MM:SS)
-  String _formatDateForPocketBase(DateTime date) {
-    return '${date.year.toString().padLeft(4, '0')}-'
-        '${date.month.toString().padLeft(2, '0')}-'
-        '${date.day.toString().padLeft(2, '0')} '
-        '${date.hour.toString().padLeft(2, '0')}:'
-        '${date.minute.toString().padLeft(2, '0')}:'
-        '${date.second.toString().padLeft(2, '0')}';
   }
 
   /// 특정 날짜의 기록 조회
@@ -66,10 +60,9 @@ class RecordService {
     final startOfDay = DateTime(date.year, date.month, date.day);
     final endOfDay = startOfDay.add(const Duration(days: 1));
 
-    final filter =
-        'date >= "${_formatDateForPocketBase(startOfDay)}" && date < "${_formatDateForPocketBase(endOfDay)}"';
+    final filter = PbFilter.dateRange('date', startOfDay, endOfDay);
 
-    return getRecords(filter: filter, perPage: 100, sort: '-date');
+    return getRecords(filter: filter, perPage: _dailyMaxRecords, sort: '-date');
   }
 
   /// 특정 날짜와 어항의 기록 조회
@@ -80,14 +73,40 @@ class RecordService {
     final startOfDay = DateTime(date.year, date.month, date.day);
     final endOfDay = startOfDay.add(const Duration(days: 1));
 
-    String filter =
-        'date >= "${_formatDateForPocketBase(startOfDay)}" && date < "${_formatDateForPocketBase(endOfDay)}"';
+    String filter = PbFilter.dateRange('date', startOfDay, endOfDay);
 
     if (aquariumId != null && aquariumId.isNotEmpty) {
-      filter += ' && aquarium = "$aquariumId"';
+      filter += ' && ${PbFilter.eq('aquarium', aquariumId)}';
     }
 
-    return getRecords(filter: filter, perPage: 100, sort: '-date');
+    return getRecords(filter: filter, perPage: _dailyMaxRecords, sort: '-date');
+  }
+
+  /// 특정 날짜 + 어항 + 생물 + 타입별 기록 조회
+  Future<List<RecordData>> getRecordsByDateAquariumAndCreature(
+    DateTime date,
+    String? aquariumId, {
+    String? creatureId,
+    String? recordType,
+  }) async {
+    final startOfDay = DateTime(date.year, date.month, date.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+
+    String filter = PbFilter.dateRange('date', startOfDay, endOfDay);
+
+    if (aquariumId != null && aquariumId.isNotEmpty) {
+      filter += ' && ${PbFilter.eq('aquarium', aquariumId)}';
+    }
+
+    if (creatureId != null && creatureId.isNotEmpty) {
+      filter += ' && ${PbFilter.eq('creature', creatureId)}';
+    }
+
+    if (recordType != null && recordType.isNotEmpty) {
+      filter += ' && ${PbFilter.eq('record_type', recordType)}';
+    }
+
+    return getRecords(filter: filter, perPage: _dailyMaxRecords, sort: '-date');
   }
 
   /// 기록 완료 상태 업데이트
@@ -109,12 +128,21 @@ class RecordService {
       final startOfMonth = DateTime(month.year, month.month, 1);
       final endOfMonth = DateTime(month.year, month.month + 1, 0, 23, 59, 59);
 
-      final filter =
-          'date >= "${_formatDateForPocketBase(startOfMonth)}" && date <= "${_formatDateForPocketBase(endOfMonth)}"';
+      final filter = PbFilter.dateRange(
+        'date',
+        startOfMonth,
+        endOfMonth.add(const Duration(seconds: 1)),
+      );
+      // endOfMonth에 1초 추가하여 <= 효과 달성 (dateRange는 < 연산)
 
       final result = await _pb
           .collection(_collection)
-          .getList(page: 1, perPage: 100, filter: filter, sort: 'date');
+          .getList(
+            page: 1,
+            perPage: _monthlyMaxRecords,
+            filter: filter,
+            sort: 'date',
+          );
 
       // 날짜만 추출하고 중복 제거
       final dates = <DateTime>{};
@@ -145,7 +173,7 @@ class RecordService {
   }
 
   Future<RecordData> createRecord(RecordData data) async {
-    final userId = AuthService.instance.currentUser?.id;
+    final userId = _currentUserId;
     if (userId == null) {
       throw Exception('로그인이 필요합니다.');
     }
@@ -213,10 +241,17 @@ class RecordService {
           .toList();
     }
 
+    final creatureRaw = record.getStringValue('creature');
+    final recordTypeRaw = record.getStringValue('record_type');
+
     return RecordData(
       id: record.id,
       ownerId: record.getStringValue('owner'),
       aquariumId: record.getStringValue('aquarium'),
+      creatureId: creatureRaw.isNotEmpty ? creatureRaw : null,
+      recordType: RecordType.fromValue(
+        recordTypeRaw.isNotEmpty ? recordTypeRaw : null,
+      ),
       date: DateTime.tryParse(record.getStringValue('date')) ?? DateTime.now(),
       tags: tags,
       content: record.getStringValue('content'),

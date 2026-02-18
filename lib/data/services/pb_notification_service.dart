@@ -1,8 +1,9 @@
 import 'package:pocketbase/pocketbase.dart';
+import '../../config/app_config.dart';
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/pb_filter.dart';
 import '../../domain/models/notification_data.dart';
 import 'pocketbase_service.dart';
-import 'auth_service.dart';
 
 class PbNotificationService {
   PbNotificationService._();
@@ -10,8 +11,12 @@ class PbNotificationService {
   static PbNotificationService? _instance;
   static PbNotificationService get instance =>
       _instance ??= PbNotificationService._();
+  int get _deleteConcurrency => AppConfig.notificationDeleteConcurrency > 0
+      ? AppConfig.notificationDeleteConcurrency
+      : 10;
 
   PocketBase get _pb => PocketBaseService.instance.client;
+  String? get _currentUserId => _pb.authStore.record?.id;
 
   Future<List<NotificationData>> getNotifications({
     int page = 1,
@@ -19,10 +24,10 @@ class PbNotificationService {
     bool unreadOnly = false,
   }) async {
     try {
-      final userId = AuthService.instance.currentUser?.id;
+      final userId = _currentUserId;
       if (userId == null) return [];
 
-      String filter = 'user = "$userId"';
+      String filter = PbFilter.eq('user', userId);
       if (unreadOnly) {
         filter += ' && is_read = false';
       }
@@ -48,7 +53,7 @@ class PbNotificationService {
 
   Future<int> getUnreadCount() async {
     try {
-      final userId = AuthService.instance.currentUser?.id;
+      final userId = _currentUserId;
       if (userId == null) return 0;
 
       final result = await _pb.send(
@@ -96,21 +101,55 @@ class PbNotificationService {
   }
 
   Future<bool> deleteAllNotifications() async {
+    final stopwatch = Stopwatch()..start();
+    String? userId;
+    bool hasError = false;
+    int deletedCount = 0;
+    int batchCount = 0;
+
     try {
-      final userId = AuthService.instance.currentUser?.id;
+      userId = _currentUserId;
       if (userId == null) return false;
 
-      final all = await _pb
-          .collection('notifications')
-          .getFullList(filter: 'user = "$userId"');
+      final filter = PbFilter.eq('user', userId);
 
-      for (final notification in all) {
-        await _pb.collection('notifications').delete(notification.id);
+      // 페이지네이션 배치 삭제 (한 번에 전체를 메모리에 올리지 않음)
+      while (true) {
+        final batch = await _pb
+            .collection('notifications')
+            .getList(page: 1, perPage: 100, filter: filter);
+
+        if (batch.items.isEmpty) break;
+        batchCount++;
+
+        for (int i = 0; i < batch.items.length; i += _deleteConcurrency) {
+          final chunk = batch.items.skip(i).take(_deleteConcurrency).toList();
+          await Future.wait(
+            chunk.map((notification) {
+              return _pb.collection('notifications').delete(notification.id);
+            }),
+          );
+          deletedCount += chunk.length;
+        }
       }
       return true;
     } catch (e) {
+      hasError = true;
       AppLogger.data('Failed to delete all notifications: $e', isError: true);
       return false;
+    } finally {
+      stopwatch.stop();
+      AppLogger.perf(
+        'Notification.deleteAll',
+        stopwatch.elapsed,
+        fields: {
+          'deleted': deletedCount,
+          'batches': batchCount,
+          'concurrency': _deleteConcurrency,
+          'hasUser': userId != null,
+        },
+        isError: hasError,
+      );
     }
   }
 }

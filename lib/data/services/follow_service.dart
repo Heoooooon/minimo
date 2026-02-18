@@ -1,6 +1,7 @@
 import 'package:pocketbase/pocketbase.dart';
 import 'pocketbase_service.dart';
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/pb_filter.dart';
 
 /// 팔로우 데이터 모델
 class FollowData {
@@ -84,7 +85,7 @@ class FollowService {
           .getList(
             page: page,
             perPage: perPage,
-            filter: 'follower = "$userId"',
+            filter: PbFilter.eq('follower', userId),
             sort: '-created',
           );
 
@@ -109,7 +110,7 @@ class FollowService {
           .getList(
             page: page,
             perPage: perPage,
-            filter: 'following = "$userId"',
+            filter: PbFilter.eq('following', userId),
             sort: '-created',
           );
 
@@ -127,7 +128,7 @@ class FollowService {
     try {
       final result = await _pb
           .collection(_collection)
-          .getList(page: 1, perPage: 1, filter: 'follower = "$userId"');
+          .getList(page: 1, perPage: 1, filter: PbFilter.eq('follower', userId));
       return result.totalItems;
     } catch (e) {
       AppLogger.data('Failed to get following count: $e', isError: true);
@@ -140,7 +141,7 @@ class FollowService {
     try {
       final result = await _pb
           .collection(_collection)
-          .getList(page: 1, perPage: 1, filter: 'following = "$userId"');
+          .getList(page: 1, perPage: 1, filter: PbFilter.eq('following', userId));
       return result.totalItems;
     } catch (e) {
       AppLogger.data('Failed to get followers count: $e', isError: true);
@@ -161,7 +162,7 @@ class FollowService {
           .getList(
             page: 1,
             perPage: 1,
-            filter: 'follower = "$followerId" && following = "$followingId"',
+            filter: '${PbFilter.eq('follower', followerId)} && ${PbFilter.eq('following', followingId)}',
           );
 
       if (result.items.isNotEmpty) {

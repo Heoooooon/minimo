@@ -1,8 +1,8 @@
 import 'package:pocketbase/pocketbase.dart';
 import 'pocketbase_service.dart';
-import 'auth_service.dart';
 import '../../domain/models/schedule_data.dart';
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/pb_filter.dart';
 
 /// 일정 관리 서비스
 ///
@@ -14,6 +14,7 @@ class ScheduleService {
   static ScheduleService get instance => _instance ??= ScheduleService._();
 
   PocketBase get _pb => PocketBaseService.instance.client;
+  String? get _currentUserId => _pb.authStore.record?.id;
 
   static const String _collection = 'schedules';
 
@@ -21,10 +22,9 @@ class ScheduleService {
   Future<List<ScheduleData>> getDailySchedule(DateTime date) async {
     try {
       // 날짜 범위로 필터링 - 날짜만 비교 (시간 무시)
-      final dateStr =
-          '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-      final filter =
-          'date >= "$dateStr 00:00:00" && date < "$dateStr 23:59:59"';
+      final startOfDay = DateTime(date.year, date.month, date.day);
+      final endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59);
+      final filter = PbFilter.dateRange('date', startOfDay, endOfDay);
 
       final result = await _pb
           .collection(_collection)
@@ -69,12 +69,12 @@ class ScheduleService {
     return getAllSchedules(
       page: page,
       perPage: perPage,
-      filter: 'aquarium = "$aquariumId"',
+      filter: PbFilter.eq('aquarium', aquariumId),
     );
   }
 
   Future<ScheduleData> createSchedule(ScheduleData data) async {
-    final userId = AuthService.instance.currentUser?.id;
+    final userId = _currentUserId;
     if (userId == null) {
       throw Exception('로그인이 필요합니다.');
     }

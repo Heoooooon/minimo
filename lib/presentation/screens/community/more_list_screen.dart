@@ -227,7 +227,7 @@ class _MoreListScreenState extends State<MoreListScreen> {
           onCuriousTap: () async {
             final isCurious = await viewModel.toggleCurious(question.id);
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
+              ScaffoldMessenger.of(this.context).showSnackBar(
                 SnackBar(
                   content: Text(isCurious ? '궁금해요를 눌렀습니다' : '궁금해요를 취소했습니다'),
                   duration: const Duration(seconds: 1),

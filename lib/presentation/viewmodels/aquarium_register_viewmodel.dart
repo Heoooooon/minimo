@@ -13,7 +13,11 @@ import 'base_viewmodel.dart';
 /// - Step 3: 추가 정보 (목적, 비고)
 /// - Step 4: 대표 사진 등록
 class AquariumRegisterViewModel extends BaseViewModel {
-  AquariumRegisterViewModel();
+  AquariumRegisterViewModel({
+    AquariumRepository? repository,
+    ImagePicker? picker,
+  }) : _repository = repository ?? PocketBaseAquariumRepository.instance,
+       _picker = picker ?? ImagePicker();
 
   /// 편집 모드 여부
   bool _isEditMode = false;
@@ -35,10 +39,9 @@ class AquariumRegisterViewModel extends BaseViewModel {
   Uint8List? get photoBytes => _photoBytes;
 
   /// ImagePicker 인스턴스
-  final ImagePicker _picker = ImagePicker();
+  final ImagePicker _picker;
 
-  /// PocketBase Repository 사용
-  final AquariumRepository _repository = PocketBaseAquariumRepository.instance;
+  final AquariumRepository _repository;
 
   // ==================== Step Navigation ====================
 

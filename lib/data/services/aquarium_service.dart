@@ -1,9 +1,9 @@
 import 'package:pocketbase/pocketbase.dart';
 import 'package:http/http.dart' as http;
 import 'pocketbase_service.dart';
-import 'auth_service.dart';
 import '../../core/exceptions/app_exceptions.dart';
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/pb_filter.dart';
 import '../../domain/models/aquarium_data.dart';
 
 /// 어항 관리 서비스
@@ -19,6 +19,8 @@ class AquariumService {
 
   static const String _collection = 'aquariums';
 
+  String? get _currentUserId => _pb.authStore.record?.id;
+
   /// 모든 어항 목록 조회 (현재 사용자 소유)
   Future<List<AquariumData>> getAquariums({
     int page = 1,
@@ -27,8 +29,10 @@ class AquariumService {
     String? sort,
   }) async {
     try {
-      final userId = AuthService.instance.currentUser?.id;
-      String? ownerFilter = userId != null ? 'owner = "$userId"' : null;
+      final userId = _currentUserId;
+      String? ownerFilter = userId != null
+          ? PbFilter.eq('owner', userId)
+          : null;
 
       // 기존 필터와 owner 필터 결합
       String? combinedFilter;
@@ -69,8 +73,8 @@ class AquariumService {
   /// 모든 어항 전체 목록 조회 (현재 사용자 소유)
   Future<List<AquariumData>> getAllAquariums({String? sort}) async {
     try {
-      final userId = AuthService.instance.currentUser?.id;
-      final filter = userId != null ? 'owner = "$userId"' : null;
+      final userId = _currentUserId;
+      final filter = userId != null ? PbFilter.eq('owner', userId) : null;
 
       final records = await _pb
           .collection(_collection)
@@ -135,7 +139,7 @@ class AquariumService {
       throw ValidationException.required('어항 이름');
     }
 
-    final userId = AuthService.instance.currentUser?.id;
+    final userId = _currentUserId;
     if (userId == null) {
       throw AuthException(message: '로그인이 필요합니다.');
     }

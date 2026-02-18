@@ -270,7 +270,7 @@ void main() {
             page: 1,
             perPage: 20,
             filter: 'tags ~ "구피"',
-            sort: '',
+            sort: null,
           ),
         ).called(1);
       });
@@ -279,61 +279,70 @@ void main() {
     group('toggleLike', () {
       test('좋아요를 추가한다', () async {
         // Arrange
-        final mockRecord = RecordModel({'id': 'post_1', 'like_count': 10});
-
         when(
-          () => mockRecordService.getOne(any()),
-        ).thenAnswer((_) async => mockRecord);
-        when(
-          () => mockRecordService.update(any(), body: any(named: 'body')),
-        ).thenAnswer((_) async => mockRecord);
+          () => mockPocketBase.send(
+            any(),
+            method: any(named: 'method'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((_) async => {'liked': true, 'like_count': 11});
 
         // Act
         await communityService.toggleLike('post_1', true);
 
         // Assert
         verify(
-          () => mockRecordService.update('post_1', body: {'like_count': 11}),
+          () => mockPocketBase.send(
+            '/api/community/toggle-like',
+            method: 'POST',
+            body: {'target_id': 'post_1', 'target_type': 'post'},
+          ),
         ).called(1);
       });
 
       test('좋아요를 취소한다', () async {
         // Arrange
-        final mockRecord = RecordModel({'id': 'post_1', 'like_count': 10});
-
         when(
-          () => mockRecordService.getOne(any()),
-        ).thenAnswer((_) async => mockRecord);
-        when(
-          () => mockRecordService.update(any(), body: any(named: 'body')),
-        ).thenAnswer((_) async => mockRecord);
+          () => mockPocketBase.send(
+            any(),
+            method: any(named: 'method'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((_) async => {'liked': false, 'like_count': 9});
 
         // Act
         await communityService.toggleLike('post_1', false);
 
         // Assert
         verify(
-          () => mockRecordService.update('post_1', body: {'like_count': 9}),
+          () => mockPocketBase.send(
+            '/api/community/toggle-like',
+            method: 'POST',
+            body: {'target_id': 'post_1', 'target_type': 'post'},
+          ),
         ).called(1);
       });
 
       test('좋아요 수가 0 이하로 내려가지 않는다', () async {
         // Arrange
-        final mockRecord = RecordModel({'id': 'post_1', 'like_count': 0});
-
         when(
-          () => mockRecordService.getOne(any()),
-        ).thenAnswer((_) async => mockRecord);
-        when(
-          () => mockRecordService.update(any(), body: any(named: 'body')),
-        ).thenAnswer((_) async => mockRecord);
+          () => mockPocketBase.send(
+            any(),
+            method: any(named: 'method'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((_) async => {'liked': false, 'like_count': 0});
 
         // Act
         await communityService.toggleLike('post_1', false);
 
         // Assert
         verify(
-          () => mockRecordService.update('post_1', body: {'like_count': 0}),
+          () => mockPocketBase.send(
+            '/api/community/toggle-like',
+            method: 'POST',
+            body: {'target_id': 'post_1', 'target_type': 'post'},
+          ),
         ).called(1);
       });
     });
@@ -341,21 +350,24 @@ void main() {
     group('toggleBookmark', () {
       test('북마크를 추가한다', () async {
         // Arrange
-        final mockRecord = RecordModel({'id': 'post_1', 'bookmark_count': 5});
-
         when(
-          () => mockRecordService.getOne(any()),
-        ).thenAnswer((_) async => mockRecord);
-        when(
-          () => mockRecordService.update(any(), body: any(named: 'body')),
-        ).thenAnswer((_) async => mockRecord);
+          () => mockPocketBase.send(
+            any(),
+            method: any(named: 'method'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((_) async => {'bookmarked': true, 'bookmark_count': 6});
 
         // Act
         await communityService.toggleBookmark('post_1', true);
 
         // Assert
         verify(
-          () => mockRecordService.update('post_1', body: {'bookmark_count': 6}),
+          () => mockPocketBase.send(
+            '/api/community/toggle-bookmark',
+            method: 'POST',
+            body: {'post_id': 'post_1', 'bookmarked': true},
+          ),
         ).called(1);
       });
     });
@@ -363,22 +375,24 @@ void main() {
     group('incrementViewCount', () {
       test('조회수를 증가시킨다', () async {
         // Arrange
-        final mockRecord = RecordModel({'id': 'question_1', 'view_count': 100});
-
         when(
-          () => mockRecordService.getOne(any()),
-        ).thenAnswer((_) async => mockRecord);
-        when(
-          () => mockRecordService.update(any(), body: any(named: 'body')),
-        ).thenAnswer((_) async => mockRecord);
+          () => mockPocketBase.send(
+            any(),
+            method: any(named: 'method'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((_) async => {'success': true});
 
         // Act
         await communityService.incrementViewCount('question_1');
 
         // Assert
         verify(
-          () =>
-              mockRecordService.update('question_1', body: {'view_count': 101}),
+          () => mockPocketBase.send(
+            '/api/community/increment-view',
+            method: 'POST',
+            body: {'id': 'question_1', 'type': 'question'},
+          ),
         ).called(1);
       });
     });

@@ -1,5 +1,6 @@
 import 'package:pocketbase/pocketbase.dart';
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/pb_filter.dart';
 import '../../domain/models/creature_data.dart';
 import 'pocketbase_service.dart';
 
@@ -22,7 +23,7 @@ class CreatureMemoService {
     try {
       final records = await _client
           .collection(_collection)
-          .getFullList(filter: 'creature_id = "$creatureId"');
+          .getFullList(filter: PbFilter.eq('creature_id', creatureId));
 
       return records.map((r) => CreatureMemoData.fromJson(r.toJson())).toList();
     } catch (e) {
@@ -89,7 +90,7 @@ class CreatureMemoService {
     try {
       final result = await _client
           .collection(_collection)
-          .getList(page: 1, perPage: 1, filter: 'creature_id = "$creatureId"');
+          .getList(page: 1, perPage: 1, filter: PbFilter.eq('creature_id', creatureId));
       return result.totalItems;
     } catch (e) {
       AppLogger.data('Failed to get memo count: $e', isError: true);

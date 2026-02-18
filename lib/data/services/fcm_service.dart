@@ -3,7 +3,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import '../../core/utils/app_logger.dart';
 import 'pocketbase_service.dart';
-import 'auth_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -19,6 +18,9 @@ class FcmService {
 
   // Firebase 초기화 후에만 접근 (lazy initialization)
   FirebaseMessaging get _messaging => FirebaseMessaging.instance;
+  bool get _isLoggedIn => PocketBaseService.instance.client.authStore.isValid;
+  String? get _currentUserId =>
+      PocketBaseService.instance.client.authStore.record?.id;
 
   String? _fcmToken;
   String? get fcmToken => _fcmToken;
@@ -71,7 +73,7 @@ class FcmService {
       if (_fcmToken != null) {
         AppLogger.data('FCM Token: $_fcmToken');
 
-        if (AuthService.instance.isLoggedIn) {
+        if (_isLoggedIn) {
           await _saveFcmTokenToServer(_fcmToken!);
         }
       }
@@ -80,7 +82,7 @@ class FcmService {
     _messaging.onTokenRefresh.listen((newToken) async {
       _fcmToken = newToken;
       AppLogger.data('FCM Token refreshed: $newToken');
-      if (AuthService.instance.isLoggedIn) {
+      if (_isLoggedIn) {
         await _saveFcmTokenToServer(newToken);
       }
     });
@@ -100,7 +102,7 @@ class FcmService {
 
   Future<void> _saveFcmTokenToServer(String token) async {
     try {
-      final userId = AuthService.instance.currentUser?.id;
+      final userId = _currentUserId;
       if (userId == null) return;
 
       final client = PocketBaseService.instance.client;
@@ -139,7 +141,7 @@ class FcmService {
 
   Future<void> clearTokenOnLogout() async {
     try {
-      final userId = AuthService.instance.currentUser?.id;
+      final userId = _currentUserId;
       if (userId == null) return;
 
       final client = PocketBaseService.instance.client;

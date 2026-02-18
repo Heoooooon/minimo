@@ -1,10 +1,11 @@
 import 'dart:io';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:http/http.dart' as http;
+import '../../config/app_config.dart';
 import '../../core/utils/app_logger.dart';
+import '../../core/utils/pb_filter.dart';
 import '../../domain/models/gallery_photo_data.dart';
 import 'pocketbase_service.dart';
-import 'auth_service.dart';
 
 /// 갤러리 사진 관리 서비스
 ///
@@ -15,9 +16,13 @@ class GalleryPhotoService {
   static GalleryPhotoService? _instance;
   static GalleryPhotoService get instance =>
       _instance ??= GalleryPhotoService._();
+  int get _batchConcurrency => AppConfig.galleryBatchConcurrency > 0
+      ? AppConfig.galleryBatchConcurrency
+      : 3;
 
   PocketBase get _client => PocketBaseService.instance.client;
   String get _baseUrl => PocketBaseService.serverUrl;
+  String? get _currentUserId => _client.authStore.record?.id;
 
   static const String _collection = 'gallery_photos';
 
@@ -29,14 +34,12 @@ class GalleryPhotoService {
     int? limit,
   }) async {
     try {
-      String filter = 'aquarium_id = "$aquariumId"';
+      String filter = PbFilter.eq('aquarium_id', aquariumId);
       if (creatureId != null) {
-        filter += ' && creature_id = "$creatureId"';
+        filter += ' && ${PbFilter.eq('creature_id', creatureId)}';
       }
 
       final sort = newestFirst ? '-photo_date' : 'photo_date';
-
-      List<RecordModel> records;
       if (limit != null) {
         final result = await _client
             .collection(_collection)
@@ -47,12 +50,16 @@ class GalleryPhotoService {
               sort: sort,
               expand: 'creature_id',
             );
-        records = result.items;
-      } else {
-        records = await _client
-            .collection(_collection)
-            .getFullList(filter: filter, sort: sort, expand: 'creature_id');
+        return result.items
+            .map(
+              (r) => GalleryPhotoData.fromJson(r.toJson(), baseUrl: _baseUrl),
+            )
+            .toList();
       }
+
+      final records = await _client
+          .collection(_collection)
+          .getFullList(filter: filter, sort: sort, expand: 'creature_id');
 
       return records
           .map((r) => GalleryPhotoData.fromJson(r.toJson(), baseUrl: _baseUrl))
@@ -73,7 +80,10 @@ class GalleryPhotoService {
 
       final records = await _client
           .collection(_collection)
-          .getFullList(filter: 'creature_id = "$creatureId"', sort: sort);
+          .getFullList(
+            filter: PbFilter.eq('creature_id', creatureId),
+            sort: sort,
+          );
 
       return records
           .map((r) => GalleryPhotoData.fromJson(r.toJson(), baseUrl: _baseUrl))
@@ -102,7 +112,7 @@ class GalleryPhotoService {
       throw ArgumentError('Image file is required');
     }
 
-    final userId = AuthService.instance.currentUser?.id;
+    final userId = _currentUserId;
     if (userId == null) {
       throw Exception('로그인이 필요합니다.');
     }
@@ -139,22 +149,48 @@ class GalleryPhotoService {
     String? creatureId,
     DateTime? photoDate,
   }) async {
+    final stopwatch = Stopwatch()..start();
+    bool hasError = false;
+    int uploadedCount = 0;
     final results = <GalleryPhotoData>[];
     final date = photoDate ?? DateTime.now();
 
-    for (final filePath in filePaths) {
-      final photo = GalleryPhotoData(
-        aquariumId: aquariumId,
-        creatureId: creatureId,
-        imageFile: filePath,
-        photoDate: date,
+    try {
+      for (int i = 0; i < filePaths.length; i += _batchConcurrency) {
+        final chunk = filePaths.skip(i).take(_batchConcurrency);
+        final uploadedChunk = await Future.wait(
+          chunk.map((filePath) {
+            final photo = GalleryPhotoData(
+              aquariumId: aquariumId,
+              creatureId: creatureId,
+              imageFile: filePath,
+              photoDate: date,
+            );
+            return uploadPhoto(photo);
+          }),
+        );
+        uploadedCount += uploadedChunk.length;
+        results.addAll(uploadedChunk);
+      }
+
+      return results;
+    } catch (_) {
+      hasError = true;
+      rethrow;
+    } finally {
+      stopwatch.stop();
+      AppLogger.perf(
+        'Gallery.uploadPhotos',
+        stopwatch.elapsed,
+        fields: {
+          'requested': filePaths.length,
+          'uploaded': uploadedCount,
+          'concurrency': _batchConcurrency,
+          if (creatureId != null) 'creatureId': creatureId,
+        },
+        isError: hasError,
       );
-
-      final uploaded = await uploadPhoto(photo);
-      results.add(uploaded);
     }
-
-    return results;
   }
 
   /// 사진 수정 (메타데이터만)
@@ -187,17 +223,40 @@ class GalleryPhotoService {
 
   /// 여러 사진 삭제
   Future<void> deletePhotos(List<String> ids) async {
-    for (final id in ids) {
-      await deletePhoto(id);
+    final stopwatch = Stopwatch()..start();
+    bool hasError = false;
+    int deletedCount = 0;
+
+    try {
+      for (int i = 0; i < ids.length; i += _batchConcurrency) {
+        final chunk = ids.skip(i).take(_batchConcurrency).toList();
+        await Future.wait(chunk.map(deletePhoto));
+        deletedCount += chunk.length;
+      }
+    } catch (_) {
+      hasError = true;
+      rethrow;
+    } finally {
+      stopwatch.stop();
+      AppLogger.perf(
+        'Gallery.deletePhotos',
+        stopwatch.elapsed,
+        fields: {
+          'requested': ids.length,
+          'deleted': deletedCount,
+          'concurrency': _batchConcurrency,
+        },
+        isError: hasError,
+      );
     }
   }
 
   /// 어항별 사진 수 조회
   Future<int> getPhotoCount(String aquariumId, {String? creatureId}) async {
     try {
-      String filter = 'aquarium_id = "$aquariumId"';
+      String filter = PbFilter.eq('aquarium_id', aquariumId);
       if (creatureId != null) {
-        filter += ' && creature_id = "$creatureId"';
+        filter += ' && ${PbFilter.eq('creature_id', creatureId)}';
       }
 
       final result = await _client
