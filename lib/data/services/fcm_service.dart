@@ -1,13 +1,52 @@
 import 'dart:io';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../../core/utils/app_logger.dart';
+import '../../main.dart' show navigatorKey;
+import 'notification_service.dart';
 import 'pocketbase_service.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
   AppLogger.data('Background message: ${message.messageId}');
+
+  // 백그라운드에서 로컬 알림 표시
+  final notification = message.notification;
+  if (notification == null) return;
+
+  const androidDetails = AndroidNotificationDetails(
+    'fcm_channel',
+    '알림',
+    channelDescription: '서버 푸시 알림',
+    importance: Importance.high,
+    priority: Priority.high,
+    icon: '@mipmap/ic_launcher',
+  );
+  const iosDetails = DarwinNotificationDetails(
+    presentAlert: true,
+    presentBadge: true,
+    presentSound: true,
+  );
+  const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
+
+  final plugin = FlutterLocalNotificationsPlugin();
+  await plugin.show(
+    message.hashCode,
+    notification.title,
+    notification.body,
+    details,
+    payload: _buildPayloadFromData(message.data),
+  );
+}
+
+/// FCM data를 로컬 알림 payload 문자열로 변환
+String? _buildPayloadFromData(Map<String, dynamic> data) {
+  final targetType = data['target_type'] as String?;
+  final targetId = data['target_id'] as String?;
+  if (targetType == null || targetId == null) return null;
+  return '$targetType:$targetId';
 }
 
 class FcmService {
@@ -117,10 +156,55 @@ class FcmService {
 
   void _handleForegroundMessage(RemoteMessage message) {
     AppLogger.data('Foreground message: ${message.notification?.title}');
+
+    final notification = message.notification;
+    if (notification == null) return;
+
+    // 포그라운드에서 로컬 알림으로 표시
+    final NotificationService notificationService;
+    try {
+      notificationService = NotificationService.instance;
+    } catch (_) {
+      return;
+    }
+    notificationService.showNotification(
+      id: message.hashCode,
+      title: notification.title ?? '',
+      body: notification.body ?? '',
+      payload: _buildPayloadFromData(message.data),
+    );
   }
 
   void _handleMessageOpenedApp(RemoteMessage message) {
     AppLogger.data('Message opened app: ${message.data}');
+    _navigateByData(message.data);
+  }
+
+  /// FCM 데이터 기반 딥링크 네비게이션
+  void _navigateByData(Map<String, dynamic> data) {
+    final navigator = navigatorKey.currentState;
+    if (navigator == null) return;
+
+    final targetType = data['target_type'] as String?;
+    final targetId = data['target_id'] as String?;
+    if (targetType == null || targetId == null) {
+      navigator.pushNamed('/notifications');
+      return;
+    }
+
+    switch (targetType) {
+      case 'question':
+        navigator.pushNamed('/question-detail', arguments: targetId);
+        break;
+      case 'post':
+        navigator.pushNamed('/post-detail', arguments: targetId);
+        break;
+      case 'user':
+        navigator.pushNamed('/notifications');
+        break;
+      default:
+        navigator.pushNamed('/notifications');
+    }
   }
 
   Future<void> subscribeToTopic(String topic) async {

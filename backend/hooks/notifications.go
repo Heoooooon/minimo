@@ -1,11 +1,7 @@
 package hooks
 
 import (
-	"bytes"
-	"encoding/json"
 	"log"
-	"net/http"
-	"os"
 
 	"github.com/pocketbase/pocketbase/core"
 )
@@ -38,12 +34,6 @@ func RegisterNotificationHooks(app core.App) {
 }
 
 func sendFCMPush(app core.App, notification *core.Record) {
-	pushURL := os.Getenv("PUSH_FUNCTION_URL")
-	webhookSecret := os.Getenv("WEBHOOK_SECRET")
-	if pushURL == "" {
-		return
-	}
-
 	userId := notification.GetString("user")
 	if userId == "" {
 		return
@@ -58,42 +48,20 @@ func sendFCMPush(app core.App, notification *core.Record) {
 		return
 	}
 
-	payload := map[string]any{
-		"fcmToken": fcmToken,
-		"title":    notification.GetString("title"),
-		"body":     notification.GetString("message"),
-		"data": map[string]string{
-			"type":            notification.GetString("type"),
-			"target_id":       notification.GetString("target_id"),
-			"target_type":     notification.GetString("target_type"),
-			"notification_id": notification.Id,
-		},
+	data := map[string]string{
+		"type":            notification.GetString("type"),
+		"target_id":       notification.GetString("target_id"),
+		"target_type":     notification.GetString("target_type"),
+		"notification_id": notification.Id,
 	}
 
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return
-	}
-
-	req, err := http.NewRequest("POST", pushURL, bytes.NewReader(body))
-	if err != nil {
-		return
-	}
-	req.Header.Set("Content-Type", "application/json")
-	if webhookSecret != "" {
-		req.Header.Set("Authorization", "Bearer "+webhookSecret)
-	}
-
-	client := &http.Client{Timeout: 15 * 1e9}
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Printf("[FCM] Push error: %v", err)
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		log.Printf("[FCM] Push failed: status %d", resp.StatusCode)
+	if err := sendDirectFCMPush(
+		fcmToken,
+		notification.GetString("title"),
+		notification.GetString("message"),
+		data,
+	); err != nil {
+		log.Printf("[FCM] Push failed for user %s: %v", userId, err)
 	}
 }
 

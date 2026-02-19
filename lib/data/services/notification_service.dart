@@ -55,7 +55,7 @@ class NotificationService {
     AppLogger.ui('NotificationService initialized');
   }
 
-  /// 알림 탭 시 콜백 - 해당 어항 상세 화면으로 이동
+  /// 알림 탭 시 콜백 - payload 기반 딥링크 네비게이션
   void _onNotificationTap(NotificationResponse response) {
     AppLogger.ui('Notification tapped: ${response.payload}');
 
@@ -65,12 +65,30 @@ class NotificationService {
     final navigator = navigatorKey.currentState;
     if (navigator == null) return;
 
-    // payload 형식: "schedule:<scheduleId>:aquarium:<aquariumId>"
+    // payload 형식 1: "schedule:<scheduleId>:aquarium:<aquariumId>"
     if (payload.startsWith('schedule:')) {
       final parts = payload.split(':');
       if (parts.length >= 4 && parts[2] == 'aquarium') {
         final aquariumId = parts[3];
         navigator.pushNamed('/aquarium/detail', arguments: aquariumId);
+      }
+      return;
+    }
+
+    // payload 형식 2: "<target_type>:<target_id>" (FCM 푸시 알림)
+    final parts = payload.split(':');
+    if (parts.length >= 2) {
+      final targetType = parts[0];
+      final targetId = parts[1];
+      switch (targetType) {
+        case 'question':
+          navigator.pushNamed('/question-detail', arguments: targetId);
+          break;
+        case 'post':
+          navigator.pushNamed('/post-detail', arguments: targetId);
+          break;
+        default:
+          navigator.pushNamed('/notifications');
       }
     }
   }
