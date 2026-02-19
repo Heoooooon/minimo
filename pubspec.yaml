@@ -2,7 +2,7 @@ name: oomool
 description: "반려어 관리 플랫폼 우물(Oomool) - UT용 프로토타입"
 publish_to: 'none'
 
-version: 1.0.0+11
+version: 1.0.0+12
 
 environment:
   sdk: ^3.10.4
