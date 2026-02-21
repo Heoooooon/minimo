@@ -17,12 +17,14 @@ import '../../data/repositories/record_repository.dart';
 import '../../data/repositories/aquarium_repository.dart';
 import '../../data/services/auth_service.dart';
 import '../../data/services/community_service.dart';
+import '../../data/services/creature_service.dart';
 import '../../domain/models/aquarium_data.dart' as domain;
 import '../widgets/home/home_sticky_top_bar.dart';
 import '../widgets/home/home_hero_section.dart';
 import '../widgets/home/home_schedule_section.dart';
 import '../widgets/home/home_section_header.dart';
 import '../widgets/home/home_content_carousel.dart';
+import '../widgets/home/home_guide_section.dart';
 
 /// 홈 화면 (MainShell에서 사용)
 class HomeScreen extends StatelessWidget {
@@ -63,6 +65,8 @@ class HomeContentState extends State<HomeContent> {
 
   // 스크롤 컨트롤러 (sticky header용)
   final ScrollController _scrollController = ScrollController();
+  // 가이드 섹션 스크롤 키
+  final GlobalKey _guideKey = GlobalKey();
   double _scrollOffset = 0;
 
   // Hero 섹션 높이 (흰색 배경 전환점)
@@ -176,16 +180,33 @@ class HomeContentState extends State<HomeContent> {
       final domainAquariums = await _aquariumRepository.getAquariums();
       _aquariumRetryCount = 0; // 성공 시 리셋
       _lastAquariumFetchTime = DateTime.now();
+
+      // 각 어항별 생물 수 로드
+      final creatureService = CreatureService.instance;
+      final Map<String, int> creatureCounts = {};
+      for (final a in domainAquariums) {
+        if (a.id != null) {
+          try {
+            final creatures = await creatureService.getCreaturesByAquarium(a.id!);
+            creatureCounts[a.id!] = creatures.fold<int>(
+              0, (sum, c) => sum + c.quantity,
+            );
+          } catch (_) {
+            creatureCounts[a.id!] = 0;
+          }
+        }
+      }
+
       if (mounted) {
         setState(() {
           _domainAquariums = domainAquariums;
-          // domain.AquariumData를 UI용 AquariumData로 변환
           _aquariums = domainAquariums
               .map(
                 (a) => AquariumData(
                   id: a.id ?? '',
                   name: a.name ?? '이름 없음',
                   imageUrl: a.photoUrl,
+                  fishCount: creatureCounts[a.id] ?? 0,
                 ),
               )
               .toList();
@@ -447,6 +468,25 @@ class HomeContentState extends State<HomeContent> {
                     children: [
                       const SizedBox(height: 32),
 
+                      // Guide Section
+                      HomeSectionHeader(
+                        key: _guideKey,
+                        title: '사육 가이드',
+                        showMore: false,
+                      ),
+                      const SizedBox(height: 11),
+                      HomeGuideSection(
+                        onStepTap: (step) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('${step.title} - 상세 가이드 준비 중'),
+                              duration: const Duration(seconds: 1),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 32),
+
                       // My Aquarium Section
                       _buildAquariumSection(),
 
@@ -554,9 +594,14 @@ class HomeContentState extends State<HomeContent> {
                 Navigator.pushNamed(context, '/notifications');
               },
               onGuideTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('사육 가이드 기능은 준비 중입니다.')),
-                );
+                final guideContext = _guideKey.currentContext;
+                if (guideContext != null) {
+                  Scrollable.ensureVisible(
+                    guideContext,
+                    duration: const Duration(milliseconds: 400),
+                    curve: Curves.easeInOut,
+                  );
+                }
               },
             ),
           ),
