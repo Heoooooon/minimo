@@ -161,8 +161,8 @@ class AquariumCreaturesTab extends StatelessWidget {
                       child: Center(
                         child: SvgPicture.asset(
                           'assets/icons/icon_fish.svg',
-                          width: 32,
-                          height: 32,
+                          width: 16,
+                          height: 16,
                           colorFilter: const ColorFilter.mode(
                             AppColors.textHint,
                             BlendMode.srcIn,
@@ -200,7 +200,7 @@ class AquariumCreaturesTab extends StatelessWidget {
                           ),
                           const SizedBox(width: AppSpacing.sm),
                           Text(
-                            creature.quantity.toString().padLeft(2, '0'),
+                            creature.quantity.toString(),
                             style: AppTextStyles.titleSmall.copyWith(
                               color: hasPhoto
                                   ? AppColors.backgroundApp

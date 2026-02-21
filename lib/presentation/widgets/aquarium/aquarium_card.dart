@@ -122,8 +122,8 @@ class AquariumCard extends StatelessWidget {
                           children: [
                             SvgPicture.asset(
                               'assets/icons/icon_fish.svg',
-                              width: 20,
-                              height: 20,
+                              width: 10,
+                              height: 10,
                               colorFilter: const ColorFilter.mode(
                                 AppColors.textSubtle,
                                 BlendMode.srcIn,

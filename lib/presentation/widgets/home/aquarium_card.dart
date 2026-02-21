@@ -147,13 +147,13 @@ class AquariumCard extends StatelessWidget {
       children: [
         SvgPicture.asset(
           'assets/icons/icon_fish.svg',
-          width: 20,
-          height: 20,
+          width: 10,
+          height: 10,
           colorFilter: ColorFilter.mode(AppColors.textSubtle, BlendMode.srcIn),
         ),
         const SizedBox(width: 4),
         Text(
-          data.fishCount.toString().padLeft(2, '0'),
+          data.fishCount.toString(),
           style: AppTextStyles.captionMedium.copyWith(
             color: AppColors.textSubtle,
             fontSize: 12,
