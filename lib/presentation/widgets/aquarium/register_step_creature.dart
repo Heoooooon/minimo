@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../../data/services/creature_service.dart';
 import '../../../domain/models/creature_data.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
 import '../../screens/creature/creature_register_screen.dart';
 import '../../screens/creature/creature_search_screen.dart';
 
@@ -43,6 +44,7 @@ class _RegisterStepCreatureState extends State<RegisterStepCreature> {
         });
       }
     } catch (e) {
+      AppLogger.data('생물 목록 로드 실패: $e', isError: true);
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -146,7 +148,7 @@ class _RegisterStepCreatureState extends State<RegisterStepCreature> {
             const SizedBox(height: 16),
             Text(
               '생물 추가하기',
-              style: AppTextStyles.bodyMediumMedium.copyWith(
+              style: AppTextStyles.bodyMediumBold.copyWith(
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -200,7 +202,7 @@ class _RegisterStepCreatureState extends State<RegisterStepCreature> {
               children: [
                 Text(
                   creature.nickname ?? creature.name,
-                  style: AppTextStyles.bodyMediumMedium.copyWith(
+                  style: AppTextStyles.bodyMediumBold.copyWith(
                     fontWeight: FontWeight.w500,
                   ),
                 ),

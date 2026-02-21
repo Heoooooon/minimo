@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'pocketbase_service.dart';
 import '../../domain/models/question_data.dart';
 import '../../presentation/widgets/home/community_card.dart';
+import '../../core/exceptions/app_exceptions.dart';
 import '../../core/utils/app_logger.dart';
 
 /// 커뮤니티 서비스
@@ -44,9 +45,16 @@ class CommunityService {
       return result.items
           .map((record) => _recordToQuestionData(record))
           .toList();
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to get questions: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '질문 목록을 불러오는데 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to get questions: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '질문 목록 조회 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -57,6 +65,14 @@ class CommunityService {
           .collection(_questionsCollection)
           .getOne(id, expand: 'attached_records');
       return _recordToQuestionData(record);
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to get question: $e', isError: true);
+      if (e.statusCode == 404) return null;
+      throw NetworkException.clientError(
+        message: '질문을 불러오는데 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to get question: $e', isError: true);
       return null;
@@ -66,7 +82,7 @@ class CommunityService {
   Future<QuestionData> createQuestion(QuestionData data) async {
     final userId = _currentUserId;
     if (userId == null) {
-      throw Exception('로그인이 필요합니다.');
+      throw const AuthException(message: '로그인이 필요합니다.', code: 'LOGIN_REQUIRED');
     }
 
     try {
@@ -79,9 +95,16 @@ class CommunityService {
 
       AppLogger.data('Question created: ${record.id}');
       return _recordToQuestionData(record);
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to create question: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '질문 등록에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to create question: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '질문 등록 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -96,9 +119,16 @@ class CommunityService {
 
       AppLogger.data('Question updated: ${record.id}');
       return _recordToQuestionData(record);
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to update question: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '질문 수정에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to update question: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '질문 수정 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -107,9 +137,16 @@ class CommunityService {
     try {
       await _pb.collection(_questionsCollection).delete(id);
       AppLogger.data('Question deleted: $id');
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to delete question: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '질문 삭제에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to delete question: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '질문 삭제 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -120,9 +157,16 @@ class CommunityService {
         method: 'POST',
         body: {'id': id, 'type': 'question'},
       );
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to increment view count: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '조회수 증가에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to increment view count: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '조회수 처리 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -148,9 +192,16 @@ class CommunityService {
       return result.items
           .map((record) => _recordToCommunityData(record))
           .toList();
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to get posts: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '게시글 목록을 불러오는데 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to get posts: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '게시글 목록 조회 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -164,7 +215,7 @@ class CommunityService {
   }) async {
     final userId = _currentUserId;
     if (userId == null) {
-      throw Exception('로그인이 필요합니다.');
+      throw const AuthException(message: '로그인이 필요합니다.', code: 'LOGIN_REQUIRED');
     }
 
     try {
@@ -205,9 +256,16 @@ class CommunityService {
 
       AppLogger.data('Post created: ${record.id}');
       return _recordToCommunityData(record);
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to create post: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '게시글 등록에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to create post: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '게시글 등록 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -246,9 +304,16 @@ class CommunityService {
 
       AppLogger.data('Post updated: ${record.id}');
       return _recordToCommunityData(record);
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to update post: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '게시글 수정에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to update post: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '게시글 수정 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -257,9 +322,16 @@ class CommunityService {
     try {
       await _pb.collection(_postsCollection).delete(id);
       AppLogger.data('Post deleted: $id');
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to delete post: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '게시글 삭제에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to delete post: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '게시글 삭제 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -268,6 +340,14 @@ class CommunityService {
     try {
       final record = await _pb.collection(_postsCollection).getOne(id);
       return _recordToCommunityData(record);
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to get post: $e', isError: true);
+      if (e.statusCode == 404) return null;
+      throw NetworkException.clientError(
+        message: '게시글을 불러오는데 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to get post: $e', isError: true);
       return null;
@@ -281,9 +361,16 @@ class CommunityService {
         method: 'POST',
         body: {'target_id': postId, 'target_type': 'post'},
       );
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to toggle like: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '좋아요 처리에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to toggle like: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '좋아요 처리 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -294,9 +381,16 @@ class CommunityService {
         method: 'POST',
         body: {'post_id': id, 'bookmarked': isBookmarked},
       );
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to toggle bookmark: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '북마크 처리에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to toggle bookmark: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '북마크 처리 중 오류가 발생했습니다.', originalError: e);
     }
   }
 

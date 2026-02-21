@@ -5,9 +5,9 @@ import '../../../core/di/app_dependencies.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../data/services/onboarding_service.dart';
 import '../../../domain/models/onboarding_data.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
-import '../../widgets/common/app_button.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
+import 'package:cmore_design_system/widgets/app_button.dart';
 import '../main_shell.dart';
 
 /// 온보딩 결과 화면
@@ -171,7 +171,7 @@ class _OnboardingResultScreenState extends State<OnboardingResultScreen> {
               Center(
                 child: Text(
                   _bottomMessage,
-                  style: AppTextStyles.bodyMediumMedium.copyWith(
+                  style: AppTextStyles.bodyMediumBold.copyWith(
                     color: AppColors.textSubtle,
                   ),
                   textAlign: TextAlign.center,

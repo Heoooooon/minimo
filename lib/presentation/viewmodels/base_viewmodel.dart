@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../../core/exceptions/app_exceptions.dart';
 import '../../core/utils/app_logger.dart';
 
 /// 모든 ViewModel의 기본 클래스
@@ -73,6 +74,16 @@ abstract class BaseViewModel extends ChangeNotifier {
     try {
       final result = await action();
       return result;
+    } on AppException catch (e) {
+      // AppException은 사용자 친화적인 메시지를 가지고 있으므로 그대로 사용
+      final message = errorPrefix != null ? '$errorPrefix: ${e.message}' : e.message;
+      setError(message);
+      AppLogger.error('[${runtimeType.toString()}] ${e.runtimeType}: ${e.message}', e.originalError);
+
+      if (rethrowError) {
+        rethrow;
+      }
+      return null;
     } catch (e) {
       final message = errorPrefix != null ? '$errorPrefix: $e' : '$e';
       setError(message);
@@ -106,6 +117,11 @@ abstract class BaseViewModel extends ChangeNotifier {
     try {
       await action();
       return true;
+    } on AppException catch (e) {
+      // AppException은 사용자 친화적인 메시지를 가지고 있으므로 그대로 사용
+      setError(e.message);
+      AppLogger.error('[${runtimeType.toString()}] ${e.runtimeType}: ${e.message}', e.originalError);
+      return false;
     } catch (e) {
       final message = errorPrefix ?? '오류가 발생했습니다';
       setError(message);

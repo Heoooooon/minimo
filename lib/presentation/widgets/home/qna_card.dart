@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
-import '../../../theme/app_spacing.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
+import 'package:cmore_design_system/theme/app_spacing.dart';
 
 /// Q&A 데이터 모델
 class QnAData {
@@ -149,7 +149,7 @@ class QnACard extends StatelessWidget {
   Widget _buildTitle() {
     return Text(
       data.title,
-      style: AppTextStyles.bodyMediumMedium.copyWith(
+      style: AppTextStyles.bodyMediumBold.copyWith(
         color: AppColors.textMain,
         fontSize: 16,
         height: 24 / 16,

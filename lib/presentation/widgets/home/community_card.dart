@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
-import '../../../theme/app_spacing.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
+import 'package:cmore_design_system/theme/app_spacing.dart';
 
 /// 커뮤니티 콘텐츠 데이터 모델
 class CommunityData {
@@ -135,7 +135,7 @@ class CommunityCard extends StatelessWidget {
           children: [
             Text(
               data.authorName,
-              style: AppTextStyles.bodyMediumMedium.copyWith(
+              style: AppTextStyles.bodyMediumBold.copyWith(
                 color: AppColors.textSubtle,
                 fontSize: 16,
                 height: 24 / 16,

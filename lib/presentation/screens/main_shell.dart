@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../data/services/data_backup_service.dart';
-import '../widgets/common/bottom_nav_bar.dart';
+import 'package:cmore_design_system/widgets/bottom_nav_bar.dart';
 import 'home_screen.dart';
 import 'aquarium/aquarium_list_screen.dart';
 import 'record_home_screen.dart';

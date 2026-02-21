@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../data/services/creature_catalog_service.dart';
 import '../../../domain/models/aquarium_data.dart';
 import '../../../domain/models/creature_catalog_data.dart';
-import '../../../theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
 import 'creature_register_screen.dart';
 
 /// 생물 검색 결과 아이템 모델

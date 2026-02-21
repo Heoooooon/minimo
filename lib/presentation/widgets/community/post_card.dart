@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
 
 /// 커뮤니티 게시글 데이터 모델
 class PostData {
@@ -35,6 +35,40 @@ class PostData {
     this.isLiked = false,
     this.isBookmarked = false,
   });
+
+  PostData copyWith({
+    String? id,
+    String? authorId,
+    String? authorName,
+    String? authorImageUrl,
+    String? timeAgo,
+    String? title,
+    String? content,
+    List<String>? imageUrls,
+    List<String>? tags,
+    int? likeCount,
+    int? commentCount,
+    int? bookmarkCount,
+    bool? isLiked,
+    bool? isBookmarked,
+  }) {
+    return PostData(
+      id: id ?? this.id,
+      authorId: authorId ?? this.authorId,
+      authorName: authorName ?? this.authorName,
+      authorImageUrl: authorImageUrl ?? this.authorImageUrl,
+      timeAgo: timeAgo ?? this.timeAgo,
+      title: title ?? this.title,
+      content: content ?? this.content,
+      imageUrls: imageUrls ?? this.imageUrls,
+      tags: tags ?? this.tags,
+      likeCount: likeCount ?? this.likeCount,
+      commentCount: commentCount ?? this.commentCount,
+      bookmarkCount: bookmarkCount ?? this.bookmarkCount,
+      isLiked: isLiked ?? this.isLiked,
+      isBookmarked: isBookmarked ?? this.isBookmarked,
+    );
+  }
 }
 
 /// 커뮤니티 게시글 카드 위젯 - Figma design 138:5284
@@ -102,7 +136,7 @@ class _PostCardState extends State<PostCard> {
             height: 32,
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
-              color: Color(0xFFE8EBF0),
+              color: AppColors.gray200,
             ),
             child: widget.data.authorImageUrl != null
                 ? ClipOval(
@@ -124,7 +158,7 @@ class _PostCardState extends State<PostCard> {
               children: [
                 Text(
                   widget.data.authorName,
-                  style: AppTextStyles.bodyMediumMedium.copyWith(
+                  style: AppTextStyles.bodyMediumBold.copyWith(
                     color: AppColors.textSubtle,
                     fontSize: 16,
                     height: 24 / 16,

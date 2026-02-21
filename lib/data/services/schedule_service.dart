@@ -1,5 +1,6 @@
 import 'package:pocketbase/pocketbase.dart';
 import 'pocketbase_service.dart';
+import '../../core/exceptions/app_exceptions.dart';
 import '../../domain/models/schedule_data.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/pb_filter.dart';
@@ -33,9 +34,16 @@ class ScheduleService {
       return result.items
           .map((record) => _recordToScheduleData(record))
           .toList();
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to get daily schedule: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '일정 목록을 불러오는데 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to get daily schedule: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '일정 목록 조회 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -54,9 +62,16 @@ class ScheduleService {
       return result.items
           .map((record) => _recordToScheduleData(record))
           .toList();
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to get schedules: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '일정 목록을 불러오는데 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to get schedules: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '일정 목록 조회 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -76,7 +91,7 @@ class ScheduleService {
   Future<ScheduleData> createSchedule(ScheduleData data) async {
     final userId = _currentUserId;
     if (userId == null) {
-      throw Exception('로그인이 필요합니다.');
+      throw const AuthException(message: '로그인이 필요합니다.', code: 'LOGIN_REQUIRED');
     }
 
     try {
@@ -97,9 +112,16 @@ class ScheduleService {
 
       AppLogger.data('Schedule created: ${record.id}');
       return _recordToScheduleData(record);
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to create schedule: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '일정 등록에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to create schedule: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '일정 등록 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -122,9 +144,16 @@ class ScheduleService {
 
       AppLogger.data('Schedule updated: ${record.id}');
       return _recordToScheduleData(record);
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to update schedule: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '일정 수정에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to update schedule: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '일정 수정 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -136,9 +165,16 @@ class ScheduleService {
           .update(id, body: {'is_completed': isCompleted});
 
       AppLogger.data('Schedule $id completion toggled to: $isCompleted');
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to toggle schedule completion: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '일정 상태 변경에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to toggle schedule completion: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '일정 상태 변경 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -147,9 +183,16 @@ class ScheduleService {
     try {
       await _pb.collection(_collection).delete(id);
       AppLogger.data('Schedule deleted: $id');
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to delete schedule: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '일정 삭제에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to delete schedule: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '일정 삭제 중 오류가 발생했습니다.', originalError: e);
     }
   }
 

@@ -6,8 +6,8 @@ import '../../../domain/models/schedule_data.dart';
 import '../../../data/services/schedule_service.dart';
 import '../../../data/services/notification_service.dart';
 import '../../../data/services/aquarium_service.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
 import '../../widgets/schedule/time_picker_widget.dart';
 import '../../widgets/schedule/repeat_cycle_selector.dart';
 
@@ -538,7 +538,7 @@ class _ScheduleAddScreenState extends State<ScheduleAddScreen> {
         ),
         child: Text(
           label,
-          style: AppTextStyles.bodyMediumMedium.copyWith(
+          style: AppTextStyles.bodyMediumBold.copyWith(
             color: isSelected ? AppColors.textInverse : AppColors.textHint,
           ),
         ),
@@ -630,7 +630,7 @@ class _ScheduleAddScreenState extends State<ScheduleAddScreen> {
                 size: 24,
               ),
               const SizedBox(width: 12),
-              Text('푸시 알림 받기', style: AppTextStyles.bodyMediumMedium),
+              Text('푸시 알림 받기', style: AppTextStyles.bodyMediumBold),
             ],
           ),
           Switch(
@@ -785,7 +785,7 @@ class _ScheduleAddScreenState extends State<ScheduleAddScreen> {
                   )
                 : Text(
                     '저장하기',
-                    style: AppTextStyles.bodyMediumMedium.copyWith(
+                    style: AppTextStyles.bodyMediumBold.copyWith(
                       color: _isFormValid
                           ? AppColors.textInverse
                           : AppColors.disabledText,

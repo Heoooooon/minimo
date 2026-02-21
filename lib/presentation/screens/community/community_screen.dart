@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
-import '../../../theme/app_spacing.dart';
-import '../../viewmodels/community_viewmodel.dart';
-import '../../widgets/common/empty_state.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
+import 'package:cmore_design_system/theme/app_spacing.dart';
+import '../../viewmodels/community_post_viewmodel.dart';
+import '../../viewmodels/community_following_viewmodel.dart';
+import '../../viewmodels/community_qna_viewmodel.dart';
+import 'package:cmore_design_system/widgets/empty_state.dart';
 import 'tabs/recommend_tab.dart';
 import 'tabs/following_tab.dart';
 import 'tabs/qna_tab.dart';
@@ -90,29 +92,50 @@ class _CommunityScreenState extends State<CommunityScreen> {
       _currentTab = tab;
     });
 
-    final viewModel = context.read<CommunityViewModel>();
-
     switch (tab) {
       case CommunityTab.recommend:
-        viewModel.loadRecommendTab();
+        context.read<CommunityPostViewModel>().loadRecommendTab();
         break;
       case CommunityTab.following:
-        viewModel.loadFollowingTab();
+        context.read<CommunityFollowingViewModel>().loadFollowingTab();
         break;
       case CommunityTab.qna:
-        viewModel.loadQnaTab();
+        context.read<CommunityQnaViewModel>().loadQnaTab();
         break;
     }
   }
 
-  Future<void> _refreshCurrentTab(CommunityViewModel viewModel) {
+  Future<void> _refreshCurrentTab() {
     switch (_currentTab) {
       case CommunityTab.recommend:
-        return viewModel.loadRecommendTab(forceRefresh: true);
+        return context.read<CommunityPostViewModel>().loadRecommendTab(forceRefresh: true);
       case CommunityTab.following:
-        return viewModel.loadFollowingTab(forceRefresh: true);
+        return context.read<CommunityFollowingViewModel>().loadFollowingTab(forceRefresh: true);
       case CommunityTab.qna:
-        return viewModel.loadQnaTab(forceRefresh: true);
+        return context.read<CommunityQnaViewModel>().loadQnaTab(forceRefresh: true);
+    }
+  }
+
+  /// 현재 탭에 해당하는 ViewModel의 로딩/에러 상태를 반환
+  bool _isCurrentTabLoading() {
+    switch (_currentTab) {
+      case CommunityTab.recommend:
+        return context.select<CommunityPostViewModel, bool>((vm) => vm.isLoading);
+      case CommunityTab.following:
+        return context.select<CommunityFollowingViewModel, bool>((vm) => vm.isLoading);
+      case CommunityTab.qna:
+        return context.select<CommunityQnaViewModel, bool>((vm) => vm.isLoading);
+    }
+  }
+
+  String? _currentTabErrorMessage() {
+    switch (_currentTab) {
+      case CommunityTab.recommend:
+        return context.select<CommunityPostViewModel, String?>((vm) => vm.errorMessage);
+      case CommunityTab.following:
+        return context.select<CommunityFollowingViewModel, String?>((vm) => vm.errorMessage);
+      case CommunityTab.qna:
+        return context.select<CommunityQnaViewModel, String?>((vm) => vm.errorMessage);
     }
   }
 
@@ -131,75 +154,74 @@ class _CommunityScreenState extends State<CommunityScreen> {
       onTagTap: _onTagTap,
     );
 
+    final isLoading = _isCurrentTabLoading();
+    final errorMessage = _currentTabErrorMessage();
+
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
-      body: Consumer<CommunityViewModel>(
-        builder: (context, viewModel, child) {
-          return RefreshIndicator(
-            onRefresh: () => _refreshCurrentTab(viewModel),
-            color: AppColors.brand,
-            child: Stack(
-              children: [
-                CustomScrollView(
-                  controller: _scrollController,
-                  slivers: [
-                    // Header (Fixed)
-                    SliverToBoxAdapter(child: _buildHeader()),
+      body: RefreshIndicator(
+        onRefresh: _refreshCurrentTab,
+        color: AppColors.brand,
+        child: Stack(
+          children: [
+            CustomScrollView(
+              controller: _scrollController,
+              slivers: [
+                // Header (Fixed)
+                SliverToBoxAdapter(child: _buildHeader()),
 
-                    // Loading Indicator
-                    if (viewModel.isLoading)
-                      const SliverToBoxAdapter(
-                        child: Padding(
-                          padding: EdgeInsets.all(AppSpacing.xxxl),
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              color: AppColors.brand,
-                            ),
-                          ),
+                // Loading Indicator
+                if (isLoading)
+                  const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.all(AppSpacing.xxxl),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.brand,
                         ),
                       ),
-
-                    // Error Message
-                    if (viewModel.errorMessage != null)
-                      SliverToBoxAdapter(
-                        child: EmptyStatePresets.error(
-                          message: viewModel.errorMessage!,
-                          onRetry: () => _refreshCurrentTab(viewModel),
-                        ),
-                      ),
-
-                    // Content based on tab
-                    if (!viewModel.isLoading && viewModel.errorMessage == null)
-                      ..._buildTabContent(viewModel, qnaTab),
-
-                    // Bottom padding for nav bar
-                    const SliverToBoxAdapter(child: SizedBox(height: 100)),
-                  ],
-                ),
-
-                // Scroll to Top Button
-                if (_showScrollToTop)
-                  Positioned(
-                    right: AppSpacing.lg,
-                    bottom: 108,
-                    child: _buildScrollToTopButton(),
+                    ),
                   ),
+
+                // Error Message
+                if (errorMessage != null)
+                  SliverToBoxAdapter(
+                    child: EmptyStatePresets.error(
+                      message: errorMessage,
+                      onRetry: _refreshCurrentTab,
+                    ),
+                  ),
+
+                // Content based on tab
+                if (!isLoading && errorMessage == null)
+                  ..._buildTabContent(qnaTab),
+
+                // Bottom padding for nav bar
+                const SliverToBoxAdapter(child: SizedBox(height: 100)),
               ],
             ),
-          );
-        },
+
+            // Scroll to Top Button
+            if (_showScrollToTop)
+              Positioned(
+                right: AppSpacing.lg,
+                bottom: 108,
+                child: _buildScrollToTopButton(),
+              ),
+          ],
+        ),
       ),
     );
   }
 
-  List<Widget> _buildTabContent(CommunityViewModel viewModel, QnaTab qnaTab) {
+  List<Widget> _buildTabContent(QnaTab qnaTab) {
     switch (_currentTab) {
       case CommunityTab.recommend:
-        return _recommendTab.buildSlivers(context, viewModel);
+        return _recommendTab.buildSlivers(context);
       case CommunityTab.following:
-        return _followingTab.buildSlivers(context, viewModel);
+        return _followingTab.buildSlivers(context);
       case CommunityTab.qna:
-        return qnaTab.buildSlivers(context, viewModel);
+        return qnaTab.buildSlivers(context);
     }
   }
 
@@ -370,14 +392,14 @@ class _CommunityScreenState extends State<CommunityScreen> {
   // Tag Filtering
   // ============================================
   void _onTagTap(String tag) {
-    final viewModel = context.read<CommunityViewModel>();
+    final postViewModel = context.read<CommunityPostViewModel>();
     final cleanTag = tag.replaceAll('#', '');
 
     // 이미 선택된 태그면 필터 해제
-    if (viewModel.selectedTag == cleanTag) {
-      viewModel.clearTagFilter();
+    if (postViewModel.selectedTag == cleanTag) {
+      postViewModel.clearTagFilter();
     } else {
-      viewModel.filterByTag(tag);
+      postViewModel.filterByTag(tag);
     }
   }
 
@@ -389,13 +411,13 @@ class _CommunityScreenState extends State<CommunityScreen> {
   }
 
   void _navigateToQuestionDetail(String questionId) {
-    final viewModel = context.read<CommunityViewModel>();
-    viewModel.incrementViewCount(questionId);
+    final qnaViewModel = context.read<CommunityQnaViewModel>();
+    qnaViewModel.incrementViewCount(questionId);
     Navigator.pushNamed(context, '/question-detail', arguments: questionId);
   }
 
   Future<void> _onCuriousTap(
-    CommunityViewModel viewModel,
+    CommunityQnaViewModel viewModel,
     String questionId,
   ) async {
     final isCurious = await viewModel.toggleCurious(questionId);

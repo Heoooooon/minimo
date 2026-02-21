@@ -6,7 +6,9 @@ import 'package:oomool/data/services/community_service.dart';
 import 'package:oomool/data/services/curious_service.dart';
 import 'package:oomool/data/services/follow_service.dart';
 import 'package:oomool/data/services/tag_service.dart';
-import 'package:oomool/presentation/viewmodels/community_viewmodel.dart';
+import 'package:oomool/presentation/viewmodels/community_post_viewmodel.dart';
+import 'package:oomool/presentation/viewmodels/community_following_viewmodel.dart';
+import 'package:oomool/presentation/viewmodels/community_qna_viewmodel.dart';
 import 'package:oomool/presentation/widgets/home/community_card.dart';
 
 // Mock 클래스 정의
@@ -53,14 +55,28 @@ void main() {
     ).thenAnswer((_) async => []);
   });
 
-  CommunityViewModel buildViewModel({bool autoLoad = false}) {
-    return CommunityViewModel(
+  CommunityPostViewModel buildPostViewModel({bool autoLoad = false}) {
+    return CommunityPostViewModel(
+      service: mockCommunityService,
+      tagService: mockTagService,
+      autoLoad: autoLoad,
+    );
+  }
+
+  CommunityFollowingViewModel buildFollowingViewModel() {
+    return CommunityFollowingViewModel(
+      service: mockCommunityService,
+      followService: mockFollowService,
+      authService: mockAuthService,
+    );
+  }
+
+  CommunityQnaViewModel buildQnaViewModel() {
+    return CommunityQnaViewModel(
       service: mockCommunityService,
       curiousService: mockCuriousService,
-      followService: mockFollowService,
       tagService: mockTagService,
       authService: mockAuthService,
-      autoLoad: autoLoad,
     );
   }
 
@@ -91,13 +107,12 @@ void main() {
     ];
   }
 
-  group('CommunityViewModel', () {
+  group('CommunityPostViewModel', () {
     group('초기화', () {
       test('초기 상태가 올바르게 설정된다', () {
-        final viewModel = buildViewModel();
+        final viewModel = buildPostViewModel();
 
         expect(viewModel.latestPosts, isEmpty);
-        expect(viewModel.followingPosts, isEmpty);
         expect(viewModel.isFilteringByTag, false);
         expect(viewModel.selectedTag, isNull);
       });
@@ -114,7 +129,7 @@ void main() {
           ),
         ).thenAnswer((_) async => samplePosts());
 
-        final viewModel = buildViewModel();
+        final viewModel = buildPostViewModel();
         await viewModel.loadRecommendTab();
 
         expect(viewModel.latestPosts.length, 2);
@@ -145,7 +160,7 @@ void main() {
           ],
         );
 
-        final viewModel = buildViewModel();
+        final viewModel = buildPostViewModel();
         await viewModel.loadRecommendTab();
 
         expect(viewModel.popularRanking, isNotNull);
@@ -176,7 +191,7 @@ void main() {
           ),
         ).thenAnswer((_) async => posts);
 
-        final viewModel = buildViewModel();
+        final viewModel = buildPostViewModel();
         await viewModel.loadRecommendTab();
 
         expect(viewModel.recommendationItems.length, 3);
@@ -192,7 +207,7 @@ void main() {
           ),
         ).thenAnswer((_) async => samplePosts());
 
-        final viewModel = buildViewModel();
+        final viewModel = buildPostViewModel();
         await viewModel.loadRecommendTab();
         await viewModel.loadRecommendTab();
 
@@ -219,7 +234,7 @@ void main() {
           return samplePosts();
         });
 
-        final viewModel = buildViewModel();
+        final viewModel = buildPostViewModel();
         await Future.wait([
           viewModel.loadRecommendTab(),
           viewModel.loadRecommendTab(),
@@ -261,7 +276,7 @@ void main() {
           ),
         ).thenAnswer((_) async => filteredPosts);
 
-        final viewModel = buildViewModel();
+        final viewModel = buildPostViewModel();
         await viewModel.filterByTag('#구피');
 
         expect(viewModel.isFilteringByTag, true);
@@ -280,7 +295,7 @@ void main() {
           ),
         ).thenAnswer((_) async => []);
 
-        final viewModel = buildViewModel();
+        final viewModel = buildPostViewModel();
         await viewModel.filterByTag('###베타');
 
         expect(viewModel.selectedTag, '베타');
@@ -296,7 +311,7 @@ void main() {
           ),
         ).thenAnswer((_) async => [samplePosts().first]);
 
-        final viewModel = buildViewModel();
+        final viewModel = buildPostViewModel();
         await viewModel.filterByTag('구피');
         expect(viewModel.isFilteringByTag, true);
 
@@ -318,7 +333,7 @@ void main() {
           ),
         ).thenAnswer((_) async => [samplePosts().first]);
 
-        final viewModel = buildViewModel();
+        final viewModel = buildPostViewModel();
         await viewModel.filterByTag('구피');
 
         viewModel.clearTagFilter();
@@ -354,7 +369,7 @@ void main() {
           () => mockCommunityService.toggleLike('post_1', true),
         ).thenAnswer((_) async {});
 
-        final viewModel = buildViewModel();
+        final viewModel = buildPostViewModel();
         await viewModel.loadRecommendTab();
 
         final initialLikeCount = viewModel.latestPosts[0].likeCount;
@@ -390,7 +405,7 @@ void main() {
           () => mockCommunityService.toggleBookmark('post_1', true),
         ).thenAnswer((_) async {});
 
-        final viewModel = buildViewModel();
+        final viewModel = buildPostViewModel();
         await viewModel.loadRecommendTab();
 
         final initialBookmarkCount = viewModel.latestPosts[0].bookmarkCount;
@@ -420,7 +435,7 @@ void main() {
           return <CommunityData>[];
         });
 
-        final viewModel = buildViewModel();
+        final viewModel = buildPostViewModel();
         final initialCallCount = callCount;
 
         await viewModel.refreshAll();
@@ -445,7 +460,7 @@ void main() {
           ),
         ).thenThrow(Exception('failed to load'));
 
-        final viewModel = buildViewModel();
+        final viewModel = buildPostViewModel();
         await viewModel.loadRecommendTab();
 
         expect(viewModel.tags, isNotEmpty);
@@ -453,6 +468,22 @@ void main() {
         expect(viewModel.tags, contains('#25큐브'));
         expect(viewModel.tags, contains('#초보자'));
       });
+    });
+  });
+
+  group('CommunityFollowingViewModel', () {
+    test('초기 상태가 올바르게 설정된다', () {
+      final viewModel = buildFollowingViewModel();
+      expect(viewModel.followingPosts, isEmpty);
+    });
+  });
+
+  group('CommunityQnaViewModel', () {
+    test('초기 상태가 올바르게 설정된다', () {
+      final viewModel = buildQnaViewModel();
+      expect(viewModel.popularQuestions, isEmpty);
+      expect(viewModel.waitingQuestions, isEmpty);
+      expect(viewModel.featuredQuestion, isNull);
     });
   });
 }

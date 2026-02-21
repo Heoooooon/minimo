@@ -1,5 +1,6 @@
 import 'package:pocketbase/pocketbase.dart';
 import 'pocketbase_service.dart';
+import '../../core/exceptions/app_exceptions.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/pb_filter.dart';
 
@@ -53,9 +54,16 @@ class FollowService {
           (result as Map<String, dynamic>)['following'] as bool? ?? false;
       AppLogger.data('Follow toggled: -> $followingId (following: $following)');
       return following;
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to toggle follow: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '팔로우 처리에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to toggle follow: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '팔로우 처리 중 오류가 발생했습니다.', originalError: e);
     }
   }
 

@@ -57,6 +57,7 @@ class OnboardingService {
         fishKeepingGoal: _parseGoal(json['fishKeepingGoal']),
       );
     } catch (e) {
+      AppLogger.data('Failed to parse onboarding data: $e', isError: true);
       return null;
     }
   }

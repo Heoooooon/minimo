@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../domain/models/gallery_photo_data.dart';
 import '../../../data/services/gallery_photo_service.dart';
-import '../../../theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
 
 /// 갤러리 사진 상세 화면
 ///

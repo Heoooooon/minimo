@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
 
 /// 공지사항 화면
 class NoticeScreen extends StatelessWidget {
@@ -15,7 +15,7 @@ class NoticeScreen extends StatelessWidget {
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: true,
-        title: Text('공지사항', style: AppTextStyles.bodyMediumMedium),
+        title: Text('공지사항', style: AppTextStyles.bodyMediumBold),
       ),
       body: Center(
         child: Column(
@@ -29,7 +29,7 @@ class NoticeScreen extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               '아직 공지사항이 없습니다',
-              style: AppTextStyles.bodyMediumMedium.copyWith(
+              style: AppTextStyles.bodyMediumBold.copyWith(
                 color: AppColors.textSubtle,
               ),
             ),

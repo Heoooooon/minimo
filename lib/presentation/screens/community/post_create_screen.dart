@@ -2,13 +2,14 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../../core/di/app_dependencies.dart';
 import '../../../data/services/community_service.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../data/services/tag_service.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
-import '../../viewmodels/community_viewmodel.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
+import '../../viewmodels/community_post_viewmodel.dart';
 
 /// 게시글 작성 화면
 class PostCreateScreen extends StatefulWidget {
@@ -73,6 +74,7 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
         _isLoadingTags = false;
       });
     } catch (e) {
+      AppLogger.data('인기 태그 로드 실패: $e', isError: true);
       setState(() => _isLoadingTags = false);
     }
   }
@@ -87,7 +89,7 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
       final tags = await _tagService.searchTags(query: query, limit: 10);
       setState(() => _searchedTags = tags);
     } catch (e) {
-      // 검색 실패 시 무시
+      AppLogger.data('태그 검색 실패: $e', isError: true);
     }
   }
 
@@ -142,6 +144,7 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
         }
       }
     } catch (e) {
+      AppLogger.error('[UI] 이미지 선택 실패: $e');
       _showSnackBar('이미지를 불러오는데 실패했습니다.');
     }
   }
@@ -166,6 +169,7 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
         });
       }
     } catch (e) {
+      AppLogger.error('[UI] 카메라 사용 실패: $e');
       _showSnackBar('카메라를 사용할 수 없습니다.');
     }
   }
@@ -243,12 +247,13 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
 
       // 커뮤니티 목록 새로고침
       if (mounted) {
-        context.read<CommunityViewModel>().refreshAll();
+        context.read<CommunityPostViewModel>().refreshAll();
 
         _showSnackBar('게시글이 등록되었습니다.', isSuccess: true);
         Navigator.pop(context);
       }
     } catch (e) {
+      AppLogger.data('게시글 등록 실패: $e', isError: true);
       _showSnackBar('게시글 등록에 실패했습니다.');
     } finally {
       if (mounted) {
@@ -314,7 +319,7 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
                     )
                   : Text(
                       '게시',
-                      style: AppTextStyles.bodyMediumMedium.copyWith(
+                      style: AppTextStyles.bodyMediumBold.copyWith(
                         color: _canSubmit
                             ? AppColors.brand
                             : AppColors.textHint,
@@ -389,7 +394,7 @@ class _PostCreateScreenState extends State<PostCreateScreen> {
             children: [
               Text(
                 '태그',
-                style: AppTextStyles.bodyMediumMedium.copyWith(
+                style: AppTextStyles.bodyMediumBold.copyWith(
                   color: AppColors.textMain,
                 ),
               ),

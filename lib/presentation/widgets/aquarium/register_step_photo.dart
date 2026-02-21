@@ -2,8 +2,8 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
 
 /// 어항 등록 Step 4: 대표 사진 등록
 ///
@@ -139,7 +139,7 @@ class RegisterStepPhoto extends StatelessWidget {
                   const SizedBox(height: 16),
                   Text(
                     '사진 추가',
-                    style: AppTextStyles.bodyMediumMedium.copyWith(
+                    style: AppTextStyles.bodyMediumBold.copyWith(
                       color: AppColors.brand,
                       fontWeight: FontWeight.w500,
                     ),
@@ -299,7 +299,7 @@ class RegisterStepPhoto extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
-                style: AppTextStyles.bodyMediumMedium.copyWith(
+                style: AppTextStyles.bodyMediumBold.copyWith(
                   fontWeight: FontWeight.w500,
                 ),
               ),

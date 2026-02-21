@@ -1,4 +1,5 @@
 import 'package:pocketbase/pocketbase.dart';
+import '../../core/exceptions/app_exceptions.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/pb_filter.dart';
 import '../../domain/models/creature_data.dart';
@@ -26,9 +27,16 @@ class CreatureMemoService {
           .getFullList(filter: PbFilter.eq('creature_id', creatureId));
 
       return records.map((r) => CreatureMemoData.fromJson(r.toJson())).toList();
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to get memos: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '메모 목록을 불러오는데 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to get memos: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '메모 목록 조회 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -37,9 +45,16 @@ class CreatureMemoService {
     try {
       final record = await _client.collection(_collection).getOne(id);
       return CreatureMemoData.fromJson(record.toJson());
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to get memo: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '메모를 불러오는데 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to get memo: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '메모 조회 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -51,9 +66,16 @@ class CreatureMemoService {
           .create(body: memo.toJson());
 
       return CreatureMemoData.fromJson(record.toJson());
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to create memo: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '메모 등록에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to create memo: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '메모 등록 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -69,9 +91,16 @@ class CreatureMemoService {
           .update(memo.id!, body: memo.toJson());
 
       return CreatureMemoData.fromJson(record.toJson());
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to update memo: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '메모 수정에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to update memo: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '메모 수정 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -79,9 +108,16 @@ class CreatureMemoService {
   Future<void> deleteMemo(String id) async {
     try {
       await _client.collection(_collection).delete(id);
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to delete memo: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '메모 삭제에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to delete memo: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '메모 삭제 중 오류가 발생했습니다.', originalError: e);
     }
   }
 

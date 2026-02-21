@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../core/di/app_dependencies.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
-import '../../widgets/common/app_button.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
+import 'package:cmore_design_system/widgets/app_button.dart';
 
 /// 계정 정보 화면
 ///
@@ -68,7 +69,7 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: true,
-        title: Text('계정 정보', style: AppTextStyles.bodyMediumMedium),
+        title: Text('계정 정보', style: AppTextStyles.bodyMediumBold),
         leading: IconButton(
           icon: const Icon(Icons.chevron_left, size: 28),
           onPressed: () => Navigator.pop(context),
@@ -292,6 +293,7 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
         context,
       ).showSnackBar(const SnackBar(content: Text('닉네임이 변경되었습니다.')));
     } catch (e) {
+      AppLogger.auth('닉네임 변경 실패: $e', isError: true);
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -414,6 +416,7 @@ class _AccountInfoScreenState extends State<AccountInfoScreen> {
       if (!mounted) return;
       Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
     } catch (e) {
+      AppLogger.auth('회원 탈퇴 실패: $e', isError: true);
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,

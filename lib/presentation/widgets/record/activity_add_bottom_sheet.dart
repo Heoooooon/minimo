@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../domain/models/record_data.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
-import '../common/app_button.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
+import 'package:cmore_design_system/widgets/app_button.dart';
 
 /// 활동 추가 바텀 시트
 ///
@@ -153,7 +153,7 @@ class _ActivityAddBottomSheetState extends State<ActivityAddBottomSheet> {
               Expanded(
                 child: Text(
                   tag.label,
-                  style: AppTextStyles.bodyMediumMedium.copyWith(
+                  style: AppTextStyles.bodyMediumBold.copyWith(
                     color: AppColors.textSubtle,
                   ),
                 ),

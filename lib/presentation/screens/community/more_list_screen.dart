@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
-import '../../viewmodels/community_viewmodel.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
+import '../../viewmodels/community_post_viewmodel.dart';
+import '../../viewmodels/community_qna_viewmodel.dart';
 import '../../widgets/community/post_card.dart';
 import '../../widgets/community/qna_question_card.dart';
 import '../../widgets/community/recommendation_card.dart';
@@ -66,17 +67,15 @@ class _MoreListScreenState extends State<MoreListScreen> {
       _isLoading = true;
     });
 
-    final viewModel = context.read<CommunityViewModel>();
-
     try {
       switch (_listType) {
         case MoreListType.posts:
         case MoreListType.recommend:
-          await viewModel.loadRecommendTab();
+          await context.read<CommunityPostViewModel>().loadRecommendTab();
           break;
         case MoreListType.popular:
         case MoreListType.waiting:
-          await viewModel.loadQnaTab();
+          await context.read<CommunityQnaViewModel>().loadQnaTab();
           break;
       }
     } finally {
@@ -121,17 +120,19 @@ class _MoreListScreenState extends State<MoreListScreen> {
   }
 
   Widget _buildList() {
-    final viewModel = context.watch<CommunityViewModel>();
-
     switch (_listType) {
       case MoreListType.posts:
-        return _buildPostsList(viewModel.latestPosts);
+        final postViewModel = context.watch<CommunityPostViewModel>();
+        return _buildPostsList(postViewModel.latestPosts);
       case MoreListType.recommend:
-        return _buildRecommendList(viewModel.recommendationItems);
+        final postViewModel = context.watch<CommunityPostViewModel>();
+        return _buildRecommendList(postViewModel.recommendationItems);
       case MoreListType.popular:
-        return _buildQuestionsList(viewModel.popularQuestions);
+        final qnaViewModel = context.watch<CommunityQnaViewModel>();
+        return _buildQuestionsList(qnaViewModel.popularQuestions);
       case MoreListType.waiting:
-        return _buildWaitingList(viewModel.waitingQuestions);
+        final qnaViewModel = context.watch<CommunityQnaViewModel>();
+        return _buildWaitingList(qnaViewModel.waitingQuestions);
     }
   }
 
@@ -207,7 +208,7 @@ class _MoreListScreenState extends State<MoreListScreen> {
       return _buildEmptyState('답변 대기 중인 질문이 없습니다');
     }
 
-    final viewModel = context.read<CommunityViewModel>();
+    final qnaViewModel = context.read<CommunityQnaViewModel>();
 
     return ListView.separated(
       padding: const EdgeInsets.all(16),
@@ -225,7 +226,7 @@ class _MoreListScreenState extends State<MoreListScreen> {
             );
           },
           onCuriousTap: () async {
-            final isCurious = await viewModel.toggleCurious(question.id);
+            final isCurious = await qnaViewModel.toggleCurious(question.id);
             if (mounted) {
               ScaffoldMessenger.of(this.context).showSnackBar(
                 SnackBar(

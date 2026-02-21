@@ -7,11 +7,18 @@ import '../../../data/services/community_service.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../data/services/follow_service.dart';
 import '../../../domain/models/comment_data.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
-import '../../viewmodels/community_viewmodel.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
+import '../../viewmodels/community_post_viewmodel.dart';
+import '../../viewmodels/community_following_viewmodel.dart';
 import '../../widgets/community/post_card.dart';
-import '../../widgets/common/empty_state.dart';
+import 'widgets/post_author_section.dart';
+import 'widgets/post_image_carousel.dart';
+import 'widgets/post_content_section.dart';
+import 'widgets/post_interaction_bar.dart';
+import 'widgets/post_comments_section.dart';
+import 'widgets/post_comment_input.dart';
+import 'widgets/post_options_dialogs.dart';
 
 /// 게시글 상세 화면
 class PostDetailScreen extends StatefulWidget {
@@ -41,8 +48,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   bool _isDeleting = false;
   bool _isFollowing = false;
   bool _isFollowLoading = false;
-  int _currentImageIndex = 0;
-  final PageController _pageController = PageController();
   bool _isDependenciesReady = false;
 
   @override
@@ -69,7 +74,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   void dispose() {
     _commentController.dispose();
     _commentFocusNode.dispose();
-    _pageController.dispose();
     super.dispose();
   }
 
@@ -90,11 +94,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
     try {
       // ViewModel에서 게시글 찾기
-      final viewModel = context.read<CommunityViewModel>();
+      final postViewModel = context.read<CommunityPostViewModel>();
+      final followingViewModel = context.read<CommunityFollowingViewModel>();
 
       // 최신 게시글에서 찾기
       PostData? foundPost;
-      for (final post in viewModel.latestPosts) {
+      for (final post in postViewModel.latestPosts) {
         if (post.id == _postId) {
           foundPost = post;
           break;
@@ -103,7 +108,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
       // 팔로잉 게시글에서 찾기
       if (foundPost == null) {
-        for (final post in viewModel.followingPosts) {
+        for (final post in followingViewModel.followingPosts) {
           if (post.id == _postId) {
             foundPost = post;
             break;
@@ -126,6 +131,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         _checkFollowStatus();
       }
     } catch (e) {
+      AppLogger.data('게시글 로드 실패: $e', isError: true);
       setState(() {
         _errorMessage = '게시글을 불러오는데 실패했습니다.';
         _isLoading = false;
@@ -281,20 +287,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       // 댓글 수 업데이트
       if (_post != null) {
         setState(() {
-          _post = PostData(
-            id: _post!.id,
-            authorName: _post!.authorName,
-            authorImageUrl: _post!.authorImageUrl,
-            timeAgo: _post!.timeAgo,
-            title: _post!.title,
-            content: _post!.content,
-            imageUrls: _post!.imageUrls,
-            likeCount: _post!.likeCount,
-            commentCount: _post!.commentCount + 1,
-            bookmarkCount: _post!.bookmarkCount,
-            isLiked: _post!.isLiked,
-            isBookmarked: _post!.isBookmarked,
-          );
+          _post = _post!.copyWith(commentCount: _post!.commentCount + 1);
         });
       }
 
@@ -307,6 +300,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         );
       }
     } catch (e) {
+      AppLogger.data('댓글 등록 실패: $e', isError: true);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -349,7 +343,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         ],
       ),
       body: _buildBody(),
-      bottomNavigationBar: _buildCommentInput(),
+      bottomNavigationBar: PostCommentInput(
+        controller: _commentController,
+        focusNode: _commentFocusNode,
+        isSubmitting: _isSubmitting,
+        onSubmit: _submitComment,
+      ),
     );
   }
 
@@ -396,7 +395,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               onPressed: _loadPost,
               child: Text(
                 '다시 시도',
-                style: AppTextStyles.bodyMediumMedium.copyWith(
+                style: AppTextStyles.bodyMediumBold.copyWith(
                   color: AppColors.brand,
                 ),
               ),
@@ -419,547 +418,78 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // 작성자 정보
-            _buildAuthorSection(),
+            PostAuthorSection(
+              post: _post!,
+              authorId: _authorId,
+              currentUserId: _authService.currentUser?.id,
+              isFollowing: _isFollowing,
+              isFollowLoading: _isFollowLoading,
+              onToggleFollow: _toggleFollow,
+            ),
 
             // 이미지 캐러셀
-            if (_post!.imageUrls.isNotEmpty) _buildImageCarousel(),
+            if (_post!.imageUrls.isNotEmpty)
+              PostImageCarousel(imageUrls: _post!.imageUrls),
 
             // 게시글 내용
-            _buildContentSection(),
+            PostContentSection(
+              post: _post!,
+              onTagTap: (tag) {
+                final viewModel = context.read<CommunityPostViewModel>();
+                viewModel.filterByTag(tag);
+                Navigator.pop(context);
+              },
+            ),
 
             const Divider(height: 1, color: AppColors.borderLight),
 
             // 상호작용 바
-            _buildInteractionBar(),
+            Consumer<CommunityPostViewModel>(
+              builder: (context, viewModel, child) {
+                return PostInteractionBar(
+                  post: _post!,
+                  onLikeTap: () {
+                    viewModel.toggleLike(_post!.id, !_post!.isLiked);
+                    setState(() {
+                      _post = _post!.copyWith(
+                        likeCount: _post!.isLiked
+                            ? _post!.likeCount - 1
+                            : _post!.likeCount + 1,
+                        isLiked: !_post!.isLiked,
+                      );
+                    });
+                  },
+                  onCommentTap: () {
+                    _commentFocusNode.requestFocus();
+                  },
+                  onBookmarkTap: () {
+                    viewModel.toggleBookmark(_post!.id, !_post!.isBookmarked);
+                    setState(() {
+                      _post = _post!.copyWith(
+                        bookmarkCount: _post!.isBookmarked
+                            ? _post!.bookmarkCount - 1
+                            : _post!.bookmarkCount + 1,
+                        isBookmarked: !_post!.isBookmarked,
+                      );
+                    });
+                  },
+                );
+              },
+            ),
 
             const Divider(height: 1, color: AppColors.borderLight),
 
             // 댓글 섹션
-            _buildCommentsSection(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAuthorSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          // 프로필 이미지
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: const Color(0xFFE8EBF0),
-              image: _post!.authorImageUrl != null
-                  ? DecorationImage(
-                      image: NetworkImage(_post!.authorImageUrl!),
-                      fit: BoxFit.cover,
-                    )
-                  : null,
-            ),
-            child: _post!.authorImageUrl == null
-                ? const Icon(Icons.person, size: 22, color: AppColors.textHint)
-                : null,
-          ),
-          const SizedBox(width: 12),
-
-          // 작성자 정보
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _post!.authorName,
-                  style: AppTextStyles.bodyMediumMedium.copyWith(
-                    color: AppColors.textMain,
-                  ),
-                ),
-                Text(
-                  _post!.timeAgo,
-                  style: AppTextStyles.captionRegular.copyWith(
-                    color: AppColors.textHint,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // 팔로우 버튼 (자기 자신이 아닌 경우에만 표시)
-          if (_authorId != null && _authorId != _authService.currentUser?.id)
-            TextButton(
-              onPressed: _isFollowLoading ? null : _toggleFollow,
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                backgroundColor: _isFollowing
-                    ? AppColors.backgroundApp
-                    : AppColors.chipPrimaryBg,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  side: _isFollowing
-                      ? BorderSide(color: AppColors.borderLight)
-                      : BorderSide.none,
-                ),
-              ),
-              child: _isFollowLoading
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppColors.brand,
-                      ),
-                    )
-                  : Text(
-                      _isFollowing ? '팔로잉' : '팔로우',
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: _isFollowing
-                            ? AppColors.textSubtle
-                            : AppColors.brand,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildImageCarousel() {
-    return Stack(
-      children: [
-        SizedBox(
-          height: 300,
-          child: PageView.builder(
-            controller: _pageController,
-            onPageChanged: (index) {
-              setState(() {
-                _currentImageIndex = index;
-              });
-            },
-            itemCount: _post!.imageUrls.length,
-            itemBuilder: (context, index) {
-              return Image.network(
-                _post!.imageUrls[index],
-                fit: BoxFit.cover,
-                width: double.infinity,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  color: AppColors.backgroundApp,
-                  child: const Center(
-                    child: Icon(
-                      Icons.image,
-                      size: 48,
-                      color: AppColors.textHint,
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-
-        // 페이지 인디케이터
-        if (_post!.imageUrls.length > 1)
-          Positioned(
-            bottom: 16,
-            left: 0,
-            right: 0,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(_post!.imageUrls.length, (index) {
-                final isActive = index == _currentImageIndex;
-                return Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 3),
-                  width: isActive ? 20 : 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(4),
-                    color: isActive
-                        ? Colors.white
-                        : Colors.white.withValues(alpha: 0.5),
-                  ),
-                );
-              }),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildContentSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 제목
-          Text(
-            _post!.title,
-            style: AppTextStyles.titleLarge.copyWith(
-              color: AppColors.textMain,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // 내용
-          Text(
-            _post!.content,
-            style: AppTextStyles.bodyMedium.copyWith(
-              color: AppColors.textMain,
-              height: 1.6,
-            ),
-          ),
-
-          // 태그
-          if (_post!.tags.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _post!.tags.map((tag) => _buildTagChip(tag)).toList(),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTagChip(String tag) {
-    return GestureDetector(
-      onTap: () {
-        // 태그 클릭 시 해당 태그로 필터링된 게시글 목록으로 이동
-        final viewModel = context.read<CommunityViewModel>();
-        viewModel.filterByTag(tag);
-        Navigator.pop(context); // 게시글 상세에서 나가기
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: AppColors.chipPrimaryBg,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Text(
-          '#$tag',
-          style: AppTextStyles.captionMedium.copyWith(
-            color: AppColors.brand,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInteractionBar() {
-    return Consumer<CommunityViewModel>(
-      builder: (context, viewModel, child) {
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          child: Row(
-            children: [
-              // 좋아요 버튼
-              _buildInteractionButton(
-                icon: _post!.isLiked ? Icons.favorite : Icons.favorite_border,
-                iconColor: _post!.isLiked
-                    ? const Color(0xFFFE5839)
-                    : AppColors.textSubtle,
-                count: _post!.likeCount,
-                onTap: () {
-                  viewModel.toggleLike(_post!.id, !_post!.isLiked);
-                  setState(() {
-                    _post = PostData(
-                      id: _post!.id,
-                      authorName: _post!.authorName,
-                      authorImageUrl: _post!.authorImageUrl,
-                      timeAgo: _post!.timeAgo,
-                      title: _post!.title,
-                      content: _post!.content,
-                      imageUrls: _post!.imageUrls,
-                      likeCount: _post!.isLiked
-                          ? _post!.likeCount - 1
-                          : _post!.likeCount + 1,
-                      commentCount: _post!.commentCount,
-                      bookmarkCount: _post!.bookmarkCount,
-                      isLiked: !_post!.isLiked,
-                      isBookmarked: _post!.isBookmarked,
-                    );
-                  });
-                },
-              ),
-
-              // 댓글 버튼
-              _buildInteractionButton(
-                icon: Icons.chat_bubble_outline,
-                iconColor: AppColors.textSubtle,
-                count: _post!.commentCount,
-                onTap: () {
-                  _commentFocusNode.requestFocus();
-                },
-              ),
-
-              const Spacer(),
-
-              // 북마크 버튼
-              _buildInteractionButton(
-                icon: _post!.isBookmarked
-                    ? Icons.bookmark
-                    : Icons.bookmark_border,
-                iconColor: AppColors.textSubtle,
-                count: _post!.bookmarkCount,
-                onTap: () {
-                  viewModel.toggleBookmark(_post!.id, !_post!.isBookmarked);
-                  setState(() {
-                    _post = PostData(
-                      id: _post!.id,
-                      authorName: _post!.authorName,
-                      authorImageUrl: _post!.authorImageUrl,
-                      timeAgo: _post!.timeAgo,
-                      title: _post!.title,
-                      content: _post!.content,
-                      imageUrls: _post!.imageUrls,
-                      likeCount: _post!.likeCount,
-                      commentCount: _post!.commentCount,
-                      bookmarkCount: _post!.isBookmarked
-                          ? _post!.bookmarkCount - 1
-                          : _post!.bookmarkCount + 1,
-                      isLiked: _post!.isLiked,
-                      isBookmarked: !_post!.isBookmarked,
-                    );
-                  });
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildInteractionButton({
-    required IconData icon,
-    required Color iconColor,
-    required int count,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 20, color: iconColor),
-            const SizedBox(width: 6),
-            Text(
-              count.toString(),
-              style: AppTextStyles.bodyMedium.copyWith(
-                color: AppColors.textSubtle,
-              ),
+            PostCommentsSection(
+              comments: _comments,
+              isLoading: _isLoadingComments,
+              onCommentLike: (commentId) async {
+                await _commentService.toggleLike(commentId, true);
+                _loadComments();
+              },
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildCommentsSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '댓글 ${_comments.length}',
-            style: AppTextStyles.titleSmall.copyWith(
-              color: AppColors.textMain,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // 로딩 중
-          if (_isLoadingComments)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: CircularProgressIndicator(color: AppColors.brand),
-              ),
-            )
-          // 댓글이 없는 경우
-          else if (_comments.isEmpty)
-            EmptyStatePresets.noComments()
-          // 댓글 목록
-          else
-            ..._comments.map((comment) => _buildCommentItem(comment)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCommentItem(CommentData comment) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 프로필 아바타
-          Container(
-            width: 32,
-            height: 32,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              color: Color(0xFFE8EBF0),
-            ),
-            child: const Icon(
-              Icons.person,
-              size: 18,
-              color: AppColors.textHint,
-            ),
-          ),
-          const SizedBox(width: 12),
-
-          // 댓글 내용
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      comment.authorName,
-                      style: AppTextStyles.bodySmall.copyWith(
-                        color: AppColors.textMain,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _formatTimeAgo(comment.created),
-                      style: AppTextStyles.captionRegular.copyWith(
-                        color: AppColors.textHint,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  comment.content,
-                  style: AppTextStyles.bodyMedium.copyWith(
-                    color: AppColors.textMain,
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                // 좋아요 버튼
-                Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () async {
-                        if (comment.id != null) {
-                          await _commentService.toggleLike(comment.id!, true);
-                          _loadComments();
-                        }
-                      },
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.favorite_border,
-                            size: 16,
-                            color: AppColors.textHint,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${comment.likeCount}',
-                            style: AppTextStyles.captionRegular.copyWith(
-                              color: AppColors.textHint,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCommentInput() {
-    return Container(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 12,
-        bottom: MediaQuery.of(context).padding.bottom + 12,
-      ),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFDFDFF),
-        border: Border(top: BorderSide(color: AppColors.borderLight)),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _commentController,
-              focusNode: _commentFocusNode,
-              decoration: InputDecoration(
-                hintText: '댓글을 입력하세요...',
-                hintStyle: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textHint,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: BorderSide(color: AppColors.borderLight),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: BorderSide(color: AppColors.borderLight),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: BorderSide(color: AppColors.brand),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-              ),
-              maxLines: null,
-              textInputAction: TextInputAction.send,
-              onSubmitted: (_) => _submitComment(),
-            ),
-          ),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: _isSubmitting ? null : _submitComment,
-            child: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: AppColors.brand,
-                shape: BoxShape.circle,
-              ),
-              child: _isSubmitting
-                  ? const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.send, color: Colors.white, size: 20),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -968,106 +498,30 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     final currentUser = _authService.currentUser;
     final isAuthor = currentUser != null && _authorId == currentUser.id;
 
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // 작성자만 수정/삭제 가능
-            if (isAuthor) ...[
-              ListTile(
-                leading: const Icon(Icons.edit_outlined),
-                title: const Text('수정하기'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showEditDialog();
-                },
-              ),
-              ListTile(
-                leading: const Icon(
-                  Icons.delete_outline,
-                  color: AppColors.error,
-                ),
-                title: const Text(
-                  '삭제하기',
-                  style: TextStyle(color: AppColors.error),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showDeleteConfirmDialog();
-                },
-              ),
-              const Divider(height: 1),
-            ],
-            ListTile(
-              leading: const Icon(Icons.flag_outlined),
-              title: const Text('신고하기'),
-              onTap: () {
-                Navigator.pop(context);
-                _showReportDialog();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.share_outlined),
-              title: const Text('공유하기'),
-              onTap: () {
-                Navigator.pop(context);
-                _sharePost();
-              },
-            ),
-          ],
-        ),
+    showPostOptionsSheet(
+      context,
+      isAuthor: isAuthor,
+      onEdit: () => showPostEditDialog(
+        context,
+        currentContent: _post?.content ?? '',
+        onUpdate: _updatePost,
       ),
-    );
-  }
-
-  /// 게시글 수정 다이얼로그
-  void _showEditDialog() {
-    final TextEditingController editController = TextEditingController(
-      text: _post?.content ?? '',
-    );
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('게시글 수정'),
-        content: TextField(
-          controller: editController,
-          maxLines: 5,
-          decoration: InputDecoration(
-            hintText: '내용을 입력하세요',
-            hintStyle: AppTextStyles.bodyMedium.copyWith(
-              color: AppColors.textHint,
-            ),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('취소', style: TextStyle(color: AppColors.textSubtle)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (editController.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('내용을 입력해주세요.'),
-                    backgroundColor: AppColors.error,
-                  ),
-                );
-                return;
-              }
-
-              Navigator.pop(context);
-              await _updatePost(editController.text.trim());
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.brand),
-            child: const Text('수정', style: TextStyle(color: Colors.white)),
-          ),
-        ],
+      onDelete: () => showPostDeleteConfirmDialog(
+        context,
+        onDelete: _deletePost,
       ),
+      onReport: () => showPostReportDialog(
+        context,
+        onReported: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('신고가 접수되었습니다.'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+        },
+      ),
+      onShare: _sharePost,
     );
   }
 
@@ -1085,21 +539,11 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       // 로컬 상태 업데이트
       if (_post != null) {
         setState(() {
-          _post = PostData(
-            id: _post!.id,
-            authorName: _post!.authorName,
-            authorImageUrl: _post!.authorImageUrl,
-            timeAgo: _post!.timeAgo,
+          _post = _post!.copyWith(
             title: newContent.length > 30
                 ? '${newContent.substring(0, 30)}...'
                 : newContent,
             content: newContent,
-            imageUrls: _post!.imageUrls,
-            likeCount: _post!.likeCount,
-            commentCount: _post!.commentCount,
-            bookmarkCount: _post!.bookmarkCount,
-            isLiked: _post!.isLiked,
-            isBookmarked: _post!.isBookmarked,
           );
           _isLoading = false;
         });
@@ -1107,7 +551,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
       // ViewModel 새로고침
       if (mounted) {
-        context.read<CommunityViewModel>().refreshAll();
+        context.read<CommunityPostViewModel>().refreshAll();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('게시글이 수정되었습니다.'),
@@ -1131,31 +575,6 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     }
   }
 
-  /// 삭제 확인 다이얼로그
-  void _showDeleteConfirmDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('게시글 삭제'),
-        content: const Text('정말 이 게시글을 삭제하시겠습니까?\n삭제된 게시글은 복구할 수 없습니다.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('취소', style: TextStyle(color: AppColors.textSubtle)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _deletePost();
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('삭제', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
   /// 게시글 삭제
   Future<void> _deletePost() async {
     if (_postId == null) return;
@@ -1169,7 +588,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
       // ViewModel 새로고침
       if (mounted) {
-        context.read<CommunityViewModel>().refreshAll();
+        context.read<CommunityPostViewModel>().refreshAll();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('게시글이 삭제되었습니다.'),
@@ -1195,93 +614,9 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     }
   }
 
-  String _formatTimeAgo(DateTime? dateTime) {
-    if (dateTime == null) return '방금 전';
-
-    final diff = DateTime.now().difference(dateTime);
-    if (diff.inDays > 0) {
-      return '${diff.inDays}일 전';
-    } else if (diff.inHours > 0) {
-      return '${diff.inHours}시간 전';
-    } else if (diff.inMinutes > 0) {
-      return '${diff.inMinutes}분 전';
-    }
-    return '방금 전';
-  }
-
-  void _showReportDialog() {
-    final reasons = ['스팸/광고', '욕설/비하', '음란물', '허위정보', '저작권 침해', '기타'];
-    String? selectedReason;
-
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: const Text('게시글 신고'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '신고 사유를 선택해주세요.',
-                style: AppTextStyles.bodyMedium.copyWith(
-                  color: AppColors.textSubtle,
-                ),
-              ),
-              const SizedBox(height: 16),
-              RadioGroup<String>(
-                groupValue: selectedReason ?? '',
-                onChanged: (value) {
-                  setState(() {
-                    selectedReason = value;
-                  });
-                },
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: reasons
-                      .map(
-                        (reason) => RadioListTile<String>(
-                          title: Text(reason),
-                          value: reason,
-                          contentPadding: EdgeInsets.zero,
-                          dense: true,
-                        ),
-                      )
-                      .toList(),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('취소', style: TextStyle(color: AppColors.textSubtle)),
-            ),
-            ElevatedButton(
-              onPressed: selectedReason == null
-                  ? null
-                  : () {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(this.context).showSnackBar(
-                        const SnackBar(
-                          content: Text('신고가 접수되었습니다.'),
-                          backgroundColor: AppColors.success,
-                        ),
-                      );
-                    },
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-              child: const Text('신고', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _sharePost() {
     if (_postId == null) return;
 
-    // 딥링크 또는 앱 링크 생성 (실제 구현 시 share_plus 패키지 사용)
     final shareUrl = 'minimo://post/$_postId';
 
     ScaffoldMessenger.of(context).showSnackBar(

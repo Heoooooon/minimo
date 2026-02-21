@@ -15,7 +15,9 @@ import '../../data/services/tag_service.dart';
 import '../../presentation/viewmodels/aquarium_list_viewmodel.dart';
 import '../../presentation/viewmodels/aquarium_register_viewmodel.dart';
 import '../../presentation/viewmodels/community_question_viewmodel.dart';
-import '../../presentation/viewmodels/community_viewmodel.dart';
+import '../../presentation/viewmodels/community_post_viewmodel.dart';
+import '../../presentation/viewmodels/community_following_viewmodel.dart';
+import '../../presentation/viewmodels/community_qna_viewmodel.dart';
 import '../../presentation/viewmodels/record_home_viewmodel.dart';
 import '../../presentation/viewmodels/record_viewmodel.dart';
 
@@ -72,14 +74,28 @@ class AppDependencies {
   final AquariumService aquariumService;
   final CreatureService creatureService;
 
-  CommunityViewModel createCommunityViewModel({bool autoLoad = true}) {
-    return CommunityViewModel(
+  CommunityPostViewModel createCommunityPostViewModel({bool autoLoad = true}) {
+    return CommunityPostViewModel(
+      service: communityService,
+      tagService: tagService,
+      autoLoad: autoLoad,
+    );
+  }
+
+  CommunityFollowingViewModel createCommunityFollowingViewModel() {
+    return CommunityFollowingViewModel(
+      service: communityService,
+      followService: followService,
+      authService: authService,
+    );
+  }
+
+  CommunityQnaViewModel createCommunityQnaViewModel() {
+    return CommunityQnaViewModel(
       service: communityService,
       curiousService: curiousService,
-      followService: followService,
       tagService: tagService,
       authService: authService,
-      autoLoad: autoLoad,
     );
   }
 

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:pocketbase/pocketbase.dart';
 import 'package:http/http.dart' as http;
 import '../../config/app_config.dart';
+import '../../core/exceptions/app_exceptions.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/pb_filter.dart';
 import '../../domain/models/gallery_photo_data.dart';
@@ -64,9 +65,16 @@ class GalleryPhotoService {
       return records
           .map((r) => GalleryPhotoData.fromJson(r.toJson(), baseUrl: _baseUrl))
           .toList();
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to get gallery photos: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '갤러리 사진을 불러오는데 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to get gallery photos: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '갤러리 사진 조회 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -88,9 +96,16 @@ class GalleryPhotoService {
       return records
           .map((r) => GalleryPhotoData.fromJson(r.toJson(), baseUrl: _baseUrl))
           .toList();
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to get photos by creature: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '생물 사진을 불러오는데 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to get photos by creature: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '생물 사진 조회 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -101,9 +116,16 @@ class GalleryPhotoService {
           .collection(_collection)
           .getOne(id, expand: 'creature_id');
       return GalleryPhotoData.fromJson(record.toJson(), baseUrl: _baseUrl);
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to get photo: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '사진을 불러오는데 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to get photo: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '사진 조회 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -114,7 +136,7 @@ class GalleryPhotoService {
 
     final userId = _currentUserId;
     if (userId == null) {
-      throw Exception('로그인이 필요합니다.');
+      throw const AuthException(message: '로그인이 필요합니다.', code: 'LOGIN_REQUIRED');
     }
 
     try {
@@ -136,9 +158,16 @@ class GalleryPhotoService {
           .create(body: body, files: [multipartFile]);
 
       return GalleryPhotoData.fromJson(record.toJson(), baseUrl: _baseUrl);
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to upload photo: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '사진 업로드에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to upload photo: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '사진 업로드 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -205,9 +234,16 @@ class GalleryPhotoService {
           .update(photo.id!, body: photo.toJson());
 
       return GalleryPhotoData.fromJson(record.toJson(), baseUrl: _baseUrl);
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to update photo: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '사진 수정에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to update photo: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '사진 수정 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -215,9 +251,16 @@ class GalleryPhotoService {
   Future<void> deletePhoto(String id) async {
     try {
       await _client.collection(_collection).delete(id);
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to delete photo: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '사진 삭제에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to delete photo: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '사진 삭제 중 오류가 발생했습니다.', originalError: e);
     }
   }
 

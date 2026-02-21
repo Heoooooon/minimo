@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
 
 /// 알림 설정 화면
 class NotificationSettingsScreen extends StatefulWidget {
@@ -27,7 +27,7 @@ class _NotificationSettingsScreenState
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: true,
-        title: Text('알림 설정', style: AppTextStyles.bodyMediumMedium),
+        title: Text('알림 설정', style: AppTextStyles.bodyMediumBold),
       ),
       body: ListView(
         children: [

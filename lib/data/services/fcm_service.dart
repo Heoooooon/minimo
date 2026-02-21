@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../../core/utils/app_logger.dart';
 import '../../main.dart' show navigatorKey;
@@ -94,6 +95,13 @@ class FcmService {
 
   Future<void> initialize() async {
     if (_isInitialized) return;
+
+    // 웹에서는 Firebase 설정(FirebaseOptions)이 없으므로 FCM 초기화를 건너뜀
+    if (kIsWeb) {
+      AppLogger.ui('FcmService skipped on web platform');
+      _isInitialized = true;
+      return;
+    }
 
     await Firebase.initializeApp();
 

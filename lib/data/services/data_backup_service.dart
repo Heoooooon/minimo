@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'pocketbase_service.dart';
+import '../../core/exceptions/app_exceptions.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/pb_filter.dart';
 
@@ -99,7 +100,7 @@ class DataBackupService {
   Future<Map<String, dynamic>> _collectUserData() async {
     final userId = _currentUserId;
     if (userId == null) {
-      throw Exception('로그인이 필요합니다.');
+      throw const AuthException(message: '로그인이 필요합니다.', code: 'LOGIN_REQUIRED');
     }
 
     final collectionsData = <String, dynamic>{};
@@ -195,7 +196,7 @@ class DataBackupService {
   Future<ImportResult> restoreFromJson(String jsonString) async {
     final userId = _currentUserId;
     if (userId == null) {
-      throw Exception('로그인이 필요합니다.');
+      throw const AuthException(message: '로그인이 필요합니다.', code: 'LOGIN_REQUIRED');
     }
 
     final data = jsonDecode(jsonString) as Map<String, dynamic>;
@@ -288,7 +289,7 @@ class DataBackupService {
   Future<void> exportRecordsCsv() async {
     final userId = _currentUserId;
     if (userId == null) {
-      throw Exception('로그인이 필요합니다.');
+      throw const AuthException(message: '로그인이 필요합니다.', code: 'LOGIN_REQUIRED');
     }
 
     final records = await _pb

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../theme/app_colors.dart';
-import '../../theme/app_text_styles.dart';
-import '../widgets/common/app_button.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
+import 'package:cmore_design_system/widgets/app_button.dart';
 
 /// 어항 크기 열거형
 enum TankSize {
@@ -181,7 +181,7 @@ class _TankRegisterScreenState extends State<TankRegisterScreen> {
                           children: [
                             Text(
                               size.label,
-                              style: AppTextStyles.bodyMediumMedium.copyWith(
+                              style: AppTextStyles.bodyMediumBold.copyWith(
                                 color: isSelected
                                     ? AppColors.brand
                                     : AppColors.textMain,

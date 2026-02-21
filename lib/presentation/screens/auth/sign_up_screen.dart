@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../core/di/app_dependencies.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
-import '../../widgets/common/app_button.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
+import 'package:cmore_design_system/widgets/app_button.dart';
 import '../onboarding/onboarding_survey_screen.dart';
 
 /// 회원가입 화면 (연속 플로우 애니메이션)
@@ -253,6 +254,7 @@ class _SignUpScreenState extends State<SignUpScreen>
         _verificationFocusNode.requestFocus();
       });
     } catch (e) {
+      AppLogger.auth('인증 코드 발송 실패: $e', isError: true);
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -288,6 +290,7 @@ class _SignUpScreenState extends State<SignUpScreen>
         );
       }
     } catch (e) {
+      AppLogger.auth('이메일 인증 실패: $e', isError: true);
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -313,6 +316,7 @@ class _SignUpScreenState extends State<SignUpScreen>
       if (!mounted) return;
       setState(() => _isCompleted = true);
     } catch (e) {
+      AppLogger.auth('회원가입 실패: $e', isError: true);
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -469,7 +473,7 @@ class _SignUpScreenState extends State<SignUpScreen>
               padding: const EdgeInsets.symmetric(horizontal: 8),
               child: Text(
                 '@',
-                style: AppTextStyles.bodyMediumMedium.copyWith(
+                style: AppTextStyles.bodyMediumBold.copyWith(
                   color: AppColors.textSubtle,
                 ),
               ),
@@ -543,6 +547,7 @@ class _SignUpScreenState extends State<SignUpScreen>
                       _startVerificationTimer();
                       _verificationCodeController.clear();
                     } catch (e) {
+                      AppLogger.auth('인증 코드 재요청 실패: $e', isError: true);
                       if (!mounted) return;
                       ScaffoldMessenger.of(
                         context,

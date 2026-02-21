@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import '../../../../theme/app_colors.dart';
-import '../../../../theme/app_text_styles.dart';
-import '../../../../theme/app_spacing.dart';
-import '../../../viewmodels/community_viewmodel.dart';
+import 'package:provider/provider.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
+import 'package:cmore_design_system/theme/app_spacing.dart';
+import '../../../viewmodels/community_post_viewmodel.dart';
+import '../../../viewmodels/community_qna_viewmodel.dart';
 import '../../../widgets/community/qna_question_card.dart';
-import '../../../widgets/common/empty_state.dart';
+import 'package:cmore_design_system/widgets/empty_state.dart';
 import '../community_screen.dart';
 import '../more_list_screen.dart';
 
@@ -22,7 +24,7 @@ class QnaTab extends StatelessWidget {
   final QnaSubTab qnaSubTab;
   final void Function(QnaSubTab tab) onQnaSubTabChanged;
   final void Function(String questionId) onQuestionTap;
-  final void Function(CommunityViewModel viewModel, String questionId) onCuriousTap;
+  final void Function(CommunityQnaViewModel viewModel, String questionId) onCuriousTap;
   final void Function(String tag) onTagTap;
 
   @override
@@ -31,7 +33,11 @@ class QnaTab extends StatelessWidget {
   }
 
   /// CustomScrollView에 삽입할 Sliver 위젯 리스트 반환
-  List<Widget> buildSlivers(BuildContext context, CommunityViewModel viewModel) {
+  List<Widget> buildSlivers(BuildContext context) {
+    final viewModel = context.watch<CommunityQnaViewModel>();
+    // selectedTag는 PostViewModel에서 읽음
+    final postViewModel = context.watch<CommunityPostViewModel>();
+
     return [
       // Ask Question Button
       SliverToBoxAdapter(child: _buildAskQuestionButton(context)),
@@ -41,7 +47,7 @@ class QnaTab extends StatelessWidget {
 
       // Popular Tags
       if (viewModel.qnaTags.isNotEmpty)
-        SliverToBoxAdapter(child: _buildPopularTags(context, viewModel)),
+        SliverToBoxAdapter(child: _buildPopularTags(context, viewModel, postViewModel)),
 
       // Popular Q&A Section
       if (viewModel.popularQuestions.isNotEmpty)
@@ -143,7 +149,11 @@ class QnaTab extends StatelessWidget {
     );
   }
 
-  Widget _buildPopularTags(BuildContext context, CommunityViewModel viewModel) {
+  Widget _buildPopularTags(
+    BuildContext context,
+    CommunityQnaViewModel viewModel,
+    CommunityPostViewModel postViewModel,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -169,7 +179,7 @@ class QnaTab extends StatelessWidget {
             itemBuilder: (context, index) {
               final tag = viewModel.qnaTags[index];
               final isSelected =
-                  viewModel.selectedTag == tag.replaceAll('#', '');
+                  postViewModel.selectedTag == tag.replaceAll('#', '');
               return GestureDetector(
                 onTap: () => onTagTap(tag),
                 child: Container(
@@ -204,7 +214,7 @@ class QnaTab extends StatelessWidget {
 
   Widget _buildPopularQnaSection(
     BuildContext context,
-    CommunityViewModel viewModel,
+    CommunityQnaViewModel viewModel,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -273,7 +283,7 @@ class QnaTab extends StatelessWidget {
 
   Widget _buildFeaturedQuestionCard(
     BuildContext context,
-    CommunityViewModel viewModel,
+    CommunityQnaViewModel viewModel,
   ) {
     return Column(
       children: [
@@ -292,7 +302,7 @@ class QnaTab extends StatelessWidget {
 
   Widget _buildWaitingAnswerSection(
     BuildContext context,
-    CommunityViewModel viewModel,
+    CommunityQnaViewModel viewModel,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

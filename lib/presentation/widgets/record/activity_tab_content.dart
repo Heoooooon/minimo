@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import '../../../core/utils/app_logger.dart';
 import '../../../domain/models/record_data.dart';
 import '../../../data/repositories/record_repository.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_spacing.dart';
-import '../../../theme/app_text_styles.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_spacing.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
 import '../../viewmodels/record_viewmodel.dart';
-import '../common/confirm_dialog.dart';
+import 'package:cmore_design_system/widgets/confirm_dialog.dart';
 import 'activity_add_bottom_sheet.dart';
 
 /// 기록 탭 콘텐츠
@@ -194,7 +194,7 @@ class _ActivityTabContentState extends State<ActivityTabContent> {
                 const SizedBox(width: AppSpacing.sm),
                 Text(
                   '기록 추가',
-                  style: AppTextStyles.bodyMediumMedium.copyWith(
+                  style: AppTextStyles.bodyMediumBold.copyWith(
                     color: AppColors.brand,
                   ),
                 ),

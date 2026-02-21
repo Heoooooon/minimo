@@ -8,9 +8,9 @@ import '../../../data/services/answer_service.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../domain/models/question_data.dart';
 import '../../../domain/models/answer_data.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
-import '../../widgets/common/empty_state.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
+import 'package:cmore_design_system/widgets/empty_state.dart';
 
 /// 질문 상세 화면
 class QuestionDetailScreen extends StatefulWidget {
@@ -94,6 +94,7 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
         _loadAnswers();
       }
     } catch (e) {
+      AppLogger.data('질문 로드 실패: $e', isError: true);
       setState(() {
         _errorMessage = '질문을 불러오는데 실패했습니다.';
         _isLoading = false;
@@ -175,6 +176,7 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
         );
       }
     } catch (e) {
+      AppLogger.data('답변 등록 실패: $e', isError: true);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -250,7 +252,7 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
               onPressed: _loadQuestion,
               child: Text(
                 '다시 시도',
-                style: AppTextStyles.bodyMediumMedium.copyWith(
+                style: AppTextStyles.bodyMediumBold.copyWith(
                   color: AppColors.brand,
                 ),
               ),
@@ -338,7 +340,7 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
                 height: 32,
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Color(0xFFE8EBF0),
+                  color: AppColors.gray200,
                 ),
                 child: const Icon(
                   Icons.person,
@@ -567,7 +569,7 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
                 height: 32,
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Color(0xFFE8EBF0),
+                  color: AppColors.gray200,
                 ),
                 child: const Icon(
                   Icons.person,
@@ -631,7 +633,7 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
                       await _answerService.toggleLike(answer.id!, true);
                       _loadAnswers();
                     } catch (e) {
-                      // 실패 시 롤백
+                      AppLogger.data('답변 좋아요 토글 실패: $e', isError: true);
                       _loadAnswers();
                     }
                   }
@@ -844,6 +846,7 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
         );
       }
     } catch (e) {
+      AppLogger.data('답변 채택 실패: $e', isError: true);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

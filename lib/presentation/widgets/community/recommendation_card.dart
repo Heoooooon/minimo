@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
 
 /// 추천 게시글 데이터 모델
 class RecommendationData {
@@ -99,8 +99,8 @@ class RecommendationCard extends StatelessWidget {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      const Color(0xFF0165FE).withValues(alpha: 0.0),
-                      const Color(0xFF0165FE).withValues(alpha: 0.5),
+                      AppColors.brand.withValues(alpha: 0.0),
+                      AppColors.brand.withValues(alpha: 0.5),
                     ],
                   ),
                 ),
@@ -120,7 +120,7 @@ class RecommendationCard extends StatelessWidget {
                       children: [
                         Text(
                           data.title,
-                          style: AppTextStyles.bodyMediumMedium.copyWith(
+                          style: AppTextStyles.bodyMediumBold.copyWith(
                             color: Colors.white,
                             fontSize: 16,
                             fontWeight: FontWeight.w700,

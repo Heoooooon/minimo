@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
-import '../../../theme/app_spacing.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
+import 'package:cmore_design_system/theme/app_spacing.dart';
 
 enum AquariumStatus {
-  healthy('양호', Color(0xFFD7FFE9), Color(0xFF00B356)),
-  treatment('치료중', Color(0xFFFFF1E6), Color(0xFFFE8A24)),
-  caution('주의', Color(0xFFFFEAE6), Color(0xFFE72A07));
+  healthy('양호', AppColors.chipSuccessBg, Color(0xFF00B356)),
+  treatment('치료중', AppColors.orange50, AppColors.orange500),
+  caution('주의', AppColors.chipErrorBg, AppColors.error);
 
   const AquariumStatus(this.label, this.bgColor, this.textColor);
   final String label;
@@ -174,7 +174,7 @@ class AquariumCard extends StatelessWidget {
           children: [
             Text(
               data.name,
-              style: AppTextStyles.bodyMediumMedium.copyWith(
+              style: AppTextStyles.bodyMediumBold.copyWith(
                 color: AppColors.textMain,
                 fontSize: 16,
                 height: 24 / 16,

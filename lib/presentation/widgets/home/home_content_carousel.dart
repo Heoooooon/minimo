@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_spacing.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_spacing.dart';
 import 'community_card.dart';
 
 /// 홈 화면 추천 콘텐츠 캐러셀

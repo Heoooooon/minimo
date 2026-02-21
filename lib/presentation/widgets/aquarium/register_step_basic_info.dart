@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../theme/app_text_styles.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
 import 'label_text_field.dart';
 import 'type_toggle_button.dart';
 

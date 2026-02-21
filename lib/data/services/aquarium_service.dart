@@ -128,6 +128,9 @@ class AquariumService {
           .collection(_collection)
           .getList(page: 1, perPage: 1, filter: filter);
       return result.totalItems;
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to get aquarium count: $e', isError: true);
+      return 0;
     } catch (e) {
       AppLogger.data('Failed to get aquarium count: $e', isError: true);
       return 0;

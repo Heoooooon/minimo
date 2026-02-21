@@ -1,5 +1,6 @@
 import 'package:pocketbase/pocketbase.dart';
 import 'pocketbase_service.dart';
+import '../../core/exceptions/app_exceptions.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/pb_filter.dart';
 import '../../domain/models/comment_data.dart';
@@ -39,9 +40,19 @@ class CommentService {
 
       // 대댓글 구조화
       return _organizeComments(comments);
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to get comments: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '댓글 목록을 불러오는데 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to get comments: $e', isError: true);
-      rethrow;
+      throw NetworkException(
+        message: '댓글 목록 조회 중 오류가 발생했습니다.',
+        originalError: e,
+      );
     }
   }
 
@@ -52,6 +63,16 @@ class CommentService {
           .collection(_collection)
           .getOne(id, expand: 'author');
       return _recordToCommentData(record);
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to get comment: $e', isError: true);
+      if (e.statusCode == 404) {
+        return null;
+      }
+      throw NetworkException.clientError(
+        message: '댓글을 불러오는데 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to get comment: $e', isError: true);
       return null;
@@ -70,9 +91,19 @@ class CommentService {
 
       AppLogger.data('Comment created: ${record.id}');
       return _recordToCommentData(record);
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to create comment: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '댓글 등록에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to create comment: $e', isError: true);
-      rethrow;
+      throw NetworkException(
+        message: '댓글 등록 중 오류가 발생했습니다.',
+        originalError: e,
+      );
     }
   }
 
@@ -85,9 +116,27 @@ class CommentService {
 
       AppLogger.data('Comment updated: ${record.id}');
       return _recordToCommentData(record);
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to update comment: $e', isError: true);
+      if (e.statusCode == 404) {
+        throw NotFoundException(
+          message: '댓글을 찾을 수 없습니다.',
+          code: 'COMMENT_NOT_FOUND',
+          resourceType: 'comment',
+          resourceId: id,
+        );
+      }
+      throw NetworkException.clientError(
+        message: '댓글 수정에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to update comment: $e', isError: true);
-      rethrow;
+      throw NetworkException(
+        message: '댓글 수정 중 오류가 발생했습니다.',
+        originalError: e,
+      );
     }
   }
 
@@ -100,9 +149,27 @@ class CommentService {
       await _decrementPostCommentCount(postId);
 
       AppLogger.data('Comment deleted: $id');
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to delete comment: $e', isError: true);
+      if (e.statusCode == 404) {
+        throw NotFoundException(
+          message: '댓글을 찾을 수 없습니다.',
+          code: 'COMMENT_NOT_FOUND',
+          resourceType: 'comment',
+          resourceId: id,
+        );
+      }
+      throw NetworkException.clientError(
+        message: '댓글 삭제에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to delete comment: $e', isError: true);
-      rethrow;
+      throw NetworkException(
+        message: '댓글 삭제 중 오류가 발생했습니다.',
+        originalError: e,
+      );
     }
   }
 
@@ -113,8 +180,19 @@ class CommentService {
         method: 'POST',
         body: {'target_id': commentId, 'target_type': 'comment'},
       );
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to toggle like: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '좋아요 처리에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to toggle like: $e', isError: true);
+      throw NetworkException(
+        message: '좋아요 처리 중 오류가 발생했습니다.',
+        originalError: e,
+      );
     }
   }
 
@@ -127,6 +205,12 @@ class CommentService {
         method: 'POST',
         body: {'id': postId, 'type': 'post'},
       );
+    } on ClientException catch (e) {
+      AppLogger.data(
+        'Failed to increment post comment count: $e',
+        isError: true,
+      );
+      // 카운트 증가 실패는 치명적이지 않으므로 로깅만 수행
     } catch (e) {
       AppLogger.data(
         'Failed to increment post comment count: $e',
@@ -142,6 +226,12 @@ class CommentService {
         method: 'POST',
         body: {'id': postId, 'type': 'post'},
       );
+    } on ClientException catch (e) {
+      AppLogger.data(
+        'Failed to decrement post comment count: $e',
+        isError: true,
+      );
+      // 카운트 감소 실패는 치명적이지 않으므로 로깅만 수행
     } catch (e) {
       AppLogger.data(
         'Failed to decrement post comment count: $e',

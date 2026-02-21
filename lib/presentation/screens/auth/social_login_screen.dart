@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/utils/app_logger.dart';
 import '../../../core/di/app_dependencies.dart';
 import '../../../data/services/auth_service.dart';
 import '../../../data/services/onboarding_service.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
 import '../main_shell.dart';
 import '../onboarding/onboarding_survey_screen.dart';
 import 'email_login_screen.dart';
@@ -171,7 +172,7 @@ class _SocialLoginScreenState extends State<SocialLoginScreen> {
           begin: Alignment(-0.5, -0.5),
           end: Alignment(0.8, 1.2),
           colors: [
-            Color(0xFFF9FAFC),
+            AppColors.gray50,
             Color(0x99000E24), // rgba(0, 14, 36, 0.6)
           ],
           stops: [0.2368, 0.924],
@@ -238,6 +239,7 @@ class _SocialLoginScreenState extends State<SocialLoginScreen> {
         (route) => false,
       );
     } catch (e) {
+      AppLogger.auth('$provider 소셜 로그인 실패: $e', isError: true);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('$provider 로그인에 실패했습니다. 다시 시도해주세요.')),
@@ -325,7 +327,7 @@ class _SocialLoginButton extends StatelessWidget {
                   const SizedBox(width: 8),
                   Text(
                     isLoading ? '로그인 중...' : text,
-                    style: AppTextStyles.bodyMediumMedium.copyWith(
+                    style: AppTextStyles.bodyMediumBold.copyWith(
                       color: textColor,
                       letterSpacing: -0.5,
                     ),

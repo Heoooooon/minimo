@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
 import '../../../domain/models/notification_data.dart';
 import '../../../data/services/pb_notification_service.dart';
-import '../../widgets/common/empty_state.dart';
+import 'package:cmore_design_system/widgets/empty_state.dart';
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});

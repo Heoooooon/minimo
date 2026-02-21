@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../domain/models/aquarium_data.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
 import 'label_text_field.dart';
 
 /// 어항 등록 Step 2: 장비 등록
@@ -208,7 +208,7 @@ class RegisterStepEquipment extends StatelessWidget {
               children: [
                 Text(
                   '히터 사용',
-                  style: AppTextStyles.bodyMediumMedium.copyWith(
+                  style: AppTextStyles.bodyMediumBold.copyWith(
                     fontWeight: FontWeight.w500,
                   ),
                 ),

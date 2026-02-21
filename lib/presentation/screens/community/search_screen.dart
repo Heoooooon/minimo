@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
-import '../../viewmodels/community_viewmodel.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
+import '../../viewmodels/community_post_viewmodel.dart';
+import '../../viewmodels/community_qna_viewmodel.dart';
 import '../../widgets/community/post_card.dart';
 import '../../widgets/community/qna_question_card.dart';
-import '../../widgets/common/empty_state.dart';
+import 'package:cmore_design_system/widgets/empty_state.dart';
 
 /// 커뮤니티 검색 화면
 class SearchScreen extends StatefulWidget {
@@ -69,19 +70,20 @@ class _SearchScreenState extends State<SearchScreen>
       _hasSearched = true;
     });
 
-    final viewModel = context.read<CommunityViewModel>();
+    final postViewModel = context.read<CommunityPostViewModel>();
+    final qnaViewModel = context.read<CommunityQnaViewModel>();
 
     try {
       // 검색어를 최근 검색어에 추가
       _addToRecentSearches(query);
 
       // 게시글 검색 (content에서 검색)
-      await viewModel.filterByTag(query);
-      _postResults = viewModel.filteredPosts;
+      await postViewModel.filterByTag(query);
+      _postResults = postViewModel.filteredPosts;
 
       // Q&A 검색은 별도 필터 필요 (현재 간단히 처리)
       // 실제 구현시 CommunityService에 searchQuestions 메서드 추가 필요
-      _questionResults = viewModel.popularQuestions
+      _questionResults = qnaViewModel.popularQuestions
           .where(
             (q) =>
                 q.title.toLowerCase().contains(query.toLowerCase()) ||

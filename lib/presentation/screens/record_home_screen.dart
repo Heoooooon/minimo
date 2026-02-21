@@ -4,9 +4,9 @@ import '../../core/di/app_dependencies.dart';
 import '../../core/utils/app_logger.dart';
 import '../../domain/models/aquarium_data.dart';
 import '../../domain/models/creature_data.dart';
-import '../../theme/app_colors.dart';
-import '../../theme/app_spacing.dart';
-import '../../theme/app_text_styles.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_spacing.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
 import '../viewmodels/record_home_viewmodel.dart';
 import '../viewmodels/record_viewmodel.dart';
 import '../widgets/record/aquarium_accordion.dart';
@@ -361,7 +361,7 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
             },
             child: Text(
               '어항 등록하기',
-              style: AppTextStyles.bodyMediumMedium.copyWith(
+              style: AppTextStyles.bodyMediumBold.copyWith(
                 color: AppColors.brand,
               ),
             ),

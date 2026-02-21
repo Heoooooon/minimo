@@ -4,11 +4,11 @@ import '../../core/di/app_dependencies.dart';
 import '../../core/utils/app_logger.dart';
 import '../../domain/models/record_data.dart';
 import '../../domain/models/aquarium_data.dart';
-import '../../theme/app_colors.dart';
-import '../../theme/app_spacing.dart';
-import '../../theme/app_text_styles.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_spacing.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
 import '../viewmodels/record_viewmodel.dart';
-import '../widgets/common/app_button.dart';
+import 'package:cmore_design_system/widgets/app_button.dart';
 import '../widgets/record/activity_add_bottom_sheet.dart';
 
 /// 기록 추가 화면
@@ -298,7 +298,7 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
                   const SizedBox(height: 2),
                   Text(
                     '${_selectedDate.month}월 ${_selectedDate.day}일 ($weekday)',
-                    style: AppTextStyles.bodyMediumMedium,
+                    style: AppTextStyles.bodyMediumBold,
                   ),
                 ],
               ),
@@ -342,7 +342,7 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
               },
               child: Text(
                 '어항 등록하기',
-                style: AppTextStyles.bodyMediumMedium.copyWith(
+                style: AppTextStyles.bodyMediumBold.copyWith(
                   color: AppColors.brand,
                 ),
               ),
@@ -517,7 +517,7 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
             const SizedBox(width: AppSpacing.sm),
             Text(
               '할 일 추가',
-              style: AppTextStyles.bodyMediumMedium.copyWith(
+              style: AppTextStyles.bodyMediumBold.copyWith(
                 color: AppColors.brand,
               ),
             ),

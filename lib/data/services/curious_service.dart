@@ -1,5 +1,6 @@
 import 'package:pocketbase/pocketbase.dart';
 import 'pocketbase_service.dart';
+import '../../core/exceptions/app_exceptions.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/pb_filter.dart';
 
@@ -59,9 +60,16 @@ class CuriousService {
         'Curious toggled: $userId -> $questionId (curious: $curious)',
       );
       return curious;
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to toggle curious: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '궁금해요 처리에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to toggle curious: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '궁금해요 처리 중 오류가 발생했습니다.', originalError: e);
     }
   }
 

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:pocketbase/pocketbase.dart';
 
+import '../../core/exceptions/app_exceptions.dart';
 import '../../core/utils/app_logger.dart';
 import '../../domain/models/creature_catalog_data.dart';
 import '../../domain/utils/creature_catalog_text.dart';
@@ -38,12 +39,22 @@ class CreatureCatalogService {
             (r) => CreatureCatalogData.fromJson(r.toJson(), baseUrl: _baseUrl),
           )
           .toList();
+    } on ClientException catch (e) {
+      AppLogger.data(
+        'Failed to get suggested catalog creatures: $e',
+        isError: true,
+      );
+      throw NetworkException.clientError(
+        message: '추천 생물 목록을 불러오는데 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data(
         'Failed to get suggested catalog creatures: $e',
         isError: true,
       );
-      rethrow;
+      throw NetworkException(message: '추천 생물 목록 조회 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -73,9 +84,16 @@ class CreatureCatalogService {
             (r) => CreatureCatalogData.fromJson(r.toJson(), baseUrl: _baseUrl),
           )
           .toList();
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to search catalog creatures: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '생물 검색에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to search catalog creatures: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '생물 검색 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -86,7 +104,7 @@ class CreatureCatalogService {
   }) async {
     final userId = _currentUserId;
     if (userId == null || userId.isEmpty) {
-      throw StateError('Login required');
+      throw const AuthException(message: '로그인이 필요합니다.', code: 'LOGIN_REQUIRED');
     }
 
     final trimmedCategory = category.trim();
@@ -142,9 +160,16 @@ class CreatureCatalogService {
       }
 
       return CreatureCatalogData.fromJson(record.toJson(), baseUrl: _baseUrl);
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to create catalog creature: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '생물 도감 등록에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to create catalog creature: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '생물 도감 등록 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -154,7 +179,7 @@ class CreatureCatalogService {
   }) async {
     final userId = _currentUserId;
     if (userId == null || userId.isEmpty) {
-      throw StateError('Login required');
+      throw const AuthException(message: '로그인이 필요합니다.', code: 'LOGIN_REQUIRED');
     }
 
     try {
@@ -173,9 +198,16 @@ class CreatureCatalogService {
       await _pb
           .collection(_collection)
           .update(catalogId, body: {'report_count': currentCount + 1});
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to report catalog creature: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '신고 처리에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to report catalog creature: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '신고 처리 중 오류가 발생했습니다.', originalError: e);
     }
   }
 

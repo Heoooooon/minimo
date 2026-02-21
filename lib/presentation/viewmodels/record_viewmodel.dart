@@ -1,3 +1,4 @@
+import '../../core/utils/app_logger.dart';
 import '../../data/repositories/record_repository.dart';
 import '../../domain/models/record_data.dart';
 import 'base_viewmodel.dart';
@@ -61,6 +62,7 @@ class RecordViewModel extends BaseViewModel {
     try {
       return await _repository.getRecordsByDateAndAquarium(date, aquariumId);
     } catch (e) {
+      AppLogger.error('[RecordViewModel] Failed to get records by date and aquarium: $e');
       rethrow;
     }
   }
@@ -79,6 +81,7 @@ class RecordViewModel extends BaseViewModel {
         recordType: recordType?.name,
       );
     } catch (e) {
+      AppLogger.error('[RecordViewModel] Failed to get records by creature: $e');
       rethrow;
     }
   }

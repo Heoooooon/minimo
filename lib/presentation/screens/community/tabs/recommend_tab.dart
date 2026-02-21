@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import '../../../../theme/app_colors.dart';
-import '../../../../theme/app_text_styles.dart';
-import '../../../../theme/app_spacing.dart';
-import '../../../viewmodels/community_viewmodel.dart';
+import 'package:provider/provider.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
+import 'package:cmore_design_system/theme/app_spacing.dart';
+import '../../../viewmodels/community_post_viewmodel.dart';
 import '../../../widgets/community/post_card.dart';
 import '../../../widgets/community/recommendation_card.dart';
 import '../../../widgets/community/popular_ranking_card.dart';
-import '../../../widgets/common/empty_state.dart';
+import 'package:cmore_design_system/widgets/empty_state.dart';
 import '../more_list_screen.dart';
 
 /// 추천 탭 콘텐츠 (Sliver 리스트 반환)
@@ -28,7 +29,9 @@ class RecommendTab extends StatelessWidget {
   }
 
   /// CustomScrollView에 삽입할 Sliver 위젯 리스트 반환
-  List<Widget> buildSlivers(BuildContext context, CommunityViewModel viewModel) {
+  List<Widget> buildSlivers(BuildContext context) {
+    final viewModel = context.watch<CommunityPostViewModel>();
+
     // 태그 필터링 중인 경우
     if (viewModel.isFilteringByTag) {
       return _buildFilteredPostsContent(context, viewModel);
@@ -84,7 +87,7 @@ class RecommendTab extends StatelessWidget {
   // ============================================
   List<Widget> _buildFilteredPostsContent(
     BuildContext context,
-    CommunityViewModel viewModel,
+    CommunityPostViewModel viewModel,
   ) {
     return [
       // 필터링 헤더
@@ -123,7 +126,7 @@ class RecommendTab extends StatelessWidget {
 
   Widget _buildFilteredPostsHeader(
     BuildContext context,
-    CommunityViewModel viewModel,
+    CommunityPostViewModel viewModel,
   ) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -197,7 +200,7 @@ class RecommendTab extends StatelessWidget {
   // ============================================
   Widget _buildPopularRankingSection(
     BuildContext context,
-    CommunityViewModel viewModel,
+    CommunityPostViewModel viewModel,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -264,7 +267,7 @@ class RecommendTab extends StatelessWidget {
   // ============================================
   Widget _buildRecommendationSection(
     BuildContext context,
-    CommunityViewModel viewModel,
+    CommunityPostViewModel viewModel,
   ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

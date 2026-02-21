@@ -1,5 +1,6 @@
 import 'package:pocketbase/pocketbase.dart';
 import 'pocketbase_service.dart';
+import '../../core/exceptions/app_exceptions.dart';
 import '../../domain/models/record_data.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/pb_filter.dart';
@@ -34,9 +35,16 @@ class RecordService {
           .getList(page: page, perPage: perPage, filter: filter, sort: sort);
 
       return result.items.map((record) => _recordToRecordData(record)).toList();
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to get records: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '기록 목록을 불러오는데 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to get records: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '기록 목록 조회 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -116,9 +124,16 @@ class RecordService {
           .collection(_collection)
           .update(id, body: {'is_completed': isCompleted});
       AppLogger.data('Record completion updated: $id -> $isCompleted');
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to update record completion: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '기록 상태 업데이트에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to update record completion: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '기록 상태 업데이트 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -155,6 +170,9 @@ class RecordService {
       }
 
       return dates.toList()..sort();
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to get record dates in month: $e', isError: true);
+      return [];
     } catch (e) {
       AppLogger.data('Failed to get record dates in month: $e', isError: true);
       return [];
@@ -166,6 +184,14 @@ class RecordService {
     try {
       final record = await _pb.collection(_collection).getOne(id);
       return _recordToRecordData(record);
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to get record: $e', isError: true);
+      if (e.statusCode == 404) return null;
+      throw NetworkException.clientError(
+        message: '기록을 불러오는데 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to get record: $e', isError: true);
       return null;
@@ -175,7 +201,7 @@ class RecordService {
   Future<RecordData> createRecord(RecordData data) async {
     final userId = _currentUserId;
     if (userId == null) {
-      throw Exception('로그인이 필요합니다.');
+      throw const AuthException(message: '로그인이 필요합니다.', code: 'LOGIN_REQUIRED');
     }
 
     try {
@@ -186,9 +212,16 @@ class RecordService {
 
       AppLogger.data('Record created: ${record.id}');
       return _recordToRecordData(record);
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to create record: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '기록 등록에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to create record: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '기록 등록 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -201,9 +234,16 @@ class RecordService {
 
       AppLogger.data('Record updated: ${record.id}');
       return _recordToRecordData(record);
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to update record: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '기록 수정에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to update record: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '기록 수정 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -212,9 +252,16 @@ class RecordService {
     try {
       await _pb.collection(_collection).delete(id);
       AppLogger.data('Record deleted: $id');
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to delete record: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '기록 삭제에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to delete record: $e', isError: true);
-      rethrow;
+      throw NetworkException(message: '기록 삭제 중 오류가 발생했습니다.', originalError: e);
     }
   }
 
@@ -225,6 +272,9 @@ class RecordService {
           .collection(_collection)
           .getList(page: 1, perPage: 1, filter: filter);
       return result.totalItems;
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to get record count: $e', isError: true);
+      return 0;
     } catch (e) {
       AppLogger.data('Failed to get record count: $e', isError: true);
       return 0;

@@ -3,8 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 import 'core/di/app_dependencies.dart';
+import 'core/utils/app_logger.dart';
 import 'config/app_config.dart';
-import 'theme/app_theme.dart';
+import 'package:cmore_design_system/theme/app_theme.dart';
 import 'data/services/pocketbase_service.dart';
 import 'data/services/notification_service.dart';
 import 'data/services/fcm_service.dart';
@@ -33,7 +34,9 @@ import 'presentation/screens/community/more_list_screen.dart';
 import 'presentation/screens/settings/account_info_screen.dart';
 import 'presentation/screens/settings/data_backup_screen.dart';
 import 'presentation/screens/settings/password_verify_screen.dart';
-import 'presentation/viewmodels/community_viewmodel.dart';
+import 'presentation/viewmodels/community_post_viewmodel.dart';
+import 'presentation/viewmodels/community_following_viewmodel.dart';
+import 'presentation/viewmodels/community_qna_viewmodel.dart';
 import 'domain/models/creature_data.dart';
 
 // 개발용 데모 화면 (프로덕션에서는 tree-shaking으로 제거됨)
@@ -93,8 +96,8 @@ class OomoolApp extends StatelessWidget {
     final isOnboardingCompleted =
         dependencies.onboardingService.isOnboardingCompleted;
 
-    debugPrint(
-      '🚀 App Start - isLoggedIn: $isLoggedIn, isOnboardingCompleted: $isOnboardingCompleted',
+    AppLogger.info(
+      'App Start - isLoggedIn: $isLoggedIn, isOnboardingCompleted: $isOnboardingCompleted',
     );
 
     Widget homeScreen;
@@ -109,8 +112,14 @@ class OomoolApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         Provider<AppDependencies>.value(value: dependencies),
-        ChangeNotifierProvider<CommunityViewModel>(
-          create: (_) => dependencies.createCommunityViewModel(),
+        ChangeNotifierProvider<CommunityPostViewModel>(
+          create: (_) => dependencies.createCommunityPostViewModel(),
+        ),
+        ChangeNotifierProvider<CommunityFollowingViewModel>(
+          create: (_) => dependencies.createCommunityFollowingViewModel(),
+        ),
+        ChangeNotifierProvider<CommunityQnaViewModel>(
+          create: (_) => dependencies.createCommunityQnaViewModel(),
         ),
       ],
       child: MaterialApp(

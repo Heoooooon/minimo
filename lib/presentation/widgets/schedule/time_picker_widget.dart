@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
 
 /// 시간 선택기 위젯 (AM/PM 형식)
 ///
@@ -155,7 +155,7 @@ class TimePickerWidget extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: AppTextStyles.bodyMediumMedium.copyWith(
+          style: AppTextStyles.bodyMediumBold.copyWith(
             color: isSelected ? AppColors.textInverse : AppColors.textHint,
           ),
         ),
@@ -332,7 +332,7 @@ class _ScrollableTimePickerState extends State<ScrollableTimePicker> {
               ),
               child: Text(
                 '확인',
-                style: AppTextStyles.bodyMediumMedium.copyWith(
+                style: AppTextStyles.bodyMediumBold.copyWith(
                   color: AppColors.textInverse,
                 ),
               ),
@@ -357,7 +357,7 @@ class _ScrollableTimePickerState extends State<ScrollableTimePicker> {
         ),
         child: Text(
           label,
-          style: AppTextStyles.bodyMediumMedium.copyWith(
+          style: AppTextStyles.bodyMediumBold.copyWith(
             color: isSelected ? AppColors.textInverse : AppColors.textHint,
           ),
         ),

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../../domain/models/schedule_data.dart';
-import '../../../../theme/app_colors.dart';
-import '../../../../theme/app_text_styles.dart';
-import '../../../../theme/app_spacing.dart';
-import '../../../widgets/common/skeleton_loader.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
+import 'package:cmore_design_system/theme/app_spacing.dart';
+import 'package:cmore_design_system/widgets/skeleton_loader.dart';
 
 /// 어항 상세 - 알림 탭
 class AquariumSchedulesTab extends StatelessWidget {

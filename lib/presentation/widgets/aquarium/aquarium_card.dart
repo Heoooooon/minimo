@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../../domain/models/aquarium_data.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
-import '../../../theme/app_spacing.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
+import 'package:cmore_design_system/theme/app_spacing.dart';
 
 /// 어항 카드 위젯
 ///
@@ -32,13 +32,7 @@ class AquariumCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.backgroundSurface,
         borderRadius: AppRadius.mdBorderRadius,
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0D846EFF),
-            blurRadius: 12,
-            offset: Offset(0, 3),
-          ),
-        ],
+        boxShadow: AppShadow.card,
       ),
       child: Material(
         color: Colors.transparent,

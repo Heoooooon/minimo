@@ -4,7 +4,7 @@ import '../../../core/utils/app_logger.dart';
 import '../../../domain/models/creature_data.dart';
 import '../../../data/services/creature_service.dart';
 import '../../../data/services/creature_memo_service.dart';
-import '../../../theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
 import 'creature_register_screen.dart' hide CreatureGender;
 
 /// 생물 상세보기 화면

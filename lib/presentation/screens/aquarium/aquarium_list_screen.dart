@@ -3,11 +3,11 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import '../../../core/di/app_dependencies.dart';
 import '../../../domain/models/aquarium_data.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
-import '../../../theme/app_spacing.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
+import 'package:cmore_design_system/theme/app_spacing.dart';
 import '../../viewmodels/aquarium_list_viewmodel.dart';
-import '../../widgets/common/app_button.dart';
+import 'package:cmore_design_system/widgets/app_button.dart';
 import '../../widgets/aquarium/aquarium_card.dart';
 
 /// 어항 목록 화면

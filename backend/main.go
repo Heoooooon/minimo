@@ -5,6 +5,7 @@ import (
 
 	"minimo-backend/handlers"
 	"minimo-backend/hooks"
+	"minimo-backend/middleware"
 
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/apis"
@@ -25,8 +26,10 @@ func main() {
 		// 컬렉션 스키마 보장 (JS 마이그레이션이 미적용된 필드 추가)
 		ensureAutodateFields(app)
 		ensureMissingFields(app)
+		ensureReportsCollection(app)
 
 		requireAuth := apis.RequireAuth()
+		requireAdmin := middleware.RequireAdmin()
 
 		se.Router.POST("/api/community/toggle-like", handlers.HandleToggleLike(app)).Bind(requireAuth)
 		se.Router.POST("/api/community/toggle-curious", handlers.HandleToggleCurious(app)).Bind(requireAuth)
@@ -48,6 +51,25 @@ func main() {
 
 		se.Router.POST("/api/notifications/mark-all-read", handlers.HandleMarkAllRead(app)).Bind(requireAuth)
 		se.Router.GET("/api/notifications/unread-count", handlers.HandleUnreadCount(app)).Bind(requireAuth)
+
+		// Admin API routes
+		se.Router.GET("/api/admin/stats/overview", handlers.HandleAdminStatsOverview(app)).Bind(requireAuth).BindFunc(requireAdmin)
+		se.Router.GET("/api/admin/stats/activity", handlers.HandleAdminStatsActivity(app)).Bind(requireAuth).BindFunc(requireAdmin)
+		se.Router.GET("/api/admin/users", handlers.HandleAdminGetUsers(app)).Bind(requireAuth).BindFunc(requireAdmin)
+		se.Router.GET("/api/admin/users/{id}", handlers.HandleAdminGetUser(app)).Bind(requireAuth).BindFunc(requireAdmin)
+		se.Router.PATCH("/api/admin/users/{id}/role", handlers.HandleAdminUpdateUserRole(app)).Bind(requireAuth).BindFunc(requireAdmin)
+		se.Router.PATCH("/api/admin/users/{id}/status", handlers.HandleAdminUpdateUserStatus(app)).Bind(requireAuth).BindFunc(requireAdmin)
+		se.Router.GET("/api/admin/posts", handlers.HandleAdminGetPosts(app)).Bind(requireAuth).BindFunc(requireAdmin)
+		se.Router.PATCH("/api/admin/posts/{id}/status", handlers.HandleAdminUpdatePostStatus(app)).Bind(requireAuth).BindFunc(requireAdmin)
+		se.Router.GET("/api/admin/questions", handlers.HandleAdminGetQuestions(app)).Bind(requireAuth).BindFunc(requireAdmin)
+		se.Router.PATCH("/api/admin/questions/{id}/status", handlers.HandleAdminUpdateQuestionStatus(app)).Bind(requireAuth).BindFunc(requireAdmin)
+		se.Router.DELETE("/api/admin/comments/{id}", handlers.HandleAdminDeleteComment(app)).Bind(requireAuth).BindFunc(requireAdmin)
+		se.Router.DELETE("/api/admin/answers/{id}", handlers.HandleAdminDeleteAnswer(app)).Bind(requireAuth).BindFunc(requireAdmin)
+		se.Router.GET("/api/admin/reports", handlers.HandleAdminGetReports(app)).Bind(requireAuth).BindFunc(requireAdmin)
+		se.Router.GET("/api/admin/reports/{id}", handlers.HandleAdminGetReport(app)).Bind(requireAuth).BindFunc(requireAdmin)
+		se.Router.PATCH("/api/admin/reports/{id}/resolve", handlers.HandleAdminResolveReport(app)).Bind(requireAuth).BindFunc(requireAdmin)
+		se.Router.GET("/api/admin/catalog/pending", handlers.HandleAdminGetPendingCatalog(app)).Bind(requireAuth).BindFunc(requireAdmin)
+		se.Router.PATCH("/api/admin/catalog/{id}/approve", handlers.HandleAdminApproveCatalog(app)).Bind(requireAuth).BindFunc(requireAdmin)
 
 		return se.Next()
 	})
@@ -121,6 +143,149 @@ func ensureMissingFields(app *pocketbase.PocketBase) {
 				}
 			}
 		}
+	}
+
+	// users: add role select field
+	if col, err := app.FindCollectionByNameOrId("users"); err == nil {
+		if col.Fields.GetByName("role") == nil {
+			col.Fields.Add(&core.SelectField{
+				Id:        "select_role",
+				Name:      "role",
+				Required:  false,
+				MaxSelect: 1,
+				Values:    []string{"user", "admin"},
+			})
+			if err := app.Save(col); err != nil {
+				log.Printf("[WARN] Failed to add role field to users: %v", err)
+			} else {
+				log.Printf("[INFO] Added 'role' field to users")
+			}
+		}
+	}
+
+	// community_posts: add status select field
+	if col, err := app.FindCollectionByNameOrId("community_posts"); err == nil {
+		if col.Fields.GetByName("status") == nil {
+			col.Fields.Add(&core.SelectField{
+				Id:        "select_status",
+				Name:      "status",
+				Required:  false,
+				MaxSelect: 1,
+				Values:    []string{"active", "hidden", "deleted"},
+			})
+			if err := app.Save(col); err != nil {
+				log.Printf("[WARN] Failed to add status field to community_posts: %v", err)
+			} else {
+				log.Printf("[INFO] Added 'status' field to community_posts")
+			}
+		}
+	}
+
+	// questions: add status select field
+	if col, err := app.FindCollectionByNameOrId("questions"); err == nil {
+		if col.Fields.GetByName("status") == nil {
+			col.Fields.Add(&core.SelectField{
+				Id:        "select_q_status",
+				Name:      "status",
+				Required:  false,
+				MaxSelect: 1,
+				Values:    []string{"active", "hidden", "deleted"},
+			})
+			if err := app.Save(col); err != nil {
+				log.Printf("[WARN] Failed to add status field to questions: %v", err)
+			} else {
+				log.Printf("[INFO] Added 'status' field to questions")
+			}
+		}
+	}
+}
+
+// ensureReportsCollection creates the reports collection if it doesn't exist.
+func ensureReportsCollection(app *pocketbase.PocketBase) {
+	if _, err := app.FindCollectionByNameOrId("reports"); err == nil {
+		return // 이미 존재함
+	}
+
+	collection := core.NewBaseCollection("reports")
+
+	// users 컬렉션 ID 조회 (relation 필드용)
+	usersCol, err := app.FindCollectionByNameOrId("users")
+	if err != nil {
+		log.Printf("[WARN] Failed to find users collection for reports: %v", err)
+		return
+	}
+
+	collection.Fields.Add(&core.RelationField{
+		Id:           "relation_reporter",
+		Name:         "reporter",
+		Required:     true,
+		CollectionId: usersCol.Id,
+		MaxSelect:    1,
+	})
+	collection.Fields.Add(&core.TextField{
+		Id:       "text_target_id",
+		Name:     "target_id",
+		Required: true,
+	})
+	collection.Fields.Add(&core.SelectField{
+		Id:        "select_target_type",
+		Name:      "target_type",
+		Required:  true,
+		MaxSelect: 1,
+		Values:    []string{"post", "question", "comment", "answer", "user"},
+	})
+	collection.Fields.Add(&core.TextField{
+		Id:       "text_reason",
+		Name:     "reason",
+		Required: true,
+	})
+	collection.Fields.Add(&core.TextField{
+		Id:       "text_detail",
+		Name:     "detail",
+		Required: false,
+	})
+	collection.Fields.Add(&core.SelectField{
+		Id:        "select_report_status",
+		Name:      "status",
+		Required:  false,
+		MaxSelect: 1,
+		Values:    []string{"pending", "resolved", "dismissed"},
+	})
+	collection.Fields.Add(&core.RelationField{
+		Id:           "relation_resolved_by",
+		Name:         "resolved_by",
+		Required:     false,
+		CollectionId: usersCol.Id,
+		MaxSelect:    1,
+	})
+	collection.Fields.Add(&core.SelectField{
+		Id:        "select_action_taken",
+		Name:      "action_taken",
+		Required:  false,
+		MaxSelect: 1,
+		Values:    []string{"warning", "delete", "block", "none"},
+	})
+	collection.Fields.Add(&core.TextField{
+		Id:       "text_admin_note",
+		Name:     "admin_note",
+		Required: false,
+	})
+	collection.Fields.Add(&core.AutodateField{
+		Id:       "autodate_created",
+		Name:     "created",
+		OnCreate: true,
+	})
+	collection.Fields.Add(&core.AutodateField{
+		Id:       "autodate_updated",
+		Name:     "updated",
+		OnCreate: true,
+		OnUpdate: true,
+	})
+
+	if err := app.Save(collection); err != nil {
+		log.Printf("[WARN] Failed to create reports collection: %v", err)
+	} else {
+		log.Printf("[INFO] Created 'reports' collection")
 	}
 }
 

@@ -3,15 +3,15 @@ import 'package:provider/provider.dart';
 
 import '../../../core/di/app_dependencies.dart';
 import '../../../domain/models/aquarium_data.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
 import '../../viewmodels/aquarium_register_viewmodel.dart';
 import '../../widgets/aquarium/register_step_basic_info.dart';
 import '../../widgets/aquarium/register_step_equipment.dart';
 import '../../widgets/aquarium/register_step_additional.dart';
 import '../../widgets/aquarium/register_step_photo.dart';
-import '../../widgets/common/app_button.dart';
-import '../../widgets/common/date_picker_bottom_sheet.dart';
+import 'package:cmore_design_system/widgets/app_button.dart';
+import 'package:cmore_design_system/widgets/date_picker_bottom_sheet.dart';
 
 /// 어항 등록 화면 (4단계)
 ///
@@ -182,7 +182,7 @@ class _AquariumRegisterScreenState extends State<AquariumRegisterScreen> {
           size: 20,
         ),
       ),
-      title: Text(title, style: AppTextStyles.bodyMediumMedium),
+      title: Text(title, style: AppTextStyles.bodyMediumBold),
       actions: [
         Padding(
           padding: const EdgeInsets.only(right: 16),

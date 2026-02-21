@@ -3,11 +3,12 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../../../core/utils/app_logger.dart';
 import '../../../data/services/data_backup_service.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
-import '../../widgets/common/app_button.dart';
-import '../../widgets/common/settings_row.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
+import 'package:cmore_design_system/widgets/app_button.dart';
+import 'package:cmore_design_system/widgets/settings_row.dart';
 
 /// 데이터 백업 화면
 ///
@@ -56,6 +57,7 @@ class _DataBackupScreenState extends State<DataBackupScreen> {
       if (!mounted) return;
       _showSuccessToast('백업이 완료되었어요!');
     } catch (e) {
+      AppLogger.data('백업 실패: $e', isError: true);
       if (!mounted) return;
       _showErrorSnackBar('백업에 실패했습니다: $e');
     } finally {
@@ -75,6 +77,7 @@ class _DataBackupScreenState extends State<DataBackupScreen> {
       if (!mounted) return;
       // share_plus가 공유 시트를 열어주므로 별도 토스트 불필요
     } catch (e) {
+      AppLogger.data('CSV 내보내기 실패: $e', isError: true);
       if (!mounted) return;
       _showErrorSnackBar('CSV 내보내기에 실패했습니다: $e');
     } finally {
@@ -147,6 +150,7 @@ class _DataBackupScreenState extends State<DataBackupScreen> {
         );
       }
     } catch (e) {
+      AppLogger.data('데이터 복원 실패: $e', isError: true);
       if (!mounted) return;
       _showErrorSnackBar('데이터 복원에 실패했습니다: $e');
     } finally {
@@ -175,7 +179,7 @@ class _DataBackupScreenState extends State<DataBackupScreen> {
             ),
           ],
         ),
-        backgroundColor: const Color(0xFFD7FFE9),
+        backgroundColor: AppColors.chipSuccessBg,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -205,7 +209,7 @@ class _DataBackupScreenState extends State<DataBackupScreen> {
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: true,
-        title: Text('데이터 백업', style: AppTextStyles.bodyMediumMedium),
+        title: Text('데이터 백업', style: AppTextStyles.bodyMediumBold),
         leading: IconButton(
           icon: const Icon(Icons.chevron_left, size: 28),
           onPressed: () => Navigator.pop(context),

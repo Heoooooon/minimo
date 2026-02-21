@@ -1,5 +1,6 @@
 import 'package:pocketbase/pocketbase.dart';
 import 'pocketbase_service.dart';
+import '../../core/exceptions/app_exceptions.dart';
 import '../../domain/models/answer_data.dart';
 import '../../core/utils/app_logger.dart';
 import '../../core/utils/pb_filter.dart';
@@ -33,10 +34,22 @@ class AnswerService {
             expand: 'author',
           );
 
-      return result.items.map((record) => _recordToAnswerData(record)).toList();
+      return result.items
+          .map((record) => _recordToAnswerData(record))
+          .toList();
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to get answers: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '답변 목록을 불러오는데 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to get answers: $e', isError: true);
-      rethrow;
+      throw NetworkException(
+        message: '답변 목록 조회 중 오류가 발생했습니다.',
+        originalError: e,
+      );
     }
   }
 
@@ -47,6 +60,16 @@ class AnswerService {
           .collection(_collection)
           .getOne(id, expand: 'author');
       return _recordToAnswerData(record);
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to get answer: $e', isError: true);
+      if (e.statusCode == 404) {
+        return null;
+      }
+      throw NetworkException.clientError(
+        message: '답변을 불러오는데 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to get answer: $e', isError: true);
       return null;
@@ -65,9 +88,19 @@ class AnswerService {
 
       AppLogger.data('Answer created: ${record.id}');
       return _recordToAnswerData(record);
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to create answer: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '답변 등록에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to create answer: $e', isError: true);
-      rethrow;
+      throw NetworkException(
+        message: '답변 등록 중 오류가 발생했습니다.',
+        originalError: e,
+      );
     }
   }
 
@@ -80,9 +113,27 @@ class AnswerService {
 
       AppLogger.data('Answer updated: ${record.id}');
       return _recordToAnswerData(record);
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to update answer: $e', isError: true);
+      if (e.statusCode == 404) {
+        throw NotFoundException(
+          message: '답변을 찾을 수 없습니다.',
+          code: 'ANSWER_NOT_FOUND',
+          resourceType: 'answer',
+          resourceId: id,
+        );
+      }
+      throw NetworkException.clientError(
+        message: '답변 수정에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to update answer: $e', isError: true);
-      rethrow;
+      throw NetworkException(
+        message: '답변 수정 중 오류가 발생했습니다.',
+        originalError: e,
+      );
     }
   }
 
@@ -95,9 +146,27 @@ class AnswerService {
       await _decrementQuestionCommentCount(questionId);
 
       AppLogger.data('Answer deleted: $id');
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to delete answer: $e', isError: true);
+      if (e.statusCode == 404) {
+        throw NotFoundException(
+          message: '답변을 찾을 수 없습니다.',
+          code: 'ANSWER_NOT_FOUND',
+          resourceType: 'answer',
+          resourceId: id,
+        );
+      }
+      throw NetworkException.clientError(
+        message: '답변 삭제에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to delete answer: $e', isError: true);
-      rethrow;
+      throw NetworkException(
+        message: '답변 삭제 중 오류가 발생했습니다.',
+        originalError: e,
+      );
     }
   }
 
@@ -110,9 +179,19 @@ class AnswerService {
         body: {'answer_id': answerId},
       );
       AppLogger.data('Answer accepted: $answerId');
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to accept answer: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '답변 채택에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to accept answer: $e', isError: true);
-      rethrow;
+      throw NetworkException(
+        message: '답변 채택 중 오류가 발생했습니다.',
+        originalError: e,
+      );
     }
   }
 
@@ -123,8 +202,19 @@ class AnswerService {
         method: 'POST',
         body: {'target_id': answerId, 'target_type': 'answer'},
       );
+    } on ClientException catch (e) {
+      AppLogger.data('Failed to toggle like: $e', isError: true);
+      throw NetworkException.clientError(
+        message: '좋아요 처리에 실패했습니다.',
+        statusCode: e.statusCode,
+        originalError: e,
+      );
     } catch (e) {
       AppLogger.data('Failed to toggle like: $e', isError: true);
+      throw NetworkException(
+        message: '좋아요 처리 중 오류가 발생했습니다.',
+        originalError: e,
+      );
     }
   }
 
@@ -137,6 +227,12 @@ class AnswerService {
         method: 'POST',
         body: {'id': questionId, 'type': 'question'},
       );
+    } on ClientException catch (e) {
+      AppLogger.data(
+        'Failed to increment question comment count: $e',
+        isError: true,
+      );
+      // 카운트 증가 실패는 치명적이지 않으므로 로깅만 수행
     } catch (e) {
       AppLogger.data(
         'Failed to increment question comment count: $e',
@@ -152,6 +248,12 @@ class AnswerService {
         method: 'POST',
         body: {'id': questionId, 'type': 'question'},
       );
+    } on ClientException catch (e) {
+      AppLogger.data(
+        'Failed to decrement question comment count: $e',
+        isError: true,
+      );
+      // 카운트 감소 실패는 치명적이지 않으므로 로깅만 수행
     } catch (e) {
       AppLogger.data(
         'Failed to decrement question comment count: $e',

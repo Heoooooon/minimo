@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../../../theme/app_colors.dart';
-import '../../../theme/app_text_styles.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
 
 /// Q&A 질문 데이터 모델
 class QnaQuestionData {
@@ -52,7 +52,7 @@ class QnaPopularCard extends StatelessWidget {
                 margin: const EdgeInsets.only(right: 8),
                 child: Text(
                   '${data.rank}',
-                  style: AppTextStyles.bodyMediumMedium.copyWith(
+                  style: AppTextStyles.bodyMediumBold.copyWith(
                     color: AppColors.brand,
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
@@ -70,7 +70,7 @@ class QnaPopularCard extends StatelessWidget {
                   // Title
                   Text(
                     data.title,
-                    style: AppTextStyles.bodyMediumMedium.copyWith(
+                    style: AppTextStyles.bodyMediumBold.copyWith(
                       color: AppColors.textMain,
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
@@ -184,7 +184,7 @@ class QnaWaitingCard extends StatelessWidget {
               children: [
                 Text(
                   'Q.',
-                  style: AppTextStyles.bodyMediumMedium.copyWith(
+                  style: AppTextStyles.bodyMediumBold.copyWith(
                     color: AppColors.brand,
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
@@ -196,7 +196,7 @@ class QnaWaitingCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     data.title,
-                    style: AppTextStyles.bodyMediumMedium.copyWith(
+                    style: AppTextStyles.bodyMediumBold.copyWith(
                       color: AppColors.textMain,
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
@@ -310,7 +310,7 @@ class QnaAskCard extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [
             AppColors.brand.withValues(alpha: 0.1),
-            const Color(0xFFEDF8FF),
+            AppColors.blue50,
           ],
         ),
         borderRadius: BorderRadius.circular(12),
@@ -321,7 +321,7 @@ class QnaAskCard extends StatelessWidget {
           // Header
           RichText(
             text: TextSpan(
-              style: AppTextStyles.bodyMediumMedium.copyWith(
+              style: AppTextStyles.bodyMediumBold.copyWith(
                 color: AppColors.textMain,
                 fontSize: 14,
                 height: 20 / 14,
@@ -332,7 +332,7 @@ class QnaAskCard extends StatelessWidget {
                 TextSpan(
                   text:
                       '#${question.tags.isNotEmpty ? question.tags.first : '질문'}',
-                  style: AppTextStyles.bodyMediumMedium.copyWith(
+                  style: AppTextStyles.bodyMediumBold.copyWith(
                     color: AppColors.brand,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,

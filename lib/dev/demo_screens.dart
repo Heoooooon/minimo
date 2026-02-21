@@ -3,10 +3,10 @@
 // 디자인 시스템 테스트 및 UT 시나리오 확인용입니다.
 
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
-import '../theme/app_text_styles.dart';
-import '../presentation/widgets/common/app_button.dart';
-import '../presentation/widgets/common/app_chip.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
+import 'package:cmore_design_system/widgets/app_button.dart';
+import 'package:cmore_design_system/widgets/app_chip.dart';
 
 /// 데모 홈 화면 (UT 시나리오용)
 class DemoHomeScreen extends StatelessWidget {
@@ -109,7 +109,7 @@ class DemoHomeScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: AppTextStyles.bodyMediumMedium),
+                    Text(title, style: AppTextStyles.bodyMediumBold),
                     const SizedBox(height: 4),
                     Text(
                       description,

@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/di/app_dependencies.dart';
 import '../../domain/models/record_data.dart';
-import '../../theme/app_colors.dart';
-import '../../theme/app_text_styles.dart';
+import 'package:cmore_design_system/theme/app_colors.dart';
+import 'package:cmore_design_system/theme/app_text_styles.dart';
 import '../viewmodels/community_question_viewmodel.dart';
-import '../widgets/common/app_button.dart';
-import '../widgets/common/app_chip.dart';
+import 'package:cmore_design_system/widgets/app_button.dart';
+import 'package:cmore_design_system/widgets/app_chip.dart';
 
 /// 커뮤니티 질문 화면
 ///
@@ -145,7 +145,7 @@ class _CommunityQuestionScreenState extends State<CommunityQuestionScreen> {
                   onPressed: _isFormValid ? _handleSubmit : null,
                   child: Text(
                     '등록',
-                    style: AppTextStyles.bodyMediumMedium.copyWith(
+                    style: AppTextStyles.bodyMediumBold.copyWith(
                       color: _isFormValid
                           ? AppColors.brand
                           : AppColors.disabledText,
@@ -444,7 +444,7 @@ class _CommunityQuestionScreenState extends State<CommunityQuestionScreen> {
                                     Expanded(
                                       child: Text(
                                         record.content,
-                                        style: AppTextStyles.bodyMediumMedium,
+                                        style: AppTextStyles.bodyMediumBold,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                       ),
