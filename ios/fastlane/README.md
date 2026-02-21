@@ -29,7 +29,15 @@ TestFlight에 업로드
 [bundle exec] fastlane ios release
 ```
 
-App Store에 제출
+App Store에 제출 (메타데이터 포함)
+
+### ios metadata
+
+```sh
+[bundle exec] fastlane ios metadata
+```
+
+메타데이터만 업로드 (빌드 없이)
 
 ### ios deploy
 
