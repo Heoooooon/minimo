@@ -1,0 +1,32 @@
+Oomool is an all-in-one aquarium management platform for pet fish enthusiasts.
+
+From aquarium setup to species tracking, water quality records, and schedule reminders — we help you care for your aquatic companions systematically.
+
+Key Features:
+
+◆ Aquarium Management
+• Manage multiple aquariums at a glance
+• Record equipment and tank specifications
+• Photo gallery to document growth
+
+◆ Species Management
+• Search 900+ species catalog
+• Record detailed info per individual (adoption date, source, health status)
+• Species memo function
+
+◆ Records & Schedules
+• Track water quality, water changes, feeding, and more
+• Calendar-based record management
+• Recurring schedules with push notifications
+
+◆ Community
+• Connect with fellow enthusiasts via Q&A boards
+• Share posts and photos
+• Follow, like, and bookmark features
+• Real-time notifications
+
+◆ Data Management
+• Automatic/manual data backup
+• CSV export support
+
+Start recording your special journey with your aquatic companions today!

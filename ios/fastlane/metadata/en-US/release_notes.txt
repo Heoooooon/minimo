@@ -1,0 +1,9 @@
+v1.0.0 - Initial Release
+
+• Aquarium registration and management
+• 900+ species catalog search and registration
+• Water quality/health records with calendar view
+• Recurring schedules with push notifications
+• Community Q&A and bulletin board
+• Photo gallery
+• Data backup/restore

@@ -1,0 +1,57 @@
+default_platform(:android)
+
+platform :android do
+  desc "내부 테스트 트랙에 업로드"
+  lane :beta do
+    # Flutter 빌드
+    sh "cd ../.. && flutter build appbundle --release"
+
+    upload_to_play_store(
+      track: 'internal',
+      aab: '../build/app/outputs/bundle/release/app-release.aab',
+      skip_upload_metadata: false,
+      skip_upload_changelogs: false,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+
+  desc "프로덕션 트랙에 업로드"
+  lane :release do
+    # Flutter 빌드
+    sh "cd ../.. && flutter build appbundle --release"
+
+    upload_to_play_store(
+      track: 'production',
+      aab: '../build/app/outputs/bundle/release/app-release.aab',
+      skip_upload_metadata: false,
+      skip_upload_changelogs: false,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+
+  desc "빌드 번호 증가 후 내부 테스트 업로드"
+  lane :deploy do
+    increment_build_number_flutter
+    beta
+  end
+end
+
+# Flutter 빌드 번호 증가 헬퍼
+def increment_build_number_flutter
+  pubspec_path = "../../pubspec.yaml"
+  pubspec = File.read(pubspec_path)
+
+  current_version = pubspec.match(/version:\s*(\d+\.\d+\.\d+)\+(\d+)/i)
+  if current_version
+    version = current_version[1]
+    build = current_version[2].to_i + 1
+    new_version = "version: #{version}+#{build}"
+
+    pubspec.gsub!(/version:\s*\d+\.\d+\.\d+\+\d+/i, new_version)
+    File.write(pubspec_path, pubspec)
+
+    UI.success("빌드 번호 증가: #{version}+#{build}")
+  end
+end
