@@ -4,6 +4,7 @@ import '../../core/di/app_dependencies.dart';
 import '../../core/utils/app_logger.dart';
 import '../../domain/models/aquarium_data.dart';
 import '../../domain/models/creature_data.dart';
+import '../../domain/models/record_data.dart';
 import 'package:cmore_design_system/theme/app_colors.dart';
 import 'package:cmore_design_system/theme/app_spacing.dart';
 import 'package:cmore_design_system/theme/app_text_styles.dart';
@@ -48,6 +49,9 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
   // 어항별 선택 생물 (null = "전체")
   final Map<String, String?> _selectedCreatureByAquarium = {};
 
+  // 어항별 할 일 완료 상태: {aquariumId: {total: n, completed: n}}
+  final Map<String, Map<String, int>> _todoStatusByAquarium = {};
+
   // 드래그 애니메이션 관련
   late AnimationController _animationController;
   late Animation<double> _heightAnimation;
@@ -91,6 +95,31 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
   Future<void> _loadData() async {
     await _viewModel.loadRecordDatesInMonth(_currentMonth);
     await _viewModel.loadRecordsByDate(_selectedDate);
+    await _loadTodoStatus();
+  }
+
+  Future<void> _loadTodoStatus() async {
+    for (final aquarium in _aquariums) {
+      final aquariumId = aquarium.id ?? '';
+      if (aquariumId.isEmpty) continue;
+      try {
+        final todos = await _recordViewModel.getRecordsByCreature(
+          _selectedDate,
+          aquariumId,
+          recordType: RecordType.todo,
+        );
+        if (mounted) {
+          setState(() {
+            _todoStatusByAquarium[aquariumId] = {
+              'total': todos.length,
+              'completed': todos.where((t) => t.isCompleted).length,
+            };
+          });
+        }
+      } catch (e) {
+        AppLogger.data('Error loading todo status: $e', isError: true);
+      }
+    }
   }
 
   Future<void> _loadAquariums() async {
@@ -256,13 +285,6 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
     return '${date.day}일 $weekday요일';
   }
 
-  Future<void> _navigateToScheduleAdd() async {
-    final result = await Navigator.pushNamed(context, '/schedule/add');
-    if (result == true && mounted) {
-      _loadData();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider.value(
@@ -270,12 +292,25 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
       child: Consumer<RecordHomeViewModel>(
         builder: (context, viewModel, _) {
           return Scaffold(
-            backgroundColor: AppColors.backgroundApp,
-            body: Column(
-              children: [
-                _buildCalendarSection(viewModel),
-                Expanded(child: _buildRecordContent()),
-              ],
+            body: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    AppColors.backgroundApp,
+                    Color(0xFFE8F0FE),
+                    Color(0xFFD4E4FC),
+                  ],
+                  stops: [0.0, 0.5, 1.0],
+                ),
+              ),
+              child: Column(
+                children: [
+                  _buildCalendarSection(viewModel),
+                  Expanded(child: _buildRecordContent()),
+                ],
+              ),
             ),
           );
         },
@@ -306,7 +341,6 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
           onDragStart: _onDragStart,
           onDragUpdate: _onDragUpdate,
           onDragEnd: _onDragEnd,
-          onScheduleAdd: _navigateToScheduleAdd,
           navButtonOpacity: navButtonOpacity,
           showNavButtons: showNavButtons,
         );
@@ -378,6 +412,7 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
       itemBuilder: (context, index) {
         final aquarium = _aquariums[index];
         final aquariumId = aquarium.id ?? '';
+        final todoStatus = _todoStatusByAquarium[aquariumId];
         return AquariumAccordion(
           aquarium: aquarium,
           isExpanded: _expandedAquariums[aquariumId] ?? false,
@@ -385,6 +420,8 @@ class RecordHomeScreenState extends State<RecordHomeScreen>
           selectedCreatureId: _selectedCreatureByAquarium[aquariumId],
           selectedDate: _selectedDate,
           recordViewModel: _recordViewModel,
+          totalTodos: todoStatus?['total'] ?? 0,
+          completedTodos: todoStatus?['completed'] ?? 0,
           onToggle: () => _toggleAquariumExpanded(aquariumId),
           onCreatureSelected: (creatureId) {
             setState(() {

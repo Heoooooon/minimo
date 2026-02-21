@@ -23,6 +23,12 @@ class AquariumAccordion extends StatelessWidget {
   final void Function(String? creatureId) onCreatureSelected;
   final VoidCallback onDataChanged;
 
+  /// 해당 어항의 총 할 일 수
+  final int totalTodos;
+
+  /// 해당 어항의 완료된 할 일 수
+  final int completedTodos;
+
   const AquariumAccordion({
     super.key,
     required this.aquarium,
@@ -34,6 +40,8 @@ class AquariumAccordion extends StatelessWidget {
     required this.onToggle,
     required this.onCreatureSelected,
     required this.onDataChanged,
+    this.totalTodos = 0,
+    this.completedTodos = 0,
   });
 
   @override
@@ -79,6 +87,10 @@ class AquariumAccordion extends StatelessWidget {
                       ),
                     ),
                   ),
+                  if (totalTodos > 0) ...[
+                    _buildCompletionBadge(),
+                    const SizedBox(width: AppSpacing.sm),
+                  ],
                   AnimatedRotation(
                     turns: isExpanded ? 0.5 : 0,
                     duration: const Duration(milliseconds: 200),
@@ -102,6 +114,31 @@ class AquariumAccordion extends StatelessWidget {
             duration: const Duration(milliseconds: 200),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCompletionBadge() {
+    final isAllCompleted = completedTodos >= totalTodos;
+    final bgColor = isAllCompleted ? AppColors.success : AppColors.orange500;
+    final label = isAllCompleted
+        ? '완료'
+        : '미완료 ${totalTodos - completedTodos}';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bgColor.withValues(alpha: 0.12),
+        borderRadius: AppRadius.xsBorderRadius,
+      ),
+      child: Text(
+        label,
+        style: AppTextStyles.captionRegular.copyWith(
+          color: bgColor,
+          fontWeight: FontWeight.w600,
+          fontSize: 11,
+          height: 16 / 11,
+        ),
       ),
     );
   }

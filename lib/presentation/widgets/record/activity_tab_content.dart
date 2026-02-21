@@ -75,48 +75,37 @@ class _ActivityTabContentState extends State<ActivityTabContent> {
   }
 
   Future<void> _showAddActivitySheet() async {
-    final selectedTags = await ActivityAddBottomSheet.show(
-      context,
-      selectedDate: widget.selectedDate,
-    );
+    final selectedTag = await ActivityAddBottomSheet.show(context);
+    if (selectedTag == null || !mounted) return;
 
-    if (selectedTags != null && selectedTags.isNotEmpty && mounted) {
-      for (final tag in selectedTags) {
-        await widget.recordViewModel.saveRecord(
-          date: widget.selectedDate,
-          tags: [tag],
-          content: tag.label,
-          isPublic: false,
-          aquariumId: widget.aquariumId,
-          creatureId: widget.creatureId,
-          recordType: RecordType.activity,
-          isCompleted: true,
-        );
-      }
-      widget.onDataChanged();
-      _loadActivities();
-    }
+    await widget.recordViewModel.saveRecord(
+      date: widget.selectedDate,
+      tags: [selectedTag],
+      content: selectedTag.label,
+      isPublic: false,
+      aquariumId: widget.aquariumId,
+      creatureId: widget.creatureId,
+      recordType: RecordType.activity,
+      isCompleted: true,
+    );
+    widget.onDataChanged();
+    _loadActivities();
   }
 
   Future<void> _editActivity(RecordData record) async {
     if (record.id == null) return;
 
-    final selectedTags = await ActivityAddBottomSheet.show(
-      context,
-      selectedDate: widget.selectedDate,
-    );
+    final selectedTag = await ActivityAddBottomSheet.show(context);
+    if (selectedTag == null || !mounted) return;
 
-    if (selectedTags != null && selectedTags.isNotEmpty && mounted) {
-      final newTag = selectedTags.first;
-      final updated = record.copyWith(
-        tags: [newTag],
-        content: newTag.label,
-      );
-      final result = await widget.recordViewModel.updateRecord(updated);
-      if (result != null) {
-        widget.onDataChanged();
-        _loadActivities();
-      }
+    final updated = record.copyWith(
+      tags: [selectedTag],
+      content: selectedTag.label,
+    );
+    final result = await widget.recordViewModel.updateRecord(updated);
+    if (result != null) {
+      widget.onDataChanged();
+      _loadActivities();
     }
   }
 

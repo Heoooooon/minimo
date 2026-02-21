@@ -6,40 +6,41 @@ import 'package:cmore_design_system/theme/app_colors.dart';
 import 'package:cmore_design_system/theme/app_spacing.dart';
 import 'package:cmore_design_system/theme/app_text_styles.dart';
 import '../../viewmodels/record_viewmodel.dart';
-import 'package:cmore_design_system/widgets/confirm_dialog.dart';
 import 'activity_add_bottom_sheet.dart';
+import 'sector_detail_sheet.dart';
 
-/// 체크리스트 아이템 (태그 + 체크 상태 + 저장된 기록 ID)
+/// 체크리스트 아이템 (태그 + 체크 상태 + 메모 + 저장된 기록 ID)
 class ChecklistItem {
   final RecordTag tag;
   bool isChecked;
   String? recordId;
+  String content;
 
-  ChecklistItem({required this.tag, this.isChecked = false, this.recordId});
+  ChecklistItem({
+    required this.tag,
+    this.isChecked = false,
+    this.recordId,
+    this.content = '',
+  });
 }
 
-/// 태그별 아이콘/색상 매핑
-class _TagStyle {
-  final IconData icon;
-  final Color color;
-  const _TagStyle(this.icon, this.color);
-}
-
-const Map<RecordTag, _TagStyle> _tagStyles = {
-  RecordTag.waterChange: _TagStyle(Icons.water_drop, AppColors.brand),
-  RecordTag.feeding: _TagStyle(Icons.restaurant, AppColors.secondary),
-  RecordTag.cleaning: _TagStyle(Icons.cleaning_services, AppColors.success),
-  RecordTag.waterTest: _TagStyle(Icons.science, AppColors.brand),
-  RecordTag.temperatureCheck: _TagStyle(Icons.thermostat, AppColors.secondary),
-  RecordTag.plantCare: _TagStyle(Icons.eco, AppColors.success),
-  RecordTag.maintenance: _TagStyle(Icons.build, AppColors.textSubtle),
-  RecordTag.fishAdded: _TagStyle(Icons.pets, AppColors.brand),
-  RecordTag.medication: _TagStyle(Icons.medical_services, AppColors.error),
+/// 태그별 컬러 매핑
+const Map<RecordTag, Color> _tagColors = {
+  RecordTag.waterChange: AppColors.brand,
+  RecordTag.feeding: Color(0xFFFF9800),
+  RecordTag.cleaning: AppColors.success,
+  RecordTag.waterTest: Color(0xFF7C4DFF),
+  RecordTag.temperatureCheck: Color(0xFFE91E63),
+  RecordTag.plantCare: Color(0xFF4CAF50),
+  RecordTag.maintenance: Color(0xFF607D8B),
+  RecordTag.fishAdded: AppColors.brand,
+  RecordTag.medication: AppColors.error,
 };
 
 /// 할 일 탭 콘텐츠
 ///
-/// RecordType.todo 타입 레코드만 조회/생성하는 체크리스트 뷰
+/// RecordType.todo 타입 레코드만 조회/생성하는 체크리스트 뷰.
+/// 컬러dot + 태그명 + 메모 + 우측 체크박스 디자인.
 class TodoTabContent extends StatefulWidget {
   final String aquariumId;
   final String? aquariumName;
@@ -101,6 +102,7 @@ class _TodoTabContentState extends State<TodoTabContent> {
               tag: record.tags.first,
               isChecked: record.isCompleted,
               recordId: record.id,
+              content: record.content,
             ));
           }
           _checklist = items;
@@ -114,36 +116,38 @@ class _TodoTabContentState extends State<TodoTabContent> {
   }
 
   Future<void> _showAddActivitySheet() async {
-    final selectedTags = await ActivityAddBottomSheet.show(
-      context,
-      selectedDate: widget.selectedDate,
+    // 1단계: 섹터 선택
+    final selectedTag = await ActivityAddBottomSheet.show(context);
+    if (selectedTag == null || !mounted) return;
+
+    // 2단계: 디테일 입력
+    final detail = await SectorDetailSheet.show(context, tag: selectedTag);
+    if (detail == null || !mounted) return;
+
+    // 이미 등록된 태그인지 확인
+    if (_checklist.any((item) => item.tag == detail.tag)) return;
+
+    // 3단계: 레코드 저장
+    final savedRecord = await widget.recordViewModel.saveRecord(
+      date: widget.selectedDate,
+      tags: [detail.tag],
+      content: detail.content.isNotEmpty ? detail.content : detail.tag.label,
+      isPublic: false,
+      aquariumId: widget.aquariumId,
+      creatureId: widget.creatureId,
+      recordType: RecordType.todo,
+      isCompleted: false,
     );
 
-    if (selectedTags != null && selectedTags.isNotEmpty && mounted) {
-      for (final tag in selectedTags) {
-        if (_checklist.any((item) => item.tag == tag)) continue;
-
-        final savedRecord = await widget.recordViewModel.saveRecord(
-          date: widget.selectedDate,
-          tags: [tag],
-          content: tag.label,
-          isPublic: false,
-          aquariumId: widget.aquariumId,
-          creatureId: widget.creatureId,
-          recordType: RecordType.todo,
-          isCompleted: false,
-        );
-
-        if (savedRecord != null && mounted) {
-          setState(() {
-            _checklist.add(ChecklistItem(
-              tag: tag,
-              isChecked: false,
-              recordId: savedRecord.id,
-            ));
-          });
-        }
-      }
+    if (savedRecord != null && mounted) {
+      setState(() {
+        _checklist.add(ChecklistItem(
+          tag: detail.tag,
+          isChecked: false,
+          recordId: savedRecord.id,
+          content: detail.content,
+        ));
+      });
       widget.onDataChanged();
     }
   }
@@ -167,49 +171,12 @@ class _TodoTabContentState extends State<TodoTabContent> {
 
     if (success && mounted) {
       setState(() => item.isChecked = newState);
-
-      if (newState) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${item.tag.label} 완료!',
-              style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.textInverse,
-              ),
-            ),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 1),
-            shape: RoundedRectangleBorder(
-              borderRadius: AppRadius.smBorderRadius,
-            ),
-          ),
-        );
-      }
       widget.onDataChanged();
     }
   }
 
-  void _onReorder(int oldIndex, int newIndex) {
-    setState(() {
-      if (newIndex > oldIndex) newIndex -= 1;
-      final item = _checklist.removeAt(oldIndex);
-      _checklist.insert(newIndex, item);
-    });
-  }
-
   Future<void> _removeItem(int index) async {
     if (index >= _checklist.length) return;
-
-    final confirmed = await ConfirmDialog.show(
-      context,
-      title: '삭제',
-      message: '이 항목을 삭제하시겠습니까?',
-      confirmLabel: '삭제',
-      cancelLabel: '취소',
-      isDestructive: true,
-    );
-    if (confirmed != true) return;
 
     final item = _checklist[index];
     if (item.recordId != null) {
@@ -264,44 +231,34 @@ class _TodoTabContentState extends State<TodoTabContent> {
             ),
           )
         else
-          ReorderableListView.builder(
+          ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: _checklist.length,
-            onReorder: _onReorder,
-            proxyDecorator: (child, index, animation) {
-              return Material(
-                elevation: 2,
-                color: AppColors.backgroundSurface,
-                borderRadius: AppRadius.smBorderRadius,
-                child: child,
-              );
-            },
+            separatorBuilder: (_, _) => const Divider(
+              height: 1,
+              indent: 40,
+              color: AppColors.borderLight,
+            ),
             itemBuilder: (context, index) {
-              final item = _checklist[index];
-              return Column(
-                key: ValueKey(item.recordId ?? index),
-                children: [
-                  _buildChecklistItem(index, item),
-                  if (index < _checklist.length - 1)
-                    const Divider(
-                      height: 1,
-                      indent: 52,
-                      color: AppColors.borderLight,
-                    ),
-                ],
-              );
+              return _buildTodoItem(index, _checklist[index]);
             },
           ),
 
         // 할 일 추가 버튼
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.sm,
+          ),
           child: InkWell(
             onTap: _showAddActivitySheet,
             borderRadius: AppRadius.mdBorderRadius,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 14),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+                vertical: 14,
+              ),
               decoration: const BoxDecoration(
                 color: AppColors.chipPrimaryBg,
                 borderRadius: AppRadius.mdBorderRadius,
@@ -330,70 +287,81 @@ class _TodoTabContentState extends State<TodoTabContent> {
     );
   }
 
-  Widget _buildChecklistItem(int index, ChecklistItem item) {
-    final tagStyle = _tagStyles[item.tag];
+  Widget _buildTodoItem(int index, ChecklistItem item) {
+    final dotColor = _tagColors[item.tag] ?? AppColors.brand;
+    final hasContent = item.content.isNotEmpty && item.content != item.tag.label;
 
-    return InkWell(
-      onTap: () => _toggleItem(index),
-      child: Container(
-        color: item.isChecked ? AppColors.backgroundApp : Colors.transparent,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 14),
-        child: Row(
-          children: [
-            // 드래그 핸들
-            ReorderableDragStartListener(
-              index: index,
-              child: Padding(
-                padding: const EdgeInsets.only(right: AppSpacing.sm),
-                child: Icon(
-                  Icons.drag_handle,
-                  size: 20,
-                  color: AppColors.textHint,
-                ),
-              ),
-            ),
-            _buildCheckbox(item.isChecked),
-            const SizedBox(width: AppSpacing.sm),
-            if (tagStyle != null)
-              Opacity(
-                opacity: item.isChecked ? 0.4 : 1.0,
-                child: Icon(
-                  tagStyle.icon,
-                  size: 18,
-                  color: tagStyle.color,
-                ),
-              ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Text(
-                item.tag.label,
-                style: AppTextStyles.bodyMedium.copyWith(
+    return Dismissible(
+      key: ValueKey(item.recordId ?? 'item_$index'),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 20),
+        color: AppColors.error,
+        child: const Icon(Icons.delete_outline, color: Colors.white, size: 22),
+      ),
+      onDismissed: (_) => _removeItem(index),
+      child: InkWell(
+        onTap: () => _toggleItem(index),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: 12,
+          ),
+          child: Row(
+            children: [
+              // 컬러 dot
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
                   color: item.isChecked
-                      ? AppColors.textHint
-                      : AppColors.textMain,
-                  decoration: item.isChecked
-                      ? TextDecoration.lineThrough
-                      : null,
-                  decorationColor: item.isChecked
-                      ? AppColors.textHint
-                      : null,
+                      ? dotColor.withValues(alpha: 0.3)
+                      : dotColor,
+                  shape: BoxShape.circle,
                 ),
               ),
-            ),
-            IconButton(
-              onPressed: () => _removeItem(index),
-              icon: Icon(
-                Icons.remove_circle_outline,
-                size: 20,
-                color: AppColors.textHint,
+              const SizedBox(width: 12),
+
+              // 태그명 + 메모
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.tag.label,
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: item.isChecked
+                            ? AppColors.textHint
+                            : AppColors.textMain,
+                        fontWeight: FontWeight.w500,
+                        decoration:
+                            item.isChecked ? TextDecoration.lineThrough : null,
+                        decorationColor:
+                            item.isChecked ? AppColors.textHint : null,
+                      ),
+                    ),
+                    if (hasContent) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        item.content,
+                        style: AppTextStyles.captionRegular.copyWith(
+                          color: AppColors.textSubtle,
+                          fontSize: 12,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
+                ),
               ),
-              constraints: const BoxConstraints(
-                minWidth: 40,
-                minHeight: 40,
-              ),
-              padding: EdgeInsets.zero,
-            ),
-          ],
+              const SizedBox(width: 12),
+
+              // 우측 체크박스
+              _buildCheckbox(item.isChecked),
+            ],
+          ),
         ),
       ),
     );

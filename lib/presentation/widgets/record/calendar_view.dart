@@ -22,8 +22,6 @@ class CalendarView extends StatelessWidget {
   final GestureDragStartCallback onDragStart;
   final GestureDragUpdateCallback onDragUpdate;
   final GestureDragEndCallback onDragEnd;
-  final VoidCallback onScheduleAdd;
-
   /// 월 네비게이션 버튼의 opacity (0.0 ~ 1.0)
   final double navButtonOpacity;
 
@@ -43,7 +41,6 @@ class CalendarView extends StatelessWidget {
     required this.onDragStart,
     required this.onDragUpdate,
     required this.onDragEnd,
-    required this.onScheduleAdd,
     required this.navButtonOpacity,
     required this.showNavButtons,
   });
@@ -72,7 +69,7 @@ class CalendarView extends StatelessWidget {
           child: Column(
             children: [
               _buildMonthHeader(),
-              const SizedBox(height: AppSpacing.xxl),
+              const SizedBox(height: AppSpacing.md),
               _buildWeekdayHeader(),
               const SizedBox(height: AppSpacing.sm),
               ClipRect(
@@ -135,23 +132,6 @@ class CalendarView extends StatelessWidget {
                   color: AppColors.textSubtle,
                   size: 24,
                 ),
-              ),
-            ),
-          ),
-          const Spacer(),
-          GestureDetector(
-            onTap: onScheduleAdd,
-            child: Container(
-              width: 32,
-              height: 32,
-              decoration: const BoxDecoration(
-                color: AppColors.chipPrimaryBg,
-                borderRadius: AppRadius.smBorderRadius,
-              ),
-              child: const Icon(
-                Icons.notifications_outlined,
-                color: AppColors.brand,
-                size: 18,
               ),
             ),
           ),

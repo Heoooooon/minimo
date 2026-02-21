@@ -100,15 +100,12 @@ class _RecordAddScreenState extends State<RecordAddScreen> {
 
   /// 할 일 추가 (바텀시트)
   Future<void> _showAddActivitySheet(String aquariumId) async {
-    final selectedTags = await ActivityAddBottomSheet.show(
-      context,
-      selectedDate: _selectedDate,
-    );
+    final selectedTag = await ActivityAddBottomSheet.show(context);
 
-    if (selectedTags != null && selectedTags.isNotEmpty && mounted) {
+    if (selectedTag != null && mounted) {
       setState(() {
         final currentTags = _checkedTagsByAquarium[aquariumId] ?? {};
-        currentTags.addAll(selectedTags);
+        currentTags.add(selectedTag);
         _checkedTagsByAquarium[aquariumId] = currentTags;
       });
     }
